@@ -121,7 +121,7 @@ export default function AddReportPage() {
             let fuelTotalProfit = 0;
 
             fuelSale.readings.forEach((reading, readingIndex) => {
-                const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
+                const saleLitres = Math.max(0, reading.closing - reading.testing - reading.opening);
                 const saleAmount = saleLitres * price;
                 const estProfit = saleLitres * (price - cost);
 
