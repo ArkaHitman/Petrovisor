@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Droplets, Fuel, Database, Trash2, PlusCircle } from 'lucide-react';
 import { Separator } from './ui/separator';
 import type { Settings } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -38,14 +39,26 @@ const setupSchema = z.object({
 export default function SetupWizard() {
   const { finishSetup } = useAppState();
   
-  const form = useForm<z.infer<typeof setupSchema>>({
-    resolver: zodResolver(setupSchema),
-    defaultValues: {
+  const [initialValues] = useState(() => {
+    const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95 };
+    const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88 };
+    const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104 };
+    
+    return {
       pumpName: '',
       nozzleCount: 1,
-      fuels: [{ id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95 }],
-      tanks: [],
-    },
+      fuels: [petrolFuel, dieselFuel, xtraFuel],
+      tanks: [
+        { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0 },
+        { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0 },
+        { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0 },
+      ],
+    }
+  });
+
+  const form = useForm<z.infer<typeof setupSchema>>({
+    resolver: zodResolver(setupSchema),
+    defaultValues: initialValues,
   });
 
   const { fields: fuelFields, append: appendFuel, remove: removeFuel } = useFieldArray({
@@ -58,10 +71,11 @@ export default function SetupWizard() {
     name: "tanks",
   });
   
+  const watchedFuels = form.watch('fuels');
+
   const onSubmit = (data: z.infer<typeof setupSchema>) => {
     const settings: Settings = {
       ...data,
-      // In a real app, nozzle config would be more detailed
       nozzles: [], 
     };
     finishSetup(settings);
@@ -102,9 +116,9 @@ export default function SetupWizard() {
                 <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, and costs.</p>
                 {fuelFields.map((field, index) => (
                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <FormField name={`fuels.${index}.name`} render={({ field }) => <FormItem><FormLabel>Name</FormLabel><Input {...field} /></FormItem>} />
-                    <FormField name={`fuels.${index}.price`} render={({ field }) => <FormItem><FormLabel>Selling Price</FormLabel><Input type="number" {...field} /></FormItem>} />
-                    <FormField name={`fuels.${index}.cost`} render={({ field }) => <FormItem><FormLabel>Cost Price</FormLabel><Input type="number" {...field} /></FormItem>} />
+                    <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 ))}
@@ -118,14 +132,50 @@ export default function SetupWizard() {
                 <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
                 {tankFields.map((field, index) => (
                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <FormField name={`tanks.${index}.name`} render={({ field }) => <FormItem><FormLabel>Tank Name</FormLabel><Input {...field} /></FormItem>} />
-                    <FormField name={`tanks.${index}.fuelId`} render={({ field }) => <FormItem><FormLabel>Fuel</FormLabel><p className="text-sm text-muted-foreground">Dropdown here</p></FormItem>} />
-                    <FormField name={`tanks.${index}.capacity`} render={({ field }) => <FormItem><FormLabel>Capacity (L)</FormLabel><Input type="number" {...field} /></FormItem>} />
-                    <FormField name={`tanks.${index}.initialStock`} render={({ field }) => <FormItem><FormLabel>Current Stock (L)</FormLabel><Input type="number" {...field} /></FormItem>} />
+                    <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField
+                      control={form.control}
+                      name={`tanks.${index}.fuelId`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Fuel</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a fuel" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {watchedFuels.map((fuel) => (
+                                <SelectItem key={fuel.id} value={fuel.id}>
+                                  {fuel.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => <FormItem><FormLabel>Capacity (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => <FormItem><FormLabel>Current Stock (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: '', capacity: 10000, initialStock: 0 })}><PlusCircle size={16} className="mr-2"/> Add Tank</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => appendTank({ 
+                    id: crypto.randomUUID(), 
+                    name: '', 
+                    fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', 
+                    capacity: 10000, 
+                    initialStock: 0 
+                  })}
+                >
+                  <PlusCircle size={16} className="mr-2"/> Add Tank
+                </Button>
               </div>
 
                <Separator />
