@@ -29,19 +29,22 @@ export default function DownloadReportPage() {
     }, 0);
 
     const initialCredit = settings.creditOutstanding || 0;
-    const currentOutstandingCredit = settings.creditHistory.reduce((acc, tx) => {
+    const creditHistory = settings.creditHistory || [];
+    const currentOutstandingCredit = creditHistory.reduce((acc, tx) => {
       if (tx.type === 'given') return acc + tx.amount;
       if (tx.type === 'repaid') return acc - tx.amount;
       return acc;
     }, initialCredit);
 
     const initialBankBalance = settings.initialBankBalance || 0;
-    const currentBankBalance = settings.bankLedger.reduce((acc, tx) => {
+    const bankLedger = settings.bankLedger || [];
+    const currentBankBalance = bankLedger.reduce((acc, tx) => {
       if (tx.type === 'credit') return acc + tx.amount;
       return acc - tx.amount;
     }, initialBankBalance);
 
-    const debtRecovered = settings.miscCollections.reduce((acc, c) => acc + c.amount, 0);
+    const miscCollections = settings.miscCollections || [];
+    const debtRecovered = miscCollections.reduce((acc, c) => acc + c.amount, 0);
 
     const netWorth = totalStockValue + currentOutstandingCredit + debtRecovered + currentBankBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
