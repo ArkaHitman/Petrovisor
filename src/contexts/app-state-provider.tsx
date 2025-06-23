@@ -15,7 +15,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useLocalStorage<AppState>('petrovisor-data', defaultState);
 
   const setSettings = (newSettings: Settings) => {
-    setAppState({ ...appState, settings: newSettings });
+    setAppState((prevState) => ({ ...prevState, settings: newSettings }));
   };
   
   const finishSetup = (settings: Settings) => {
@@ -26,10 +26,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const resetApp = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('petrovisor-data');
+      // Instead of reloading, just reset the state which will trigger UI update
+      setAppState(defaultState);
+      // Let the component redirect or handle the UI change.
+      // A hard reload can be jarring.
+      window.location.href = '/';
+    }
+  };
+
   const value = {
     ...appState,
     setSettings,
     finishSetup,
+    resetApp,
   };
 
   return (

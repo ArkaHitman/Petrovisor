@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Droplets, Fuel, Database, Trash2, PlusCircle, Landmark } from 'lucide-react';
 import { Separator } from './ui/separator';
-import type { Settings } from '@/lib/types';
+import type { Settings, NozzlesPerFuel } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const fuelSchema = z.object({
@@ -36,7 +36,13 @@ const setupSchema = z.object({
   initialBankBalance: z.coerce.number().optional(),
   creditOutstanding: z.coerce.number().optional(),
   debtRecovered: z.coerce.number().optional(),
-  nozzleCount: z.coerce.number().int().min(1, 'Must have at least one nozzle.'),
+  nozzlesPerFuel: z.object({
+    petrol: z.coerce.number().int().min(0).default(0),
+    diesel: z.coerce.number().int().min(0).default(0),
+    xtra: z.coerce.number().int().min(0).default(0),
+  }).refine(data => data.petrol + data.diesel + data.xtra > 0, {
+      message: "At least one nozzle is required in total."
+  }),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
   tanks: z.array(tankSchema).min(1, 'At least one tank is required.'),
 });
@@ -56,7 +62,11 @@ export default function SetupWizard() {
       initialBankBalance: 100000,
       creditOutstanding: 0,
       debtRecovered: 0,
-      nozzleCount: 1,
+      nozzlesPerFuel: {
+          petrol: 1,
+          diesel: 1,
+          xtra: 0,
+      },
       fuels: [petrolFuel, dieselFuel, xtraFuel],
       tanks: [
         { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0 },
@@ -84,9 +94,21 @@ export default function SetupWizard() {
   const watchedFuels = form.watch('fuels');
 
   const onSubmit = (data: z.infer<typeof setupSchema>) => {
+    
+    const nozzlesPerFuel: NozzlesPerFuel = {};
+    const petrolFuel = data.fuels.find(f => f.name.toLowerCase() === 'petrol');
+    const dieselFuel = data.fuels.find(f => f.name.toLowerCase() === 'diesel');
+    const xtraFuel = data.fuels.find(f => f.name.toLowerCase() === 'xtra');
+
+    if (petrolFuel) nozzlesPerFuel[petrolFuel.id] = data.nozzlesPerFuel.petrol;
+    if (dieselFuel) nozzlesPerFuel[dieselFuel.id] = data.nozzlesPerFuel.diesel;
+    if (xtraFuel) nozzlesPerFuel[xtraFuel.id] = data.nozzlesPerFuel.xtra;
+    
     const settings: Settings = {
       ...data,
-      nozzles: [], 
+      theme: 'light',
+      fuelPriceHistory: [],
+      nozzlesPerFuel,
     };
     finishSetup(settings);
   };
@@ -204,19 +226,16 @@ export default function SetupWizard() {
 
                <Separator />
                
-              <FormField
-                control={form.control}
-                name="nozzleCount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Total Number of Nozzles</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div>
+                <h3 className="text-lg font-medium font-headline">Nozzles Per Fuel Type</h3>
+                 <p className="text-sm text-muted-foreground mb-4">Enter the number of nozzles for each fuel type.</p>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="nozzlesPerFuel.petrol" render={({ field }) => <FormItem><FormLabel>Petrol Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name="nozzlesPerFuel.diesel" render={({ field }) => <FormItem><FormLabel>Diesel Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name="nozzlesPerFuel.xtra" render={({ field }) => <FormItem><FormLabel>Xtra Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                 </div>
+                 {form.formState.errors.nozzlesPerFuel && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.nozzlesPerFuel.message}</p>}
+              </div>
 
               <Button type="submit" className="w-full bg-accent hover:bg-accent/90">Finish Setup</Button>
             </form>
