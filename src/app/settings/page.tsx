@@ -168,10 +168,8 @@ export default function SettingsPage() {
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 animate-fadeInScaleUp" aria-labelledby="settings-modal-title">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle id="settings-modal-title" className="font-headline text-2xl font-bold text-primary">Settings</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 animate-fadeInScaleUp">
+        <DialogTitle className="p-6 pb-0 text-center sm:text-left font-headline text-2xl font-bold text-primary">Settings</DialogTitle>
 
         <div className="px-6 space-y-4">
             <Accordion type="multiple" defaultValue={['general']} className="w-full">
