@@ -8,9 +8,10 @@ interface StatCardProps {
   description?: string;
   icon: LucideIcon;
   className?: string;
+  valueClassName?: string;
 }
 
-export default function StatCard({ title, value, description, icon: Icon, className }: StatCardProps) {
+export default function StatCard({ title, value, description, icon: Icon, className, valueClassName }: StatCardProps) {
   return (
     <Card className={cn("shadow-sm hover:shadow-md transition-shadow", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -18,7 +19,7 @@ export default function StatCard({ title, value, description, icon: Icon, classN
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold font-headline">{value}</div>
+        <div className={cn("text-2xl font-bold font-headline", valueClassName)}>{value}</div>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>
