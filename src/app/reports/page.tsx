@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-import { Eye, PlusCircle, Trash2 } from 'lucide-react';
+import { Eye, PlusCircle, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -53,7 +53,7 @@ export default function ReportsPage() {
                           <TableHead>Total Sales</TableHead>
                           <TableHead>Est. Profit</TableHead>
                           <TableHead>Net Cash</TableHead>
-                          <TableHead className="w-[100px]">Actions</TableHead>
+                          <TableHead className="w-[120px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -63,9 +63,14 @@ export default function ReportsPage() {
                             <TableCell>{formatCurrency(report.totalSales)}</TableCell>
                             <TableCell>{formatCurrency(report.estProfit)}</TableCell>
                             <TableCell>{formatCurrency(report.netCash)}</TableCell>
-                            <TableCell className="flex gap-2">
+                            <TableCell className="flex gap-1">
                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedReport(report)}>
                                  <Eye className="h-4 w-4" />
+                               </Button>
+                               <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                                  <Link href={`/reports/add?id=${report.id}`}>
+                                      <Pencil className="h-4 w-4" />
+                                  </Link>
                                </Button>
                                <AlertDialog>
                                   <AlertDialogTrigger asChild>

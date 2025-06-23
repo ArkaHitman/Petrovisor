@@ -10,7 +10,7 @@ import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, getFuelPriceForDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -44,7 +44,13 @@ const fuelSaleSchema = z.object({
 
 const weeklyReportSchema = z.object({
     id: z.string(),
-    endDate: z.string().min(1, "Week ending date is required"),
+    endDate: z.string().min(1, "Week ending date is required").refine((date) => {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // Allow today
+        return parseISO(date) <= today;
+    }, {
+        message: "Week ending date cannot be in the future."
+    }),
     bankDeposits: z.coerce.number().min(0),
     creditSales: z.coerce.number().min(0),
     fuelSales: z.array(fuelSaleSchema),
@@ -62,28 +68,35 @@ export default function AddReportPage() {
     
     const form = useForm<z.infer<typeof weeklyReportSchema>>({
         resolver: zodResolver(weeklyReportSchema),
-        defaultValues: existingReport || {
+        defaultValues: existingReport ? {
+            ...existingReport,
+            fuelSales: settings?.fuels.map(fuel => {
+                const existingFuelSale = existingReport.fuelSales.find(fs => fs.fuelId === fuel.id);
+                if (existingFuelSale) return existingFuelSale;
+                return {
+                    fuelId: fuel.id,
+                    readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => ({
+                        nozzleId: i + 1, opening: 0, closing: 0, testing: 0, saleLitres: 0, saleAmount: 0, estProfit: 0,
+                    })),
+                    totalLitres: 0, totalSales: 0, estProfit: 0, pricePerLitre: 0, costPerLitre: 0,
+                };
+            }) || []
+        } : {
             id: crypto.randomUUID(),
             endDate: format(new Date(), 'yyyy-MM-dd'),
             bankDeposits: 0,
             creditSales: 0,
             fuelSales: settings?.fuels.map(fuel => ({
                 fuelId: fuel.id,
-                readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
-                    const previousWeekEndDate = format(subDays(new Date(), 7), 'yyyy-MM-dd');
-                    const previousReport = settings.weeklyReports?.find(r => r.endDate === previousWeekEndDate);
-                    const previousReading = previousReport?.fuelSales.find(fs => fs.fuelId === fuel.id)?.readings[i];
-                    
-                    return {
-                        nozzleId: i + 1,
-                        opening: previousReading?.closing || 0,
-                        closing: 0,
-                        testing: 0,
-                        saleLitres: 0,
-                        saleAmount: 0,
-                        estProfit: 0,
-                    }
-                }),
+                readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => ({
+                    nozzleId: i + 1,
+                    opening: 0,
+                    closing: 0,
+                    testing: 0,
+                    saleLitres: 0,
+                    saleAmount: 0,
+                    estProfit: 0,
+                })),
                 totalLitres: 0,
                 totalSales: 0,
                 estProfit: 0,
@@ -103,6 +116,46 @@ export default function AddReportPage() {
     const watchedBankDeposits = form.watch('bankDeposits');
     const watchedCreditSales = form.watch('creditSales');
 
+    // Pre-fill opening meters on date change for new reports
+    useEffect(() => {
+        if (reportId || !settings || !settings.weeklyReports || settings.weeklyReports.length === 0) {
+            return;
+        }
+
+        const previousReport = [...settings.weeklyReports]
+            .sort((a, b) => b.endDate.localeCompare(a.endDate))
+            .find(r => r.endDate < watchedEndDate);
+        
+        const fuelSales = form.getValues('fuelSales');
+
+        if (!previousReport) {
+            fuelSales.forEach((fuelSale, fuelIndex) => {
+                fuelSale.readings.forEach((_, readingIndex) => {
+                    form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, 0);
+                });
+            });
+            return;
+        }
+
+        fuelSales.forEach((fuelSale, fuelIndex) => {
+            const previousFuelSale = previousReport.fuelSales.find(fs => fs.fuelId === fuelSale.fuelId);
+            
+            fuelSale.readings.forEach((reading, readingIndex) => {
+                if (previousFuelSale) {
+                    const previousReading = previousFuelSale.readings.find(pr => pr.nozzleId === reading.nozzleId);
+                    if (previousReading) {
+                        form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, previousReading.closing);
+                    } else {
+                        form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, 0);
+                    }
+                } else {
+                     form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, 0);
+                }
+            });
+        });
+
+    }, [reportId, watchedEndDate, settings, form]);
+
     useEffect(() => {
         if (!settings) return;
 
@@ -111,7 +164,7 @@ export default function AddReportPage() {
             if (!fuel) return;
 
             const { price } = getFuelPriceForDate(fuel.id, watchedEndDate, settings.fuelPriceHistory, fuel.price);
-            const cost = fuel.cost; // Simplified cost model
+            const cost = fuel.cost;
 
             form.setValue(`fuelSales.${fuelIndex}.pricePerLitre`, price);
             form.setValue(`fuelSales.${fuelIndex}.costPerLitre`, cost);
@@ -121,7 +174,7 @@ export default function AddReportPage() {
             let fuelTotalProfit = 0;
 
             fuelSale.readings.forEach((reading, readingIndex) => {
-                const saleLitres = Math.max(0, reading.closing - reading.testing - reading.opening);
+                const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
                 const saleAmount = saleLitres * price;
                 const estProfit = saleLitres * (price - cost);
 
