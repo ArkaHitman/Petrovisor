@@ -5,28 +5,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
-import { Landmark, Database, Wallet, ShieldCheck, TrendingUp, Droplets } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-
-// Mock data for the chart, as real weekly report data isn't available yet.
-const weeklySalesData = [
-  { fuel: 'Petrol', sales: 45000, profit: 4500 },
-  { fuel: 'Diesel', sales: 32000, profit: 3000 },
-  { fuel: 'Xtra', sales: 15000, profit: 1800 },
-];
-
-const chartConfig = {
-  sales: {
-    label: 'Sales',
-    color: 'hsl(var(--chart-2))',
-  },
-  profit: {
-    label: 'Profit',
-    color: 'hsl(var(--chart-1))',
-  },
-} satisfies ChartConfig;
-
+import { Landmark, Database, Wallet, ShieldCheck, Droplets } from 'lucide-react';
 
 export default function Dashboard() {
   const { settings } = useAppState();
@@ -54,8 +33,6 @@ export default function Dashboard() {
     if (percentage < 50) return 'bg-chart-4'; // Yellow-ish
     return 'bg-chart-2'; // Green-ish
   };
-
-  const hasWeeklyReport = false; // Placeholder
 
   return (
     <>
@@ -94,49 +71,7 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="font-headline flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Weekly Sales Overview
-              </CardTitle>
-              <CardDescription>A visual summary of the last weekly report.</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
-              {hasWeeklyReport ? (
-                <ChartContainer config={chartConfig} className="h-64 w-full">
-                  <BarChart data={weeklySalesData} accessibilityLayer>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="fuel"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                      stroke="#888888"
-                    />
-                    <YAxis
-                      tickFormatter={(value) => `₹${Number(value) / 1000}k`}
-                      stroke="#888888"
-                    />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent indicator="dot" />}
-                    />
-                    <Legend />
-                    <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
-                    <Bar dataKey="profit" fill="var(--color-profit)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex h-64 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed">
-                  <p className="text-muted-foreground">No weekly reports yet.</p>
-                  <p className="text-sm text-muted-foreground">Sales chart will appear here once you add a report.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="font-headline">Tank Levels (Initial)</CardTitle>
