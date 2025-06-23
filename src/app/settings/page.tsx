@@ -99,7 +99,7 @@ export default function SettingsPage() {
   }
 
   const handleAddPrice = () => {
-    if (localSettings?.fuelPriceHistory.some(p => p.date === newPriceDate)) {
+    if (localSettings?.fuelPriceHistory?.some(p => p.date === newPriceDate)) {
         toast({ title: "Error", description: "A price entry for this date already exists.", variant: "destructive" });
         return;
     }
@@ -116,7 +116,7 @@ export default function SettingsPage() {
 
     setLocalSettings(prev => {
         if (!prev) return null;
-        const updatedHistory = [...prev.fuelPriceHistory, newEntry].sort((a,b) => b.date.localeCompare(a.date));
+        const updatedHistory = [...(prev.fuelPriceHistory || []), newEntry].sort((a,b) => b.date.localeCompare(a.date));
         return { ...prev, fuelPriceHistory: updatedHistory };
     });
   };
@@ -124,7 +124,7 @@ export default function SettingsPage() {
   const handleDeletePrice = (id: string) => {
     setLocalSettings(prev => {
         if (!prev) return null;
-        return { ...prev, fuelPriceHistory: prev.fuelPriceHistory.filter(p => p.id !== id) };
+        return { ...prev, fuelPriceHistory: (prev.fuelPriceHistory || []).filter(p => p.id !== id) };
     });
   };
 
@@ -223,7 +223,7 @@ export default function SettingsPage() {
                         <div className="space-y-2">
                             <h4 className="font-semibold">Existing Prices</h4>
                              <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                                {localSettings.fuelPriceHistory.length > 0 ? localSettings.fuelPriceHistory.map(entry => (
+                                {localSettings.fuelPriceHistory && localSettings.fuelPriceHistory.length > 0 ? localSettings.fuelPriceHistory.map(entry => (
                                     <div key={entry.id} className="flex justify-between items-center p-2 border rounded-md text-sm">
                                         <span>{format(parseISO(entry.date), 'dd MMM yyyy')}</span>
                                         <div className="flex items-center gap-4">
