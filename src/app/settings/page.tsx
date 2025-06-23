@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Fuel, FuelPriceEntry, Settings, Tank } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { PlusCircle, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -156,6 +157,101 @@ export default function SettingsPage() {
     toast({ title: "Data Exported", description: "Your data has been downloaded." });
   };
   
+    const handleDownloadLog = () => {
+        if (!settings) {
+            toast({ title: 'Error', description: 'Application data not loaded yet.', variant: 'destructive' });
+            return;
+        }
+
+        let logEntries: { date: string; category: string; description: string; amount: string; }[] = [];
+
+        // Bank Transactions
+        settings.bankLedger?.forEach(tx => logEntries.push({
+            date: tx.date,
+            category: 'Bank Ledger',
+            description: tx.description,
+            amount: tx.type === 'credit' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
+        }));
+
+        // Manager Transactions
+        settings.managerLedger?.forEach(tx => logEntries.push({
+            date: tx.date,
+            category: 'Manager Ledger',
+            description: tx.description,
+            amount: tx.type === 'payment_from_manager' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
+        }));
+
+        // Misc Collections
+        settings.miscCollections?.forEach(c => logEntries.push({
+            date: c.date,
+            category: 'Misc Collection',
+            description: c.description,
+            amount: formatCurrency(c.amount),
+        }));
+
+        // Fuel Purchases
+        settings.purchases?.forEach(p => {
+            const fuel = settings.fuels.find(f => f.id === p.fuelId);
+            logEntries.push({
+                date: p.date,
+                category: 'Fuel Purchase',
+                description: `Purchased ${p.quantity}L of ${fuel?.name || 'fuel'}. Invoice: ${p.invoiceNumber || 'N/A'}`,
+                amount: `(${formatCurrency(p.amount)})`,
+            });
+        });
+        
+        // Credit History
+        settings.creditHistory?.forEach(c => {
+           logEntries.push({
+               date: c.date,
+               category: 'Credit Register',
+               description: c.type === 'given' ? 'Credit extended to customer' : `Credit repayment received via ${c.repaymentDestination}`,
+               amount: formatCurrency(c.amount),
+           })
+        });
+        
+        // Price History
+        settings.fuelPriceHistory?.forEach(p => {
+            const prices = Object.entries(p.prices).map(([fid, price]) => {
+                const fuel = settings.fuels.find(f => f.id === fid);
+                return `${fuel?.name || 'Unknown'}: ${price}`;
+            }).join('; ');
+            logEntries.push({
+                date: p.date,
+                category: 'Settings Change',
+                description: `Fuel prices updated - ${prices}`,
+                amount: 'N/A'
+            });
+        });
+
+        // Sort by date descending
+        logEntries.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+
+        // Generate CSV
+        const headers = ['Date', 'Category', 'Description', 'Amount (INR)'];
+        const csvRows = [
+            headers.join(','),
+            ...logEntries.map(row => [
+                row.date,
+                `"${row.category}"`,
+                `"${row.description.replace(/"/g, '""')}"`,
+                `"${row.amount}"`
+            ].join(','))
+        ];
+        
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `petrovisor_log_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast({ title: 'Success', description: 'Log report download initiated!' });
+    };
+
   const handleFactoryReset = () => {
     resetApp();
   };
@@ -306,6 +402,7 @@ export default function SettingsPage() {
                     <AccordionContent className="pt-2 space-y-4">
                          <div className="flex flex-wrap gap-4">
                             <Button variant="outline" onClick={handleExportData}>Export All Data</Button>
+                            <Button variant="outline" onClick={handleDownloadLog}>Download Log Report</Button>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive">Factory Reset Application</Button>
