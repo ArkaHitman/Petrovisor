@@ -29,10 +29,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (settings) {
-      // Deep copy settings to local state for editing
-      setLocalSettings(JSON.parse(JSON.stringify(settings)));
+      // Deep copy settings to local state and ensure data integrity
+      const newLocalSettings = JSON.parse(JSON.stringify(settings));
+      
+      if (!newLocalSettings.fuelPriceHistory) {
+        newLocalSettings.fuelPriceHistory = [];
+      }
+      if (!newLocalSettings.nozzlesPerFuel) {
+        newLocalSettings.nozzlesPerFuel = {};
+      }
+
+      setLocalSettings(newLocalSettings);
+
       const initialPrices: Record<string, number> = {};
-      settings.fuels.forEach(fuel => {
+      newLocalSettings.fuels.forEach((fuel: Fuel) => {
         initialPrices[fuel.id] = fuel.price;
       });
       setNewPrices(initialPrices);
