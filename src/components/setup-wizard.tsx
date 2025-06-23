@@ -34,9 +34,7 @@ const setupSchema = z.object({
   bankName: z.string().optional(),
   sanctionedAmount: z.coerce.number().min(0, 'Must be positive').optional(),
   initialBankBalance: z.coerce.number().optional(),
-  creditOutstanding: z.coerce.number().optional(),
   managerInitialBalance: z.coerce.number().optional(),
-  debtRecovered: z.coerce.number().optional(),
   nozzlesPerFuel: z.object({
     petrol: z.coerce.number().int().min(0).default(0),
     diesel: z.coerce.number().int().min(0).default(0),
@@ -61,9 +59,7 @@ export default function SetupWizard() {
       bankName: '',
       sanctionedAmount: 500000,
       initialBankBalance: 100000,
-      creditOutstanding: 0,
       managerInitialBalance: 0,
-      debtRecovered: 0,
       nozzlesPerFuel: {
           petrol: 1,
           diesel: 1,
@@ -115,6 +111,7 @@ export default function SetupWizard() {
       bankLedger: [],
       creditHistory: [],
       miscCollections: [],
+      weeklyReports: [],
     };
     finishSetup(settings);
   };
@@ -156,9 +153,7 @@ export default function SetupWizard() {
                   <FormField control={form.control} name="bankName" render={({ field }) => <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., State Bank of India" {...field} /></FormControl><FormMessage /></FormItem>} />
                   <FormField control={form.control} name="sanctionedAmount" render={({ field }) => <FormItem><FormLabel>Sanctioned Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                   <FormField control={form.control} name="initialBankBalance" render={({ field }) => <FormItem><FormLabel>Opening Bank Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="creditOutstanding" render={({ field }) => <FormItem><FormLabel>Opening Credit Outstanding</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                   <FormField control={form.control} name="managerInitialBalance" render={({ field }) => <FormItem><FormLabel>Opening Manager Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="debtRecovered" render={({ field }) => <FormItem><FormLabel>Opening Debt Recovered</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                 </div>
               </div>
               
