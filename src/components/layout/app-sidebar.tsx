@@ -20,6 +20,11 @@ import {
   Settings,
   CircleHelp,
   Droplets,
+  Briefcase,
+  HandCoins,
+  ReceiptText,
+  Banknote,
+  Download,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -29,6 +34,11 @@ const menuItems = [
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
   { href: '/tanks', label: 'Live Tank Status', icon: Database },
   { href: '/bank', label: 'Bank Ledger', icon: Landmark },
+  { href: '/manager-ledger', label: 'Manager Ledger', icon: Briefcase },
+  { href: '/misc-collection', label: 'Misc Collection', icon: HandCoins },
+  { href: '/credit', label: 'Overall Credit', icon: ReceiptText },
+  { href: '/misc-payments', label: 'Misc Payments', icon: Banknote },
+  { href: '/reports', label: 'Download Report', icon: Download },
 ];
 
 const AppSidebar = () => {
@@ -48,7 +58,7 @@ const AppSidebar = () => {
       <SidebarContent>
         <SidebarMenu>
           {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
+            <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 asChild
                 isActive={pathname === item.href}

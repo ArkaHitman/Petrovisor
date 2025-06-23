@@ -3,25 +3,10 @@
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from './ui/card';
-import NavItemCard from './nav-item-card';
-import { Banknote, BookOpen, Briefcase, CalendarPlus, Download, Fuel, HandCoins, Landmark, ReceiptText, Database } from 'lucide-react';
 import FloatingCashDisplay from './floating-cash-display';
 
 export default function Dashboard() {
   const { settings } = useAppState();
-
-  const quickActions = [
-    { href: '#', icon: CalendarPlus, title: 'Add Weekly Report', description: 'Enter meter readings & deposits.' },
-    { href: '#', icon: BookOpen, title: 'View All Reports', description: 'Browse past weekly reports.' },
-    { href: '/purchases', icon: Fuel, title: 'Fuel Purchases', description: 'Record new fuel deliveries.' },
-    { href: '/tanks', icon: Database, title: 'Tank Status', description: 'View current fuel stock levels.' },
-    { href: '/bank', icon: Landmark, title: 'Bank Ledger', description: 'View and manage bank transactions.' },
-    { href: '#', icon: Briefcase, title: 'Manager Ledger', description: 'Track financial dealings with a manager.' },
-    { href: '#', icon: HandCoins, title: 'Misc Collection', description: 'Record other cash inflows.' },
-    { href: '#', icon: ReceiptText, title: 'Overall Credit', description: 'Manage credit given and received.' },
-    { href: '#', icon: Banknote, title: 'Misc Payments', description: 'Record online/bank expenses.' },
-    { href: '#', icon: Download, title: 'Download Report', description: 'Generate a PDF summary statement.' },
-  ];
 
   if (!settings) {
     return null; // Or a loading skeleton
@@ -151,14 +136,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="font-headline text-2xl font-bold">Quick Actions</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {quickActions.map(action => (
-                <NavItemCard key={action.title} {...action} />
-            ))}
-        </div>
-      </div>
     </div>
     <FloatingCashDisplay />
     </>
