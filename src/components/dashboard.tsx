@@ -23,6 +23,7 @@ export default function Dashboard() {
     remainingLimit,
     latestMonthlyReport,
     recentManagerTransactions,
+    recentPurchases,
   } = useMemo(() => {
     if (!settings) {
       return {
@@ -34,12 +35,13 @@ export default function Dashboard() {
         remainingLimit: 0,
         latestMonthlyReport: null,
         recentManagerTransactions: [],
+        recentPurchases: [],
       };
     }
 
     const totalStockValue = settings.tanks.reduce((total, tank) => {
       const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-      // NOTE: This uses initialStock. For live stock value, we'll need a different calculation.
+      // NOTE: This uses initialStock which is now the "live" stock.
       return total + (tank.initialStock * (fuel?.cost || 0));
     }, 0);
 
@@ -68,8 +70,9 @@ export default function Dashboard() {
     const latestMonthlyReport = settings.monthlyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
     
     const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
+    const recentPurchases = (settings.purchases || []).slice(0, 5);
 
-    return { totalStockValue, currentOutstandingCredit, currentBankBalance, totalMiscCollections, netWorth, remainingLimit, latestMonthlyReport, recentManagerTransactions };
+    return { totalStockValue, currentOutstandingCredit, currentBankBalance, totalMiscCollections, netWorth, remainingLimit, latestMonthlyReport, recentManagerTransactions, recentPurchases };
   }, [settings]);
 
   if (!settings) {
@@ -138,7 +141,7 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline">Tank Overview</CardTitle>
-                <CardDescription>Initial stock levels from settings.</CardDescription>
+                <CardDescription>Current live stock levels.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6">
                 {settings.tanks.map(tank => {
@@ -175,9 +178,35 @@ export default function Dashboard() {
                     <ShoppingCart className="w-6 h-6 text-muted-foreground"/>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center justify-center h-24 text-muted-foreground">
-                        <p>No purchase data available yet.</p>
-                    </div>
+                    {recentPurchases.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Fuel</TableHead>
+                                    <TableHead className="text-right">Qty</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {recentPurchases.map(p => {
+                                    const fuel = settings.fuels.find(f => f.id === p.fuelId);
+                                    return (
+                                        <TableRow key={p.id}>
+                                            <TableCell>{formatDate(parseISO(p.date), 'dd MMM')}</TableCell>
+                                            <TableCell className="font-medium">{fuel?.name || 'N/A'}</TableCell>
+                                            <TableCell className="text-right">{p.quantity.toLocaleString()}L</TableCell>
+                                            <TableCell className="text-right font-semibold">{formatCurrency(p.amount)}</TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                       <div className="flex items-center justify-center h-24 text-muted-foreground">
+                            <p>No purchase data available yet.</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
           </div>

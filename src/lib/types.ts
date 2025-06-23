@@ -43,8 +43,8 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment';
-  sourceId?: string; // e.g., the ID of the monthly report
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase';
+  sourceId?: string; // e.g., the ID of the monthly report or purchase
 }
 
 export interface CreditHistoryEntry {
@@ -60,6 +60,16 @@ export interface MiscCollection {
     date: string;
     description: string;
     amount: number;
+}
+
+export interface FuelPurchase {
+  id: string;
+  date: string; // YYYY-MM-DD
+  tankId: string;
+  fuelId: string;
+  quantity: number; // in Litres
+  amount: number; // total cost
+  invoiceNumber?: string;
 }
 
 export interface MeterReading {
@@ -109,6 +119,7 @@ export interface Settings {
   nozzlesPerFuel: NozzlesPerFuel;
   fuelPriceHistory: FuelPriceEntry[];
   monthlyReports: MonthlyReport[];
+  purchases: FuelPurchase[];
 
   // New ledgers and histories
   managerLedger: ManagerTransaction[];
@@ -147,4 +158,8 @@ export interface AppStateContextType extends AppState {
   // Monthly Reports
   addOrUpdateMonthlyReport: (report: MonthlyReport) => void;
   deleteMonthlyReport: (reportId: string) => void;
+
+  // Fuel Purchases
+  addFuelPurchase: (purchase: Omit<FuelPurchase, 'id'>) => void;
+  deleteFuelPurchase: (purchaseId: string) => void;
 }

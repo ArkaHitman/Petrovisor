@@ -111,7 +111,8 @@ export default function SetupWizard() {
       bankLedger: [],
       creditHistory: [],
       miscCollections: [],
-      weeklyReports: [],
+      monthlyReports: [],
+      purchases: [],
     };
     finishSetup(settings);
   };

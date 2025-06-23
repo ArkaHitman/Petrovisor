@@ -13,8 +13,8 @@ export default function FloatingCashDisplay() {
     // Total cash from miscellaneous collections (includes cash credit repayments)
     const collectionsTotal = settings.miscCollections?.reduce((sum, c) => sum + c.amount, 0) || 0;
     
-    // Total cash generated from all weekly reports
-    const totalNetCashFromSales = settings.weeklyReports?.reduce((sum, r) => sum + r.netCash, 0) || 0;
+    // Total cash generated from all monthly reports
+    const totalNetCashFromSales = settings.monthlyReports?.reduce((sum, r) => sum + r.netCash, 0) || 0;
 
     // This represents the cumulative cash available from all sources tracked.
     // NOTE: This does not account for cash expenses, as that feature doesn't exist yet.
