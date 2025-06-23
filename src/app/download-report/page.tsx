@@ -24,7 +24,6 @@ export default function DownloadReportPage() {
 
     const totalStockValue = settings.tanks.reduce((total, tank) => {
       const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-      // NOTE: Using cost for stock value based on initial stock.
       return total + (tank.initialStock * (fuel?.cost || 0));
     }, 0);
 
@@ -70,38 +69,64 @@ export default function DownloadReportPage() {
     const doc = new jsPDF();
     const today = new Date();
     const formattedDate = formatDate(today, 'dd MMM yyyy');
+    const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Header
+    // Theme Colors
+    const primaryColor = '#008080'; // Teal
+    const lightGrey = '#F0F2F5';
+    const whiteColor = '#FFFFFF';
+    const positiveColor = '#22c55e'; // green-500
+    const negativeColor = '#ef4444'; // red-500
+
+    // --- Header ---
+    doc.setFillColor(primaryColor);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    
+    doc.setTextColor(whiteColor);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(settings.pumpName || 'Petro Manage Station', 14, 22);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Financial & Stock Summary', 14, 30);
+    doc.setFontSize(18);
+    doc.text(settings.pumpName || 'PetroVisor Station', 14, 18);
+    
     doc.setFontSize(10);
-    doc.text(`Report Generated: ${formattedDate}`, 14, 36);
-
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${formattedDate}`, pageWidth - 14, 18, { align: 'right' });
+    
     let lastY = 45;
 
-    // Financial Position
+    // --- Financial Position ---
+    const financialBody = [
+        ['Sanctioned Amount', { content: formatCurrency(financialData.sanctionedAmount), styles: { halign: 'right' } }],
+        ['Total Stock Value (Cost)', { content: formatCurrency(financialData.totalStockValue), styles: { halign: 'right' } }],
+        ['Credit Outstanding', { content: formatCurrency(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
+        ['Miscellaneous Collections', { content: formatCurrency(financialData.totalMiscCollections), styles: { halign: 'right' } }],
+        ['Current Bank Balance', { content: formatCurrency(financialData.currentBankBalance), styles: { halign: 'right' } }],
+        [
+            { content: 'Net Worth', styles: { fontStyle: 'bold', fillColor: lightGrey } },
+            { content: formatCurrency(financialData.netWorth), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } },
+        ],
+        [
+            { content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
+            { content: formatCurrency(financialData.remainingLimit), styles: { fontStyle: 'bold', halign: 'right', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
+        ],
+    ];
+
     autoTable(doc, {
-      startY: lastY,
-      head: [['Financial Position']],
-      body: [
-        ['Sanctioned Amount', formatCurrency(financialData.sanctionedAmount)],
-        ['Total Stock Value (Cost)', formatCurrency(financialData.totalStockValue)],
-        ['Credit Outstanding', formatCurrency(financialData.currentOutstandingCredit)],
-        ['Miscellaneous Collections', formatCurrency(financialData.totalMiscCollections)],
-        ['Current Bank Balance', formatCurrency(financialData.currentBankBalance)],
-        [{ content: 'Net Worth', styles: { fontStyle: 'bold' } }, { content: formatCurrency(financialData.netWorth), styles: { fontStyle: 'bold' } }],
-        ['Remaining Limit', formatCurrency(financialData.remainingLimit)],
-      ],
-      theme: 'striped',
-      headStyles: { fillColor: [0, 128, 128] }, // Teal color
+        startY: lastY,
+        head: [['Financial Position', 'Amount']],
+        body: financialBody,
+        theme: 'grid',
+        headStyles: { 
+            fillColor: primaryColor, 
+            textColor: whiteColor,
+            fontStyle: 'bold'
+        },
+        columnStyles: {
+            0: { fontStyle: 'bold' },
+        },
     });
     lastY = (doc as any).lastAutoTable.finalY + 10;
 
-    // Fuel Stock Position
+    // --- Fuel Stock Position ---
     autoTable(doc, {
       startY: lastY,
       head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost)']],
@@ -110,45 +135,54 @@ export default function DownloadReportPage() {
         const stockValue = tank.initialStock * (fuel?.cost || 0);
         return [
           fuel?.name || 'Unknown',
-          `${tank.initialStock.toLocaleString()} L`,
-          formatCurrency(stockValue),
+          { content: `${tank.initialStock.toLocaleString()} L`, styles: { halign: 'right' } },
+          { content: formatCurrency(stockValue), styles: { halign: 'right' } },
         ];
       }),
-      theme: 'grid',
-      headStyles: { fillColor: [0, 128, 128] },
+      theme: 'striped',
+      headStyles: { 
+          fillColor: primaryColor,
+          textColor: whiteColor,
+          fontStyle: 'bold'
+      },
     });
     lastY = (doc as any).lastAutoTable.finalY + 10;
     
-    // Latest Monthly Sales Summary
+    // --- Latest Monthly Sales Summary ---
     if (settings.monthlyReports && settings.monthlyReports.length > 0) {
-      // Assuming reports are sorted descending by date
       const latestReport = settings.monthlyReports[0];
       autoTable(doc, {
         startY: lastY,
-        head: [[`Latest Monthly Sales Summary (Month Ending: ${formatDate(parseISO(latestReport.endDate), 'dd MMM yyyy')})`]],
+        head: [[`Latest Sales (Ending: ${formatDate(parseISO(latestReport.endDate), 'dd MMM yyyy')})`, 'Amount']],
         body: [
-            ['Total Sales', formatCurrency(latestReport.totalSales)],
-            ['Estimated Profit', formatCurrency(latestReport.estProfit)],
-            ['Net Cash from Sales', formatCurrency(latestReport.netCash)],
-            ['Bank Deposits This Month', formatCurrency(latestReport.bankDeposits)],
-            ['Credit Sales This Month', formatCurrency(latestReport.creditSales)],
+            ['Total Sales', { content: formatCurrency(latestReport.totalSales), styles: { halign: 'right' } }],
+            ['Estimated Profit', { content: formatCurrency(latestReport.estProfit), styles: { halign: 'right' } }],
+            ['Net Cash from Sales', { content: formatCurrency(latestReport.netCash), styles: { halign: 'right' } }],
+            ['Bank Deposits This Month', { content: formatCurrency(latestReport.bankDeposits), styles: { halign: 'right' } }],
+            ['Credit Sales This Month', { content: formatCurrency(latestReport.creditSales), styles: { halign: 'right' } }],
         ],
-        theme: 'striped',
-        headStyles: { fillColor: [0, 128, 128] },
+        theme: 'grid',
+        headStyles: { 
+            fillColor: primaryColor,
+            textColor: whiteColor,
+            fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold' },
+        }
       });
     }
 
-    // Footer
+    // --- Footer ---
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 25, doc.internal.pageSize.height - 10);
-        doc.text('Generated by Petro Manage', 14, doc.internal.pageSize.height - 10);
+        doc.text(`Page ${i} of ${pageCount} | Generated by PetroVisor`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
     
-    doc.save(`PetroManage_Summary_${formatDate(today, 'yyyy-MM-dd')}.pdf`);
+    doc.save(`PetroVisor_Summary_${formatDate(today, 'yyyy-MM-dd')}.pdf`);
     toast({ title: 'Success', description: 'PDF download initiated!' });
   };
 
