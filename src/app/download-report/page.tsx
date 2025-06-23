@@ -71,6 +71,14 @@ export default function DownloadReportPage() {
     const formattedDate = formatDate(today, 'dd MMM yyyy');
     const pageWidth = doc.internal.pageSize.getWidth();
 
+    // Helper to format numbers without currency symbol for PDF
+    const formatNumberForPdf = (num: number) => {
+        return new Intl.NumberFormat('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(num);
+    };
+
     // Theme Colors
     const primaryColor = '#008080'; // Teal
     const lightGrey = '#F0F2F5';
@@ -95,24 +103,24 @@ export default function DownloadReportPage() {
 
     // --- Financial Position ---
     const financialBody = [
-        ['Sanctioned Amount', { content: formatCurrency(financialData.sanctionedAmount), styles: { halign: 'right' } }],
-        ['Total Stock Value (Cost)', { content: formatCurrency(financialData.totalStockValue), styles: { halign: 'right' } }],
-        ['Credit Outstanding', { content: formatCurrency(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
-        ['Miscellaneous Collections', { content: formatCurrency(financialData.totalMiscCollections), styles: { halign: 'right' } }],
-        ['Current Bank Balance', { content: formatCurrency(financialData.currentBankBalance), styles: { halign: 'right' } }],
+        ['Sanctioned Amount', { content: formatNumberForPdf(financialData.sanctionedAmount), styles: { halign: 'right' } }],
+        ['Total Stock Value (Cost)', { content: formatNumberForPdf(financialData.totalStockValue), styles: { halign: 'right' } }],
+        ['Credit Outstanding', { content: formatNumberForPdf(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
+        ['Miscellaneous Collections', { content: formatNumberForPdf(financialData.totalMiscCollections), styles: { halign: 'right' } }],
+        ['Current Bank Balance', { content: formatNumberForPdf(financialData.currentBankBalance), styles: { halign: 'right' } }],
         [
             { content: 'Net Worth', styles: { fontStyle: 'bold', fillColor: lightGrey } },
-            { content: formatCurrency(financialData.netWorth), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } },
+            { content: formatNumberForPdf(financialData.netWorth), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } },
         ],
         [
             { content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
-            { content: formatCurrency(financialData.remainingLimit), styles: { fontStyle: 'bold', halign: 'right', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
+            { content: formatNumberForPdf(financialData.remainingLimit), styles: { fontStyle: 'bold', halign: 'right', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
         ],
     ];
 
     autoTable(doc, {
         startY: lastY,
-        head: [['Financial Position', 'Amount']],
+        head: [['Financial Position', 'Amount (INR)']],
         body: financialBody,
         theme: 'grid',
         headStyles: { 
@@ -130,14 +138,14 @@ export default function DownloadReportPage() {
     // --- Fuel Stock Position ---
     autoTable(doc, {
       startY: lastY,
-      head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost)']],
+      head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost) (INR)']],
       body: settings.tanks.map(tank => {
         const fuel = settings.fuels.find(f => f.id === tank.fuelId);
         const stockValue = tank.initialStock * (fuel?.cost || 0);
         return [
           fuel?.name || 'Unknown',
           { content: `${tank.initialStock.toLocaleString()} L`, styles: { halign: 'right' } },
-          { content: formatCurrency(stockValue), styles: { halign: 'right' } },
+          { content: formatNumberForPdf(stockValue), styles: { halign: 'right' } },
         ];
       }),
       theme: 'striped',
@@ -158,13 +166,13 @@ export default function DownloadReportPage() {
       const latestReport = settings.monthlyReports[0];
       autoTable(doc, {
         startY: lastY,
-        head: [[`Latest Sales (Ending: ${formatDate(parseISO(latestReport.endDate), 'dd MMM yyyy')})`, 'Amount']],
+        head: [[`Latest Sales (Ending: ${formatDate(parseISO(latestReport.endDate), 'dd MMM yyyy')})`, 'Amount (INR)']],
         body: [
-            ['Total Sales', { content: formatCurrency(latestReport.totalSales), styles: { halign: 'right' } }],
-            ['Estimated Profit', { content: formatCurrency(latestReport.estProfit), styles: { halign: 'right' } }],
-            ['Net Cash from Sales', { content: formatCurrency(latestReport.netCash), styles: { halign: 'right' } }],
-            ['Bank Deposits This Month', { content: formatCurrency(latestReport.bankDeposits), styles: { halign: 'right' } }],
-            ['Credit Sales This Month', { content: formatCurrency(latestReport.creditSales), styles: { halign: 'right' } }],
+            ['Total Sales', { content: formatNumberForPdf(latestReport.totalSales), styles: { halign: 'right' } }],
+            ['Estimated Profit', { content: formatNumberForPdf(latestReport.estProfit), styles: { halign: 'right' } }],
+            ['Net Cash from Sales', { content: formatNumberForPdf(latestReport.netCash), styles: { halign: 'right' } }],
+            ['Bank Deposits This Month', { content: formatNumberForPdf(latestReport.bankDeposits), styles: { halign: 'right' } }],
+            ['Credit Sales This Month', { content: formatNumberForPdf(latestReport.creditSales), styles: { halign: 'right' } }],
         ],
         theme: 'grid',
         headStyles: { 
