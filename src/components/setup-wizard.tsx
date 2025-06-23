@@ -27,6 +27,7 @@ const tankSchema = z.object({
   fuelId: z.string().min(1, 'Please select a fuel type.'),
   capacity: z.coerce.number().min(1, 'Capacity must be greater than 0.'),
   initialStock: z.coerce.number().min(0, 'Initial stock cannot be negative.'),
+  dipChartType: z.enum(['16kl', '21kl']).optional(),
 });
 
 const setupSchema = z.object({
@@ -67,9 +68,9 @@ export default function SetupWizard() {
       },
       fuels: [petrolFuel, dieselFuel, xtraFuel],
       tanks: [
-        { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0 },
-        { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0 },
-        { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0 },
+        { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
+        { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
+        { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0, dipChartType: '16kl' as const },
       ],
     }
   });
@@ -119,7 +120,7 @@ export default function SetupWizard() {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-3xl">
+      <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Droplets className="h-8 w-8 text-primary" />
@@ -180,7 +181,7 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Database size={20}/> Storage Tanks</h3>
                 <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
                 {tankFields.map((field, index) => (
-                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
+                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[repeat(5,1fr)_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
                     <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField
                       control={form.control}
@@ -200,6 +201,27 @@ export default function SetupWizard() {
                                   {fuel.name}
                                 </SelectItem>
                               ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name={`tanks.${index}.dipChartType`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>DIP Chart</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a chart" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                               <SelectItem value="16kl">16KL Chart</SelectItem>
+                               <SelectItem value="21kl">21KL Chart</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

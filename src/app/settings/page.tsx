@@ -263,10 +263,23 @@ export default function SettingsPage() {
                             return (
                                 <div key={tank.id} className="p-4 border rounded-lg bg-muted/50">
                                     <h4 className="font-semibold mb-2">{tank.name} ({fuel?.name || 'Unknown Fuel'})</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value))} /></div>
                                         <div className="space-y-2"><Label>Initial Stock (Ltrs)</Label><Input type="number" value={tank.initialStock} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value))} /></div>
                                         <div className="space-y-2"><Label>Stock Last Updated</Label><Input type="date" value={tank.lastStockUpdateDate || ''} onChange={e => handleTankChange(tank.id, 'lastStockUpdateDate', e.target.value)} /></div>
+                                        <div className="space-y-2">
+                                            <Label>DIP Chart Type</Label>
+                                            <Select value={tank.dipChartType || ''} onValueChange={value => handleTankChange(tank.id, 'dipChartType', value)}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select Chart" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None</SelectItem>
+                                                    <SelectItem value="16kl">16KL Chart</SelectItem>
+                                                    <SelectItem value="21kl">21KL Chart</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 </div>
                             )

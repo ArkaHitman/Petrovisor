@@ -25,6 +25,7 @@ import {
   ReceiptText,
   Banknote,
   Download,
+  Ruler,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -33,6 +34,7 @@ const menuItems = [
   { href: '/reports', label: 'Monthly Reports', icon: FileText },
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
   { href: '/tanks', label: 'Live Tank Status', icon: Database },
+  { href: '/dip-entry', label: 'DIP Entry', icon: Ruler },
   { href: '/bank', label: 'Bank Ledger', icon: Landmark },
   { href: '/manager-ledger', label: 'Manager Ledger', icon: Briefcase },
   { href: '/misc-collection', label: 'Misc Collection', icon: HandCoins },

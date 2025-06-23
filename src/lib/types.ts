@@ -18,6 +18,7 @@ export interface Tank {
   capacity: number;
   initialStock: number;
   lastStockUpdateDate?: string; // YYYY-MM-DD
+  dipChartType?: '16kl' | '21kl';
 }
 
 export interface Nozzle {
