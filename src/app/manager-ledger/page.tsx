@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
 
 const transactionSchema = z.object({
     date: z.string().min(1, 'Date is required'),
@@ -122,7 +123,7 @@ export default function ManagerLedgerPage() {
     }, [managerLedger, initialBalance]);
     
     const balanceStatus = netBalance > 0 ? "Manager Owes You" : netBalance < 0 ? "You Owe Manager" : "Settled";
-    const balanceColor = netBalance > 0 ? "text-destructive" : netBalance < 0 ? "text-chart-2" : "text-muted-foreground";
+    const balanceColor = netBalance > 0 ? "text-chart-2" : netBalance < 0 ? "text-destructive" : "text-muted-foreground";
 
     return (
         <AppLayout>
@@ -173,9 +174,9 @@ export default function ManagerLedgerPage() {
                                             <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy')}</TableCell>
                                             <TableCell>{tx.description}</TableCell>
                                             <TableCell>
-                                                <span className={cn("px-2 py-1 rounded-full text-xs", tx.type === 'payment_from_manager' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                                <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'destructive'} className="capitalize">
                                                     {tx.type.replace(/_/g, ' ')}
-                                                </span>
+                                                </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
                                             <TableCell>

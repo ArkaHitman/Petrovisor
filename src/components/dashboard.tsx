@@ -121,7 +121,7 @@ export default function Dashboard() {
                                 <TableCell>{formatDate(parseISO(tx.date), 'dd MMM')}</TableCell>
                                 <TableCell className="font-medium">{tx.description}</TableCell>
                                 <TableCell>
-                                    <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'secondary'} className={cn(tx.type === 'payment_from_manager' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                    <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'destructive'}>
                                         {tx.type === 'payment_from_manager' ? 'From Manager' : 'To Manager'}
                                     </Badge>
                                 </TableCell>

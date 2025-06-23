@@ -39,7 +39,8 @@ export default function DownloadReportPage() {
     const bankLedger = settings.bankLedger || [];
     const currentBankBalance = bankLedger.reduce((acc, tx) => {
       if (tx.type === 'credit') return acc + tx.amount;
-      return acc - tx.amount;
+      if (tx.type === 'debit') return acc - tx.amount;
+      return acc;
     }, initialBankBalance);
 
     const miscCollections = settings.miscCollections || [];

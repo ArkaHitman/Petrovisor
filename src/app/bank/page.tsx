@@ -114,7 +114,8 @@ export default function BankPage() {
     const currentBalance = useMemo(() => {
         return bankLedger.reduce((acc, tx) => {
             if (tx.type === 'credit') return acc + tx.amount;
-            return acc - tx.amount;
+            if (tx.type === 'debit') return acc - tx.amount;
+            return acc;
         }, initialBalance);
     }, [bankLedger, initialBalance]);
 
@@ -187,11 +188,11 @@ export default function BankPage() {
                                             <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy')}</TableCell>
                                             <TableCell className="font-medium">{tx.description}</TableCell>
                                             <TableCell>
-                                                <Badge variant={tx.type === 'credit' ? 'default' : 'destructive'} className={cn(tx.type === 'credit' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700', "capitalize")}>
+                                                <Badge variant={tx.type === 'credit' ? 'default' : 'destructive'} className="capitalize">
                                                     {tx.type}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className={cn("text-right font-semibold", tx.type === 'credit' ? 'text-green-600' : 'text-red-600')}>
+                                            <TableCell className={cn("text-right font-semibold", tx.type === 'credit' ? 'text-primary' : 'text-destructive')}>
                                                 {tx.type === 'credit' ? '+' : '-'} {formatCurrency(tx.amount)}
                                             </TableCell>
                                             <TableCell>
