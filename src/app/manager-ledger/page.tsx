@@ -138,7 +138,7 @@ export default function ManagerLedgerPage() {
             <div className="p-4 md:p-8 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Net Manager Balance</CardTitle>
+                        <CardTitle className="font-headline">Net Manager Balance</CardTitle>
                         <CardDescription>The current financial position with the manager.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -148,7 +148,7 @@ export default function ManagerLedgerPage() {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Transaction History</CardTitle>
+                        <CardTitle className="font-headline">Transaction History</CardTitle>
                         <CardDescription>A complete log of all manager transactions.</CardDescription>
                     </CardHeader>
                     <CardContent>

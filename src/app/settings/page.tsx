@@ -173,7 +173,7 @@ export default function SettingsPage() {
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 animate-fadeInScaleUp">
-        <DialogHeader className="p-6 pb-0 text-center sm:text-left">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle className="font-headline text-2xl font-bold text-primary">Settings</DialogTitle>
         </DialogHeader>
 
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                             {fuels.map(fuel => (
                                 <div key={fuel.id} className="space-y-2">
                                     <Label>{fuel.name} Nozzles</Label>
-                                    <Input type="number" min="0" max="10" value={localSettings.nozzlesPerFuel[fuel.id] || 0} onChange={e => handleNozzleChange(fuel.id, parseInt(e.target.value, 10))} />
+                                    <Input type="number" min="0" max="10" value={localSettings.nozzlesPerFuel?.[fuel.id] || 0} onChange={e => handleNozzleChange(fuel.id, parseInt(e.target.value, 10))} />
                                 </div>
                             ))}
                          </div>

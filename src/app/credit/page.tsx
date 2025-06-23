@@ -73,7 +73,7 @@ export default function CreditPage() {
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Current Outstanding Credit</CardTitle>
+                            <CardTitle className="font-headline">Current Outstanding Credit</CardTitle>
                             <CardDescription>The total amount of money owed to you.</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -84,7 +84,7 @@ export default function CreditPage() {
                     </Card>
                     <Card>
                         <CardHeader>
-                          <CardTitle className="flex items-center gap-2"><ArrowLeftRight/>New Transaction</CardTitle>
+                          <CardTitle className="font-headline flex items-center gap-2"><ArrowLeftRight/>New Transaction</CardTitle>
                           <CardDescription>Record new credit given out or a repayment received.</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -138,7 +138,7 @@ export default function CreditPage() {
                 </div>
                  <Card>
                     <CardHeader>
-                        <CardTitle>Credit History</CardTitle>
+                        <CardTitle className="font-headline">Credit History</CardTitle>
                         <CardDescription>A log of all credit transactions.</CardDescription>
                     </CardHeader>
                     <CardContent>

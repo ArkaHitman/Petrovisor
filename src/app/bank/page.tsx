@@ -162,7 +162,7 @@ export default function BankPage() {
                 </div>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Transaction History</CardTitle>
+                        <CardTitle className="font-headline">Transaction History</CardTitle>
                         <CardDescription>A complete log of all credits and debits.</CardDescription>
                     </CardHeader>
                     <CardContent>

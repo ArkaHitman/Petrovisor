@@ -30,7 +30,7 @@ export default function ReportDetails({ report, isOpen, onClose }: ReportDetails
         </DialogHeader>
         <div className="space-y-6 pt-4">
             <Card>
-                <CardHeader><CardTitle>Overall Summary</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-headline">Overall Summary</CardTitle></CardHeader>
                 <CardContent className="grid md:grid-cols-3 gap-4 text-base">
                     <p>Total Sales: <span className="font-bold font-headline">{formatCurrency(report.totalSales)}</span></p>
                     <p>Est. Profit: <span className="font-bold font-headline">{formatCurrency(report.estProfit)}</span></p>
@@ -42,7 +42,7 @@ export default function ReportDetails({ report, isOpen, onClose }: ReportDetails
             </Card>
 
             <Card>
-                <CardHeader><CardTitle>Fuel Sale Breakdown</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-headline">Fuel Sale Breakdown</CardTitle></CardHeader>
                 <CardContent>
                     <Accordion type="multiple" defaultValue={report.fuelSales.map(fs => fs.fuelId)}>
                         {report.fuelSales.map(fuelSale => {

@@ -41,7 +41,7 @@ export default function ReportsPage() {
       <div className="p-4 md:p-8">
         <Card>
             <CardHeader>
-                <CardTitle>Reports History</CardTitle>
+                <CardTitle className="font-headline">Reports History</CardTitle>
                 <CardDescription>A list of all your past weekly reports.</CardDescription>
             </CardHeader>
             <CardContent>

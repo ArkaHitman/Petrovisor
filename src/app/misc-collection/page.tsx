@@ -118,7 +118,7 @@ export default function MiscCollectionPage() {
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Collection History</CardTitle>
+                        <CardTitle className="font-headline">Collection History</CardTitle>
                         <CardDescription>A complete log of all miscellaneous collections.</CardDescription>
                     </CardHeader>
                     <CardContent>

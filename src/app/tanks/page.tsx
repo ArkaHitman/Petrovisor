@@ -50,7 +50,7 @@ export default function TanksPage() {
           return (
             <Card key={tank.id}>
               <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="font-headline flex items-center gap-2">
                     <Fuel className="w-5 h-5 text-muted-foreground" />
                     {tank.name}
                   </CardTitle>

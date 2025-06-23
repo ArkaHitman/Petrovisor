@@ -223,7 +223,7 @@ export default function AddReportPage() {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                         <Card>
-                            <CardHeader><CardTitle>General Information</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="font-headline">General Information</CardTitle></CardHeader>
                             <CardContent className="grid md:grid-cols-3 gap-4">
                                 <FormField control={form.control} name="endDate" render={({ field }) => <FormItem><FormLabel>Week Ending Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>} />
                                 <FormField control={form.control} name="bankDeposits" render={({ field }) => <FormItem><FormLabel>Bank Deposits This Week</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
@@ -232,7 +232,7 @@ export default function AddReportPage() {
                         </Card>
 
                         <Card>
-                             <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>Enter opening and closing meter readings for each nozzle.</CardDescription></CardHeader>
+                             <CardHeader><CardTitle className="font-headline">Meter Readings</CardTitle><CardDescription>Enter opening and closing meter readings for each nozzle.</CardDescription></CardHeader>
                              <CardContent>
                                 <Accordion type="multiple" defaultValue={settings.fuels.map(f => f.id)}>
                                     {fuelSalesFields.map((field, index) => {
@@ -272,7 +272,7 @@ export default function AddReportPage() {
                         </Card>
 
                         <Card className="sticky bottom-4">
-                            <CardHeader><CardTitle>Overall Summary</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="font-headline">Overall Summary</CardTitle></CardHeader>
                             <CardContent className="grid md:grid-cols-3 gap-4 text-base">
                                 <p>Total Sales: <span className="font-bold font-headline">{formatCurrency(overallTotalSales)}</span></p>
                                 <p>Est. Profit: <span className="font-bold font-headline">{formatCurrency(overallTotalProfit)}</span></p>
