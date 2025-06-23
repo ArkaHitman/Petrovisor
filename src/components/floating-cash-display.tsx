@@ -10,14 +10,15 @@ export default function FloatingCashDisplay() {
   const totalCash = useMemo(() => {
     if (!settings) return 0;
     
+    // Total cash from miscellaneous collections (includes cash credit repayments)
     const collectionsTotal = settings.miscCollections?.reduce((sum, c) => sum + c.amount, 0) || 0;
     
-    const latestReport = settings.weeklyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0];
-    const netCashFromSales = latestReport?.netCash || 0;
+    // Total cash generated from all weekly reports
+    const totalNetCashFromSales = settings.weeklyReports?.reduce((sum, r) => sum + r.netCash, 0) || 0;
 
-    // This logic assumes net cash from the latest report is added to the total cash pool.
-    // Over time, this might need a more sophisticated ledger system for cash.
-    return collectionsTotal + netCashFromSales;
+    // This represents the cumulative cash available from all sources tracked.
+    // NOTE: This does not account for cash expenses, as that feature doesn't exist yet.
+    return collectionsTotal + totalNetCashFromSales;
   }, [settings]);
 
   return (

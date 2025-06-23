@@ -41,7 +41,7 @@ export default function MiscPaymentsPage() {
             source: 'misc_payment'
         });
         toast({ title: "Success", description: "Payment recorded successfully as a bank debit." });
-        router.push('/');
+        router.push('/bank');
     }
 
     return (

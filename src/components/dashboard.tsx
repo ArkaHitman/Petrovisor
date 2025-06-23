@@ -5,7 +5,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
-import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText, BarChart, CalendarDays } from 'lucide-react';
+import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText, BarChart, CalendarDays, HandCoins } from 'lucide-react';
 import { useMemo } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
 
@@ -16,7 +16,7 @@ export default function Dashboard() {
     totalStockValue,
     currentOutstandingCredit,
     currentBankBalance,
-    debtRecovered,
+    totalMiscCollections,
     netWorth,
     remainingLimit,
     latestWeeklyReport
@@ -26,7 +26,7 @@ export default function Dashboard() {
         totalStockValue: 0,
         currentOutstandingCredit: 0,
         currentBankBalance: 0,
-        debtRecovered: 0,
+        totalMiscCollections: 0,
         netWorth: 0,
         remainingLimit: 0,
         latestWeeklyReport: null,
@@ -55,15 +55,15 @@ export default function Dashboard() {
         return acc;
     }, initialBankBalance);
 
-    const debtRecovered = settings.miscCollections?.reduce((acc, c) => acc + c.amount, 0) || 0;
-    const netWorth = totalStockValue + currentOutstandingCredit + debtRecovered + currentBankBalance;
+    const totalMiscCollections = settings.miscCollections?.reduce((acc, c) => acc + c.amount, 0) || 0;
+    const netWorth = totalStockValue + currentOutstandingCredit + totalMiscCollections + currentBankBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
     // Sort reports by date to find the latest one
     const latestWeeklyReport = settings.weeklyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
 
-    return { totalStockValue, currentOutstandingCredit, currentBankBalance, debtRecovered, netWorth, remainingLimit, latestWeeklyReport };
+    return { totalStockValue, currentOutstandingCredit, currentBankBalance, totalMiscCollections, netWorth, remainingLimit, latestWeeklyReport };
   }, [settings]);
 
   if (!settings) {
@@ -88,6 +88,7 @@ export default function Dashboard() {
                 <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} />
                 <StatCard title="Bank Balance" value={formatCurrency(currentBankBalance)} icon={Landmark} />
                 <StatCard title="Outstanding Credit" value={formatCurrency(currentOutstandingCredit)} icon={ReceiptText} />
+                <StatCard title="Misc Collections" value={formatCurrency(totalMiscCollections)} icon={HandCoins} />
                 <StatCard title="Remaining Limit" value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}/>
             </CardContent>
           </Card>
@@ -126,8 +127,8 @@ export default function Dashboard() {
 
         <Card>
             <CardHeader>
-              <CardTitle className="font-headline">Tank Overview (Initial Stock)</CardTitle>
-              <CardDescription>Initial stock set during setup. Check Tank Status for live levels.</CardDescription>
+              <CardTitle className="font-headline">Tank Overview</CardTitle>
+              <CardDescription>Stock levels as of last update in settings. Check the Tank Status page for live details.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-3">
               {settings.tanks.map(tank => {

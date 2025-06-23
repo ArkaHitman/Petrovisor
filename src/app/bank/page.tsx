@@ -118,6 +118,14 @@ export default function BankPage() {
         }, initialBalance);
     }, [bankLedger, initialBalance]);
 
+    const canDeleteTransaction = (source?: string) => {
+        // Only allow deleting manual or misc_payment transactions to avoid data inconsistency.
+        // Other transactions are linked to reports or credit repayments.
+        const nonDeletableSources = ['credit_repayment', 'weekly_report_deposit'];
+        if (!source) return true; // Backwards compatibility for old transactions
+        return !nonDeletableSources.includes(source);
+    };
+    
     return (
         <AppLayout>
             <PageHeader
@@ -187,7 +195,7 @@ export default function BankPage() {
                                                 {tx.type === 'credit' ? '+' : '-'} {formatCurrency(tx.amount)}
                                             </TableCell>
                                             <TableCell>
-                                                {tx.source !== 'credit_repayment' && (
+                                                {canDeleteTransaction(tx.source) && (
                                                     <AlertDialog>
                                                       <AlertDialogTrigger asChild>
                                                          <Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4 text-destructive" /></Button>

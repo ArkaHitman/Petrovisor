@@ -137,7 +137,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
          const newMiscCollection: MiscCollection = {
            id: crypto.randomUUID(),
            date,
-           description: 'Credit Repayment (to Cash)',
+           description: 'Credit Repayment Received in Cash',
            amount,
          }
          newSettings = {
@@ -176,8 +176,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
-      let newReports = [...prev.settings.weeklyReports];
-      const existingReportIndex = newReports.findIndex(r => r.endDate === report.endDate);
+      const newReports = [...prev.settings.weeklyReports];
+      const existingReportIndex = newReports.findIndex(r => r.id === report.id);
 
       if (existingReportIndex > -1) {
         newReports[existingReportIndex] = report;
@@ -186,26 +186,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
       newReports.sort((a, b) => b.endDate.localeCompare(a.endDate));
 
-      let newBankLedger = [...prev.settings.bankLedger];
-      // Remove previous deposit from this report to avoid duplicates on update
-      newBankLedger = newBankLedger.filter(tx => tx.sourceId !== report.id);
-
+      // Atomically update the bank ledger for the report's deposit
+      let newBankLedger = prev.settings.bankLedger.filter(tx => tx.sourceId !== report.id);
+      
       if (report.bankDeposits > 0) {
-        const depositTx: Omit<BankTransaction, 'id'> = {
+        const depositTx: BankTransaction = {
+          id: crypto.randomUUID(),
           date: report.endDate,
-          description: `Weekly sales deposit for week ending ${report.endDate}`,
+          description: `Weekly deposit for week ending ${format(parseISO(report.endDate), 'dd MMM yyyy')}`,
           type: 'credit',
           amount: report.bankDeposits,
           source: 'weekly_report_deposit',
           sourceId: report.id,
         };
-        addBankTransaction(depositTx); // This will be handled in the next state update cycle
+        newBankLedger.push(depositTx);
+        newBankLedger.sort((a, b) => b.date.localeCompare(a.date));
       }
 
       const newSettings = {
         ...prev.settings,
         weeklyReports: newReports,
-        bankLedger: newBankLedger, // This will be slightly out of sync if a tx is added, but addBankTransaction will fix it
+        bankLedger: newBankLedger,
       };
       return { ...prev, settings: newSettings };
     });

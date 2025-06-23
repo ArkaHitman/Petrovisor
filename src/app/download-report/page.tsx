@@ -44,9 +44,9 @@ export default function DownloadReportPage() {
     }, initialBankBalance);
 
     const miscCollections = settings.miscCollections || [];
-    const debtRecovered = miscCollections.reduce((acc, c) => acc + c.amount, 0);
+    const totalMiscCollections = miscCollections.reduce((acc, c) => acc + c.amount, 0);
 
-    const netWorth = totalStockValue + currentOutstandingCredit + debtRecovered + currentBankBalance;
+    const netWorth = totalStockValue + currentOutstandingCredit + totalMiscCollections + currentBankBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
@@ -54,7 +54,7 @@ export default function DownloadReportPage() {
       totalStockValue, 
       currentOutstandingCredit, 
       currentBankBalance, 
-      debtRecovered,
+      totalMiscCollections,
       netWorth, 
       sanctionedAmount,
       remainingLimit 
@@ -91,7 +91,7 @@ export default function DownloadReportPage() {
         ['Sanctioned Amount', formatCurrency(financialData.sanctionedAmount)],
         ['Total Stock Value (Cost)', formatCurrency(financialData.totalStockValue)],
         ['Credit Outstanding', formatCurrency(financialData.currentOutstandingCredit)],
-        ['Debt Recovered (Misc. Collections)', formatCurrency(financialData.debtRecovered)],
+        ['Miscellaneous Collections', formatCurrency(financialData.totalMiscCollections)],
         ['Current Bank Balance', formatCurrency(financialData.currentBankBalance)],
         [{ content: 'Net Worth', styles: { fontStyle: 'bold' } }, { content: formatCurrency(financialData.netWorth), styles: { fontStyle: 'bold' } }],
         ['Remaining Limit', formatCurrency(financialData.remainingLimit)],
