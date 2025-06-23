@@ -38,7 +38,7 @@ const menuItems = [
   { href: '/misc-collection', label: 'Misc Collection', icon: HandCoins },
   { href: '/credit', label: 'Overall Credit', icon: ReceiptText },
   { href: '/misc-payments', label: 'Misc Payments', icon: Banknote },
-  { href: '/reports', label: 'Download Report', icon: Download },
+  { href: '/download-report', label: 'Download Report', icon: Download },
 ];
 
 const AppSidebar = () => {

@@ -15,6 +15,7 @@ export default function Dashboard() {
     totalStockValue,
     currentOutstandingCredit,
     currentBankBalance,
+    debtRecovered,
     netWorth,
     remainingLimit,
   } = useMemo(() => {
@@ -23,6 +24,7 @@ export default function Dashboard() {
         totalStockValue: 0,
         currentOutstandingCredit: 0,
         currentBankBalance: 0,
+        debtRecovered: 0,
         netWorth: 0,
         remainingLimit: 0,
       };
@@ -49,12 +51,12 @@ export default function Dashboard() {
         return acc - tx.amount;
     }, initialBankBalance);
 
-    const debtRecovered = settings.debtRecovered || 0; // This is an initial value, live recovery is handled in collections/bank
+    const debtRecovered = settings.miscCollections?.reduce((acc, c) => acc + c.amount, 0) || 0;
     const netWorth = totalStockValue + currentOutstandingCredit + debtRecovered + currentBankBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
-    return { totalStockValue, currentOutstandingCredit, currentBankBalance, netWorth, remainingLimit };
+    return { totalStockValue, currentOutstandingCredit, currentBankBalance, debtRecovered, netWorth, remainingLimit };
   }, [settings]);
 
   if (!settings) {
@@ -81,7 +83,7 @@ export default function Dashboard() {
             title="Net Worth"
             value={formatCurrency(netWorth)}
             icon={Wallet}
-            description="Stock + Bank + Credit"
+            description="Stock + Bank + Credit + Collections"
           />
            <StatCard
             title="Remaining Limit"
@@ -154,8 +156,8 @@ export default function Dashboard() {
                     <span className="font-semibold font-headline">{formatCurrency(settings.sanctionedAmount || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Debt Recovered (Initial)</span>
-                    <span className="font-semibold font-headline">{formatCurrency(settings.debtRecovered || 0)}</span>
+                    <span className="text-muted-foreground">Misc. Collections</span>
+                    <span className="font-semibold font-headline">{formatCurrency(debtRecovered)}</span>
                   </div>
                   <hr/>
                    <div className="flex justify-between items-center">

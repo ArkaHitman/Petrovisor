@@ -26,6 +26,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       bankLedger: [],
       creditHistory: [],
       miscCollections: [],
+      weeklyReports: [],
     };
     setAppState({
       ...appState,

@@ -61,6 +61,17 @@ export interface MiscCollection {
     amount: number;
 }
 
+export interface WeeklyReport {
+  id: string;
+  endDate: string; // YYYY-MM-DD
+  totalSales: number;
+  estProfit: number;
+  litresSold: number;
+  bankDeposits: number;
+  creditSales: number;
+  netCash: number;
+}
+
 export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark';
@@ -75,6 +86,7 @@ export interface Settings {
   tanks: Tank[];
   nozzlesPerFuel: NozzlesPerFuel;
   fuelPriceHistory: FuelPriceEntry[];
+  weeklyReports: WeeklyReport[];
 
   // New ledgers and histories
   managerLedger: ManagerTransaction[];

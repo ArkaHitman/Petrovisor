@@ -38,6 +38,10 @@ export default function SettingsPage() {
       if (!newLocalSettings.nozzlesPerFuel) {
         newLocalSettings.nozzlesPerFuel = {};
       }
+      if (!newLocalSettings.weeklyReports) {
+        newLocalSettings.weeklyReports = [];
+      }
+
 
       setLocalSettings(newLocalSettings);
 
@@ -169,7 +173,9 @@ export default function SettingsPage() {
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 animate-fadeInScaleUp">
-        <DialogTitle className="p-6 pb-0 text-center sm:text-left font-headline text-2xl font-bold text-primary">Settings</DialogTitle>
+        <DialogHeader className="p-6 pb-0 text-center sm:text-left">
+          <DialogTitle className="font-headline text-2xl font-bold text-primary">Settings</DialogTitle>
+        </DialogHeader>
 
         <div className="px-6 space-y-4">
             <Accordion type="multiple" defaultValue={['general']} className="w-full">
