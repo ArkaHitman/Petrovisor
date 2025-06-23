@@ -25,6 +25,8 @@ export interface Settings {
   bankName?: string;
   sanctionedAmount?: number;
   initialBankBalance?: number;
+  creditOutstanding?: number;
+  debtRecovered?: number;
   fuels: Fuel[];
   tanks: Tank[];
   nozzleCount: number;

@@ -1,94 +1,166 @@
 'use client';
 
-import PageHeader from './page-header';
-import StatCard from './stat-card';
 import { useAppState } from '@/contexts/app-state-provider';
-import { formatCurrency } from '@/lib/utils';
-import { AreaChart, BarChart3, Banknote, Droplets, Wallet } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
-import { Progress } from './ui/progress';
+import { formatCurrency, cn } from '@/lib/utils';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from './ui/card';
+import NavItemCard from './nav-item-card';
+import { Banknote, BookOpen, Briefcase, CalendarPlus, Download, Fuel, HandCoins, Landmark, ReceiptText, Database } from 'lucide-react';
+import FloatingCashDisplay from './floating-cash-display';
 
 export default function Dashboard() {
   const { settings } = useAppState();
 
-  return (
-    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-      <PageHeader
-        title={`Welcome to ${settings?.pumpName || 'Dashboard'}`}
-        description="Here's a snapshot of your operations."
-      />
+  const quickActions = [
+    { href: '#', icon: CalendarPlus, title: 'Add Weekly Report', description: 'Enter meter readings & deposits.' },
+    { href: '#', icon: BookOpen, title: 'View All Reports', description: 'Browse past weekly reports.' },
+    { href: '/purchases', icon: Fuel, title: 'Fuel Purchases', description: 'Record new fuel deliveries.' },
+    { href: '/tanks', icon: Database, title: 'Tank Status', description: 'View current fuel stock levels.' },
+    { href: '/bank', icon: Landmark, title: 'Bank Ledger', description: 'View and manage bank transactions.' },
+    { href: '#', icon: Briefcase, title: 'Manager Ledger', description: 'Track financial dealings with a manager.' },
+    { href: '#', icon: HandCoins, title: 'Misc Collection', description: 'Record other cash inflows.' },
+    { href: '#', icon: ReceiptText, title: 'Overall Credit', description: 'Manage credit given and received.' },
+    { href: '#', icon: Banknote, title: 'Misc Payments', description: 'Record online/bank expenses.' },
+    { href: '#', icon: Download, title: 'Download Report', description: 'Generate a PDF summary statement.' },
+  ];
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Weekly Sales" value={formatCurrency(75231)} description="+20.1% from last week" icon={AreaChart} />
-        <StatCard title="Weekly Profit" value={formatCurrency(12350)} description="+15.3% from last week" icon={BarChart3} />
-        <StatCard title="Net Cash" value={formatCurrency(50120)} description="From last report" icon={Banknote} />
-        <StatCard title="Total Litres Sold" value="7,580 L" description="Weekly total" icon={Droplets} />
+  if (!settings) {
+    return null; // Or a loading skeleton
+  }
+
+  // Calculations for Financial Snapshot
+  const totalStockValue = settings.tanks.reduce((total, tank) => {
+    const fuel = settings.fuels.find(f => f.id === tank.fuelId);
+    return total + (tank.initialStock * (fuel?.cost || 0));
+  }, 0);
+
+  const creditOutstanding = settings.creditOutstanding || 0;
+  const debtRecovered = settings.debtRecovered || 0;
+  const bankBalance = settings.initialBankBalance || 0;
+
+  const netWorth = totalStockValue + creditOutstanding + debtRecovered + bankBalance;
+  const sanctionedAmount = settings.sanctionedAmount || 0;
+  const remainingLimit = sanctionedAmount - netWorth;
+
+  const getTankLevelColor = (percentage: number) => {
+    if (percentage < 20) return 'bg-chart-1'; // Red-ish
+    if (percentage < 50) return 'bg-chart-4'; // Yellow-ish
+    return 'bg-chart-2'; // Green-ish
+  };
+
+  const hasWeeklyReport = false; // Placeholder
+
+  return (
+    <>
+    <div className="flex-1 space-y-8 p-4 pt-6 md:p-8">
+      <div className="mb-8">
+        <h1 className="font-headline text-3xl font-bold md:text-4xl text-foreground">
+          {settings.pumpName || 'PETRO MANAGE'}
+        </h1>
+        <p className="text-muted-foreground">Station Dashboard</p>
       </div>
       
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-            <CardHeader>
-                <CardTitle className="font-headline">Financial Snapshot</CardTitle>
-                <CardDescription>An overview of your current financial position.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Sanctioned Amt.</p>
-                    <p className="font-headline text-lg font-semibold">{formatCurrency(500000)}</p>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Latest Weekly Performance Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Latest Weekly Performance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hasWeeklyReport ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Report Ending: <span className="font-medium text-foreground">22 Jun 2025</span></p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Sales</p>
+                    <p className="font-headline text-lg font-semibold text-green-600">{formatCurrency(50000)}</p>
+                  </div>
+                   <div>
+                    <p className="text-sm text-muted-foreground">Est. Profit</p>
+                    <p className="font-headline text-lg font-semibold text-green-600">{formatCurrency(5000)}</p>
+                  </div>
+                   <div>
+                    <p className="text-sm text-muted-foreground">Litres Sold</p>
+                    <p className="font-headline text-lg font-semibold">500 Ltrs</p>
+                  </div>
+                   <div>
+                    <p className="text-sm text-muted-foreground">Net Cash</p>
+                    <p className="font-headline text-lg font-semibold">{formatCurrency(10500)}</p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Stock Value</p>
-                    <p className="font-headline text-lg font-semibold">{formatCurrency(250000)}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Total Credit</p>
-                    <p className="font-headline text-lg font-semibold">{formatCurrency(85000)}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Bank Balance</p>
-                    <p className="font-headline text-lg font-semibold">{formatCurrency(120000)}</p>
-                </div>
-                 <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Remaining Limit</p>
-                    <p className="font-headline text-lg font-semibold">{formatCurrency(45000)}</p>
-                </div>
-                 <div className="p-4 rounded-lg bg-primary/10 text-primary-foreground">
-                    <p className="text-sm text-primary/80">Net Worth</p>
-                    <p className="font-headline text-lg font-semibold text-primary">{formatCurrency(335000)}</p>
-                </div>
-            </CardContent>
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No weekly reports recorded yet.</p>
+              </div>
+            )}
+          </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
-             <CardHeader>
-                <CardTitle className="font-headline">Tank Stock Overview</CardTitle>
-                 <CardDescription>Live estimated stock in your tanks.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div>
-                    <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Petrol</span>
-                        <span className="text-sm text-muted-foreground">7,500 / 10,000 L</span>
-                    </div>
-                    <Progress value={75} />
+        {/* Financial Snapshot Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Financial Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Sanctioned Amt.</span> <span className="font-medium">{formatCurrency(sanctionedAmount)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Stock Value</span> <span className="font-medium">{formatCurrency(totalStockValue)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Credit Outstanding</span> <span className="font-medium">{formatCurrency(creditOutstanding)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Debt Recovered</span> <span className="font-medium">{formatCurrency(debtRecovered)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Bank Balance</span> <span className="font-medium">{formatCurrency(bankBalance)}</span></div>
+            <div className="flex justify-between text-sm p-2 bg-muted rounded-md"><span className="font-semibold">Net Worth</span> <span className="font-headline font-bold text-primary">{formatCurrency(netWorth)}</span></div>
+            <div className={`flex justify-between text-sm p-2 rounded-md ${remainingLimit >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
+                <span className={`font-semibold ${remainingLimit >= 0 ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>Remaining Limit</span>
+                <span className={`font-headline font-bold ${remainingLimit >= 0 ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>{formatCurrency(remainingLimit)}</span>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Tank Overview Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Tank Overview (Initial Stock)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {settings.tanks.map(tank => {
+              const fuel = settings.fuels.find(f => f.id === tank.fuelId);
+              const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
+              const stockValue = tank.initialStock * (fuel?.cost || 0);
+
+              return (
+                <div key={tank.id}>
+                  <p className="text-sm font-medium">{fuel?.name || 'Unknown Fuel'}</p>
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary mt-1">
+                    <div
+                      className={cn("h-full transition-all", getTankLevelColor(percentage))}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                     <span>{Math.round(percentage)}% ({tank.initialStock}L)</span>
+                     <span className="font-medium">Value: {formatCurrency(stockValue)}</span>
+                  </div>
                 </div>
-                 <div>
-                    <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Diesel</span>
-                        <span className="text-sm text-muted-foreground">4,200 / 10,000 L</span>
-                    </div>
-                    <Progress value={42} />
-                </div>
-                 <div>
-                    <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Power</span>
-                        <span className="text-sm text-muted-foreground">1,800 / 5,000 L</span>
-                    </div>
-                    <Progress value={36} />
-                </div>
-            </CardContent>
+              )
+            })}
+          </CardContent>
+          <CardFooter>
+             <p className="text-xs italic text-muted-foreground">
+                Note: Bars show initial stock levels. Check Tank Status page for live data.
+             </p>
+          </CardFooter>
         </Card>
       </div>
+
+      <div className="space-y-4">
+        <h2 className="font-headline text-2xl font-bold">Quick Actions</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {quickActions.map(action => (
+                <NavItemCard key={action.title} {...action} />
+            ))}
+        </div>
+      </div>
     </div>
+    <FloatingCashDisplay />
+    </>
   );
 }

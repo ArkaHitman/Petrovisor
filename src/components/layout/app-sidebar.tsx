@@ -21,7 +21,7 @@ import {
   CircleHelp,
   Droplets,
 } from 'lucide-react';
-import { Button } from '../ui/button';
+import { useAppState } from '@/contexts/app-state-provider';
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,6 +33,7 @@ const menuItems = [
 
 const AppSidebar = () => {
   const pathname = usePathname();
+  const { settings } = useAppState();
 
   return (
     <Sidebar collapsible="icon" variant="sidebar" side="left">
@@ -40,7 +41,7 @@ const AppSidebar = () => {
         <Link href="/" className="flex items-center gap-2">
           <Droplets className="w-8 h-8 text-primary" />
           <span className="font-headline text-lg font-semibold group-data-[collapsible=icon]:hidden">
-            PetroVisor
+            {settings?.pumpName || 'PETRO MANAGE'}
           </span>
         </Link>
       </SidebarHeader>

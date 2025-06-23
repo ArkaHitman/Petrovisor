@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Droplets, Fuel, Database, Trash2, PlusCircle } from 'lucide-react';
+import { Droplets, Fuel, Database, Trash2, PlusCircle, Landmark } from 'lucide-react';
 import { Separator } from './ui/separator';
 import type { Settings } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -31,6 +31,11 @@ const tankSchema = z.object({
 
 const setupSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
+  bankName: z.string().optional(),
+  sanctionedAmount: z.coerce.number().min(0, 'Must be positive').optional(),
+  initialBankBalance: z.coerce.number().optional(),
+  creditOutstanding: z.coerce.number().optional(),
+  debtRecovered: z.coerce.number().optional(),
   nozzleCount: z.coerce.number().int().min(1, 'Must have at least one nozzle.'),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
   tanks: z.array(tankSchema).min(1, 'At least one tank is required.'),
@@ -46,6 +51,11 @@ export default function SetupWizard() {
     
     return {
       pumpName: '',
+      bankName: '',
+      sanctionedAmount: 500000,
+      initialBankBalance: 100000,
+      creditOutstanding: 0,
+      debtRecovered: 0,
       nozzleCount: 1,
       fuels: [petrolFuel, dieselFuel, xtraFuel],
       tanks: [
@@ -108,6 +118,20 @@ export default function SetupWizard() {
                   </FormItem>
                 )}
               />
+
+              <Separator />
+
+              <div>
+                <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Landmark size={20}/> Financial Details</h3>
+                <p className="text-sm text-muted-foreground mb-4">Enter your banking and financial starting points.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="bankName" render={({ field }) => <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., State Bank of India" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="sanctionedAmount" render={({ field }) => <FormItem><FormLabel>Sanctioned Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="initialBankBalance" render={({ field }) => <FormItem><FormLabel>Opening Bank Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="creditOutstanding" render={({ field }) => <FormItem><FormLabel>Opening Credit Outstanding</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="debtRecovered" render={({ field }) => <FormItem><FormLabel>Opening Debt Recovered</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                </div>
+              </div>
               
               <Separator />
 
