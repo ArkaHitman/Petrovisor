@@ -43,7 +43,8 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual';
+  source?: 'credit_repayment' | 'manual' | 'weekly_report_deposit' | 'misc_payment';
+  sourceId?: string; // e.g., the ID of the weekly report
 }
 
 export interface CreditHistoryEntry {
@@ -61,9 +62,30 @@ export interface MiscCollection {
     amount: number;
 }
 
+export interface MeterReading {
+  nozzleId: number;
+  opening: number;
+  closing: number;
+  testing: number;
+  saleLitres: number;
+  saleAmount: number;
+  estProfit: number;
+}
+
+export interface FuelSale {
+  fuelId: string;
+  readings: MeterReading[];
+  totalLitres: number;
+  totalSales: number;
+  estProfit: number;
+  pricePerLitre: number;
+  costPerLitre: number;
+}
+
 export interface WeeklyReport {
   id: string;
   endDate: string; // YYYY-MM-DD
+  fuelSales: FuelSale[];
   totalSales: number;
   estProfit: number;
   litresSold: number;
@@ -121,4 +143,8 @@ export interface AppStateContextType extends AppState {
   // Misc Collections
   addMiscCollection: (collection: Omit<MiscCollection, 'id'>) => void;
   deleteMiscCollection: (collectionId: string) => void;
+  
+  // Weekly Reports
+  addOrUpdateWeeklyReport: (report: WeeklyReport) => void;
+  deleteWeeklyReport: (reportId: string) => void;
 }

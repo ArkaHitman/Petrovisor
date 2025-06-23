@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, WeeklyReport } from '@/lib/types';
 import { format } from 'date-fns';
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
@@ -172,6 +172,58 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const addOrUpdateWeeklyReport = (report: WeeklyReport) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      
+      let newReports = [...prev.settings.weeklyReports];
+      const existingReportIndex = newReports.findIndex(r => r.endDate === report.endDate);
+
+      if (existingReportIndex > -1) {
+        newReports[existingReportIndex] = report;
+      } else {
+        newReports.push(report);
+      }
+      newReports.sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+      let newBankLedger = [...prev.settings.bankLedger];
+      // Remove previous deposit from this report to avoid duplicates on update
+      newBankLedger = newBankLedger.filter(tx => tx.sourceId !== report.id);
+
+      if (report.bankDeposits > 0) {
+        const depositTx: Omit<BankTransaction, 'id'> = {
+          date: report.endDate,
+          description: `Weekly sales deposit for week ending ${report.endDate}`,
+          type: 'credit',
+          amount: report.bankDeposits,
+          source: 'weekly_report_deposit',
+          sourceId: report.id,
+        };
+        addBankTransaction(depositTx); // This will be handled in the next state update cycle
+      }
+
+      const newSettings = {
+        ...prev.settings,
+        weeklyReports: newReports,
+        bankLedger: newBankLedger, // This will be slightly out of sync if a tx is added, but addBankTransaction will fix it
+      };
+      return { ...prev, settings: newSettings };
+    });
+  };
+
+  const deleteWeeklyReport = (reportId: string) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+
+      const newSettings = {
+        ...prev.settings,
+        weeklyReports: prev.settings.weeklyReports.filter(r => r.id !== reportId),
+        bankLedger: prev.settings.bankLedger.filter(tx => tx.sourceId !== reportId),
+      };
+      return { ...prev, settings: newSettings };
+    });
+  };
+
   const value = {
     ...appState,
     setSettings,
@@ -185,6 +237,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteBankTransaction,
     addMiscCollection,
     deleteMiscCollection,
+    addOrUpdateWeeklyReport,
+    deleteWeeklyReport
   };
 
   return (

@@ -5,8 +5,9 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
-import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText } from 'lucide-react';
+import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText, BarChart, CalendarDays } from 'lucide-react';
 import { useMemo } from 'react';
+import { format as formatDate, parseISO } from 'date-fns';
 
 export default function Dashboard() {
   const { settings } = useAppState();
@@ -18,6 +19,7 @@ export default function Dashboard() {
     debtRecovered,
     netWorth,
     remainingLimit,
+    latestWeeklyReport
   } = useMemo(() => {
     if (!settings) {
       return {
@@ -27,6 +29,7 @@ export default function Dashboard() {
         debtRecovered: 0,
         netWorth: 0,
         remainingLimit: 0,
+        latestWeeklyReport: null,
       };
     }
 
@@ -48,7 +51,8 @@ export default function Dashboard() {
     const bankLedger = settings.bankLedger || [];
     const currentBankBalance = bankLedger.reduce((acc, tx) => {
         if (tx.type === 'credit') return acc + tx.amount;
-        return acc - tx.amount;
+        if (tx.type === 'debit') return acc - tx.amount;
+        return acc;
     }, initialBankBalance);
 
     const debtRecovered = settings.miscCollections?.reduce((acc, c) => acc + c.amount, 0) || 0;
@@ -56,7 +60,10 @@ export default function Dashboard() {
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
-    return { totalStockValue, currentOutstandingCredit, currentBankBalance, debtRecovered, netWorth, remainingLimit };
+    // Sort reports by date to find the latest one
+    const latestWeeklyReport = settings.weeklyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
+
+    return { totalStockValue, currentOutstandingCredit, currentBankBalance, debtRecovered, netWorth, remainingLimit, latestWeeklyReport };
   }, [settings]);
 
   if (!settings) {
@@ -72,47 +79,57 @@ export default function Dashboard() {
   return (
     <>
       <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
-        <div className="flex items-center justify-between">
-          <h1 className="font-headline text-3xl font-bold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-           <StatCard
-            title="Net Worth"
-            value={formatCurrency(netWorth)}
-            icon={Wallet}
-            description="Stock + Bank + Credit + Collections"
-          />
-           <StatCard
-            title="Remaining Limit"
-            value={formatCurrency(remainingLimit)}
-            icon={ShieldCheck}
-            description={remainingLimit >= 0 ? 'Within sanctioned limit' : 'Exceeded sanctioned limit'}
-            valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}
-          />
-          <StatCard
-            title="Bank Balance"
-            value={formatCurrency(currentBankBalance)}
-            icon={Landmark}
-            description="Current calculated balance"
-          />
-           <StatCard
-            title="Outstanding Credit"
-            value={formatCurrency(currentOutstandingCredit)}
-            icon={ReceiptText}
-            description="Money owed to you"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-           <Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="font-headline">Tank Levels (Initial)</CardTitle>
+              <CardTitle className="font-headline">Financial Snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} />
+                <StatCard title="Bank Balance" value={formatCurrency(currentBankBalance)} icon={Landmark} />
+                <StatCard title="Outstanding Credit" value={formatCurrency(currentOutstandingCredit)} icon={ReceiptText} />
+                <StatCard title="Remaining Limit" value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}/>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">Latest Weekly Performance</CardTitle>
+              {latestWeeklyReport ? <CardDescription>Report for week ending {formatDate(parseISO(latestWeeklyReport.endDate), 'dd MMM yyyy')}</CardDescription> : <CardDescription>No weekly reports found.</CardDescription>}
+            </CardHeader>
+            <CardContent>
+              {latestWeeklyReport ? (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-muted-foreground">Total Sales</div>
+                    <div className="font-semibold text-green-600">{formatCurrency(latestWeeklyReport.totalSales)}</div>
+                  </div>
+                   <div>
+                    <div className="text-muted-foreground">Est. Profit</div>
+                    <div className="font-semibold text-green-600">{formatCurrency(latestWeeklyReport.estProfit)}</div>
+                  </div>
+                   <div>
+                    <div className="text-muted-foreground">Litres Sold</div>
+                    <div className="font-semibold">{latestWeeklyReport.litresSold.toFixed(2)} L</div>
+                  </div>
+                   <div>
+                    <div className="text-muted-foreground">Net Cash</div>
+                    <div className="font-semibold">{formatCurrency(latestWeeklyReport.netCash)}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-4">No weekly reports recorded yet.</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">Tank Overview (Initial Stock)</CardTitle>
               <CardDescription>Initial stock set during setup. Check Tank Status for live levels.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-6">
+            <CardContent className="grid gap-6 md:grid-cols-3">
               {settings.tanks.map(tank => {
                 const fuel = settings.fuels.find(f => f.id === tank.fuelId);
                 const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
@@ -120,13 +137,10 @@ export default function Dashboard() {
 
                 return (
                   <div key={tank.id} className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                        <Droplets className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 space-y-1">
+                     <div className="flex-1 space-y-1">
                       <div className="flex items-baseline justify-between">
                         <p className="text-sm font-medium leading-none">{fuel?.name || 'Unknown Fuel'}</p>
-                        <p className="text-sm font-semibold text-muted-foreground">{tank.initialStock.toLocaleString()} L ({percentage.toFixed(0)}%)</p>
+                        <p className="text-sm font-semibold text-muted-foreground">{tank.initialStock.toLocaleString()} L</p>
                       </div>
                       <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
                         <div
@@ -141,36 +155,6 @@ export default function Dashboard() {
               })}
             </CardContent>
           </Card>
-          <Card>
-              <CardHeader>
-                <CardTitle className="font-headline">Financial Snapshot</CardTitle>
-                <CardDescription>Key figures based on current data.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Total Stock Value</span>
-                    <span className="font-semibold font-headline">{formatCurrency(totalStockValue)}</span>
-                  </div>
-                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Sanctioned Amount</span>
-                    <span className="font-semibold font-headline">{formatCurrency(settings.sanctionedAmount || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Misc. Collections</span>
-                    <span className="font-semibold font-headline">{formatCurrency(debtRecovered)}</span>
-                  </div>
-                  <hr/>
-                   <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Net Worth</span>
-                    <span className="text-lg font-bold font-headline">{formatCurrency(netWorth)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={cn("text-lg font-bold", remainingLimit >= 0 ? 'text-green-600' : 'text-destructive')}>Remaining Limit</span>
-                    <span className={cn("text-lg font-bold font-headline", remainingLimit >= 0 ? 'text-green-600' : 'text-destructive')}>{formatCurrency(remainingLimit)}</span>
-                  </div>
-              </CardContent>
-          </Card>
-        </div>
       </div>
       <FloatingCashDisplay />
     </>
