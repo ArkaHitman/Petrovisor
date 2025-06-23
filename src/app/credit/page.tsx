@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { HandCoins, Landmark, ArrowLeftRight } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 const giveCreditSchema = z.object({
     amount: z.coerce.number().positive("Amount must be positive"),
