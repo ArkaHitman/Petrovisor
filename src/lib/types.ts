@@ -43,8 +43,8 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'weekly_report_deposit' | 'misc_payment';
-  sourceId?: string; // e.g., the ID of the weekly report
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment';
+  sourceId?: string; // e.g., the ID of the monthly report
 }
 
 export interface CreditHistoryEntry {
@@ -82,7 +82,7 @@ export interface FuelSale {
   costPerLitre: number;
 }
 
-export interface WeeklyReport {
+export interface MonthlyReport {
   id: string;
   endDate: string; // YYYY-MM-DD
   fuelSales: FuelSale[];
@@ -108,7 +108,7 @@ export interface Settings {
   tanks: Tank[];
   nozzlesPerFuel: NozzlesPerFuel;
   fuelPriceHistory: FuelPriceEntry[];
-  weeklyReports: WeeklyReport[];
+  monthlyReports: MonthlyReport[];
 
   // New ledgers and histories
   managerLedger: ManagerTransaction[];
@@ -144,7 +144,7 @@ export interface AppStateContextType extends AppState {
   addMiscCollection: (collection: Omit<MiscCollection, 'id'>) => void;
   deleteMiscCollection: (collectionId: string) => void;
   
-  // Weekly Reports
-  addOrUpdateWeeklyReport: (report: WeeklyReport) => void;
-  deleteWeeklyReport: (reportId: string) => void;
+  // Monthly Reports
+  addOrUpdateMonthlyReport: (report: MonthlyReport) => void;
+  deleteMonthlyReport: (reportId: string) => void;
 }

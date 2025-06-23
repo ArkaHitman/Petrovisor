@@ -119,19 +119,19 @@ export default function DownloadReportPage() {
     });
     lastY = (doc as any).lastAutoTable.finalY + 10;
     
-    // Latest Weekly Sales Summary
-    if (settings.weeklyReports && settings.weeklyReports.length > 0) {
+    // Latest Monthly Sales Summary
+    if (settings.monthlyReports && settings.monthlyReports.length > 0) {
       // Assuming reports are sorted descending by date
-      const latestReport = settings.weeklyReports[0];
+      const latestReport = settings.monthlyReports[0];
       autoTable(doc, {
         startY: lastY,
-        head: [[`Latest Weekly Sales Summary (Week Ending: ${formatDate(parseISO(latestReport.endDate), 'dd MMM yyyy')})`]],
+        head: [[`Latest Monthly Sales Summary (Month Ending: ${formatDate(parseISO(latestReport.endDate), 'dd MMM yyyy')})`]],
         body: [
             ['Total Sales', formatCurrency(latestReport.totalSales)],
             ['Estimated Profit', formatCurrency(latestReport.estProfit)],
             ['Net Cash from Sales', formatCurrency(latestReport.netCash)],
-            ['Bank Deposits This Week', formatCurrency(latestReport.bankDeposits)],
-            ['Credit Sales This Week', formatCurrency(latestReport.creditSales)],
+            ['Bank Deposits This Month', formatCurrency(latestReport.bankDeposits)],
+            ['Credit Sales This Month', formatCurrency(latestReport.creditSales)],
         ],
         theme: 'striped',
         headStyles: { fillColor: [0, 128, 128] },
@@ -164,7 +164,7 @@ export default function DownloadReportPage() {
             <CardTitle>Generate Report</CardTitle>
             <CardDescription>
               Click the button below to download a comprehensive PDF document summarizing your station's key metrics.
-              This includes financial standing, live fuel stock values, and a summary of the latest weekly sales report if available.
+              This includes financial standing, live fuel stock values, and a summary of the latest monthly sales report if available.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">

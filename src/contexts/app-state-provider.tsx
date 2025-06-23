@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, WeeklyReport } from '@/lib/types';
-import { format } from 'date-fns';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport } from '@/lib/types';
+import { format, parseISO } from 'date-fns';
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
 
@@ -26,7 +26,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       bankLedger: [],
       creditHistory: [],
       miscCollections: [],
-      weeklyReports: [],
+      monthlyReports: [],
     };
     setAppState({
       ...appState,
@@ -172,11 +172,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const addOrUpdateWeeklyReport = (report: WeeklyReport) => {
+  const addOrUpdateMonthlyReport = (report: MonthlyReport) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
-      const newReports = [...prev.settings.weeklyReports];
+      const newReports = [...prev.settings.monthlyReports];
       const existingReportIndex = newReports.findIndex(r => r.id === report.id);
 
       if (existingReportIndex > -1) {
@@ -193,10 +193,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const depositTx: BankTransaction = {
           id: crypto.randomUUID(),
           date: report.endDate,
-          description: `Weekly deposit for week ending ${format(parseISO(report.endDate), 'dd MMM yyyy')}`,
+          description: `Monthly deposit for month ending ${format(parseISO(report.endDate), 'dd MMM yyyy')}`,
           type: 'credit',
           amount: report.bankDeposits,
-          source: 'weekly_report_deposit',
+          source: 'monthly_report_deposit',
           sourceId: report.id,
         };
         newBankLedger.push(depositTx);
@@ -205,20 +205,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       const newSettings = {
         ...prev.settings,
-        weeklyReports: newReports,
+        monthlyReports: newReports,
         bankLedger: newBankLedger,
       };
       return { ...prev, settings: newSettings };
     });
   };
 
-  const deleteWeeklyReport = (reportId: string) => {
+  const deleteMonthlyReport = (reportId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
 
       const newSettings = {
         ...prev.settings,
-        weeklyReports: prev.settings.weeklyReports.filter(r => r.id !== reportId),
+        monthlyReports: prev.settings.monthlyReports.filter(r => r.id !== reportId),
         bankLedger: prev.settings.bankLedger.filter(tx => tx.sourceId !== reportId),
       };
       return { ...prev, settings: newSettings };
@@ -238,8 +238,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteBankTransaction,
     addMiscCollection,
     deleteMiscCollection,
-    addOrUpdateWeeklyReport,
-    deleteWeeklyReport
+    addOrUpdateMonthlyReport,
+    deleteMonthlyReport
   };
 
   return (

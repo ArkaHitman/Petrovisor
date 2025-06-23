@@ -15,7 +15,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
-import type { WeeklyReport, FuelSale, MeterReading } from '@/lib/types';
+import type { MonthlyReport, FuelSale, MeterReading } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 
@@ -42,14 +42,14 @@ const fuelSaleSchema = z.object({
     costPerLitre: z.number(),
 });
 
-const weeklyReportSchema = z.object({
+const monthlyReportSchema = z.object({
     id: z.string(),
-    endDate: z.string().min(1, "Week ending date is required").refine((date) => {
+    endDate: z.string().min(1, "Month ending date is required").refine((date) => {
         const today = new Date();
         today.setHours(23, 59, 59, 999); // Allow today
         return parseISO(date) <= today;
     }, {
-        message: "Week ending date cannot be in the future."
+        message: "Month ending date cannot be in the future."
     }),
     bankDeposits: z.coerce.number().min(0),
     creditSales: z.coerce.number().min(0),
@@ -58,16 +58,16 @@ const weeklyReportSchema = z.object({
 
 
 export default function AddReportPage() {
-    const { settings, addOrUpdateWeeklyReport } = useAppState();
+    const { settings, addOrUpdateMonthlyReport } = useAppState();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const reportId = searchParams.get('id');
 
-    const existingReport = reportId ? settings?.weeklyReports.find(r => r.id === reportId) : undefined;
+    const existingReport = reportId ? settings?.monthlyReports.find(r => r.id === reportId) : undefined;
     
-    const form = useForm<z.infer<typeof weeklyReportSchema>>({
-        resolver: zodResolver(weeklyReportSchema),
+    const form = useForm<z.infer<typeof monthlyReportSchema>>({
+        resolver: zodResolver(monthlyReportSchema),
         defaultValues: existingReport ? {
             ...existingReport,
             fuelSales: settings?.fuels.map(fuel => {
@@ -118,11 +118,11 @@ export default function AddReportPage() {
 
     // Pre-fill opening meters on date change for new reports
     useEffect(() => {
-        if (reportId || !settings || !settings.weeklyReports || settings.weeklyReports.length === 0) {
+        if (reportId || !settings || !settings.monthlyReports || settings.monthlyReports.length === 0) {
             return;
         }
 
-        const previousReport = [...settings.weeklyReports]
+        const previousReport = [...settings.monthlyReports]
             .sort((a, b) => b.endDate.localeCompare(a.endDate))
             .find(r => r.endDate < watchedEndDate);
         
@@ -199,16 +199,16 @@ export default function AddReportPage() {
     const overallLitresSold = watchedFuelSales.reduce((acc, fs) => acc + fs.totalLitres, 0);
     const netCash = overallTotalSales - watchedBankDeposits - watchedCreditSales;
 
-    const onSubmit = (data: z.infer<typeof weeklyReportSchema>) => {
-        const report: WeeklyReport = {
+    const onSubmit = (data: z.infer<typeof monthlyReportSchema>) => {
+        const report: MonthlyReport = {
             ...data,
             totalSales: overallTotalSales,
             estProfit: overallTotalProfit,
             litresSold: overallLitresSold,
             netCash: netCash,
         };
-        addOrUpdateWeeklyReport(report);
-        toast({ title: 'Success', description: 'Weekly report has been saved.' });
+        addOrUpdateMonthlyReport(report);
+        toast({ title: 'Success', description: 'Monthly report has been saved.' });
         router.push('/reports');
     };
 
@@ -218,16 +218,16 @@ export default function AddReportPage() {
     
     return (
         <AppLayout>
-            <PageHeader title={existingReport ? 'Edit Weekly Report' : 'Add New Weekly Report'} description="Enter meter readings, deposits, and credit sales for the week." />
+            <PageHeader title={existingReport ? 'Edit Monthly Report' : 'Add New Monthly Report'} description="Enter meter readings, deposits, and credit sales for the month." />
             <div className="p-4 md:p-8">
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                         <Card>
                             <CardHeader><CardTitle className="font-headline">General Information</CardTitle></CardHeader>
                             <CardContent className="grid md:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="endDate" render={({ field }) => <FormItem><FormLabel>Week Ending Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>} />
-                                <FormField control={form.control} name="bankDeposits" render={({ field }) => <FormItem><FormLabel>Bank Deposits This Week</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                                <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales This Week</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField control={form.control} name="endDate" render={({ field }) => <FormItem><FormLabel>Month Ending Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField control={form.control} name="bankDeposits" render={({ field }) => <FormItem><FormLabel>Bank Deposits This Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales This Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                             </CardContent>
                         </Card>
 
@@ -280,7 +280,7 @@ export default function AddReportPage() {
                             </CardContent>
                         </Card>
                         
-                        <Button type="submit" size="lg" className="w-full">Save Weekly Report</Button>
+                        <Button type="submit" size="lg" className="w-full">Save Monthly Report</Button>
                     </form>
                 </Form>
             </div>

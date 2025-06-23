@@ -121,7 +121,7 @@ export default function BankPage() {
     const canDeleteTransaction = (source?: string) => {
         // Only allow deleting manual or misc_payment transactions to avoid data inconsistency.
         // Other transactions are linked to reports or credit repayments.
-        const nonDeletableSources = ['credit_repayment', 'weekly_report_deposit'];
+        const nonDeletableSources = ['credit_repayment', 'monthly_report_deposit'];
         if (!source) return true; // Backwards compatibility for old transactions
         return !nonDeletableSources.includes(source);
     };

@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { WeeklyReport } from '@/lib/types';
+import { MonthlyReport } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import React from 'react';
@@ -9,7 +9,7 @@ import { Separator } from './ui/separator';
 import { useAppState } from '@/contexts/app-state-provider';
 
 interface ReportDetailsProps {
-  report: WeeklyReport;
+  report: MonthlyReport;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -25,7 +25,7 @@ export default function ReportDetails({ report, isOpen, onClose }: ReportDetails
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Report Details</DialogTitle>
           <DialogDescription>
-            Showing detailed breakdown for the week ending on {format(parseISO(report.endDate), 'dd MMMM yyyy')}.
+            Showing detailed breakdown for the month ending on {format(parseISO(report.endDate), 'dd MMMM yyyy')}.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 pt-4">

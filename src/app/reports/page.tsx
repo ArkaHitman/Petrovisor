@@ -12,24 +12,24 @@ import React from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { WeeklyReport } from '@/lib/types';
+import { MonthlyReport } from '@/lib/types';
 import ReportDetails from '@/components/report-details';
 
 export default function ReportsPage() {
-  const { settings, deleteWeeklyReport } = useAppState();
+  const { settings, deleteMonthlyReport } = useAppState();
   const { toast } = useToast();
-  const [selectedReport, setSelectedReport] = React.useState<WeeklyReport | null>(null);
+  const [selectedReport, setSelectedReport] = React.useState<MonthlyReport | null>(null);
 
   const handleDelete = (reportId: string) => {
-    deleteWeeklyReport(reportId);
-    toast({ title: 'Success', description: 'Weekly report has been deleted.' });
+    deleteMonthlyReport(reportId);
+    toast({ title: 'Success', description: 'Monthly report has been deleted.' });
   };
   
   return (
     <AppLayout>
       <PageHeader
-        title="Weekly Reports"
-        description="Manage and view your weekly sales and performance reports."
+        title="Monthly Reports"
+        description="Manage and view your monthly sales and performance reports."
       >
         <Button asChild className="bg-accent hover:bg-accent/90">
           <Link href="/reports/add">
@@ -42,14 +42,14 @@ export default function ReportsPage() {
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">Reports History</CardTitle>
-                <CardDescription>A list of all your past weekly reports.</CardDescription>
+                <CardDescription>A list of all your past monthly reports.</CardDescription>
             </CardHeader>
             <CardContent>
-                 {settings?.weeklyReports && settings.weeklyReports.length > 0 ? (
+                 {settings?.monthlyReports && settings.monthlyReports.length > 0 ? (
                    <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Week Ending</TableHead>
+                          <TableHead>Month Ending</TableHead>
                           <TableHead>Total Sales</TableHead>
                           <TableHead>Est. Profit</TableHead>
                           <TableHead>Net Cash</TableHead>
@@ -57,7 +57,7 @@ export default function ReportsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {settings.weeklyReports.map(report => (
+                        {settings.monthlyReports.map(report => (
                           <TableRow key={report.id}>
                             <TableCell className="font-medium">{format(parseISO(report.endDate), 'dd MMM yyyy')}</TableCell>
                             <TableCell>{formatCurrency(report.totalSales)}</TableCell>

@@ -38,8 +38,8 @@ export default function SettingsPage() {
       if (!newLocalSettings.nozzlesPerFuel) {
         newLocalSettings.nozzlesPerFuel = {};
       }
-      if (!newLocalSettings.weeklyReports) {
-        newLocalSettings.weeklyReports = [];
+      if (!newLocalSettings.monthlyReports) {
+        newLocalSettings.monthlyReports = [];
       }
 
 

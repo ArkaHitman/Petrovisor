@@ -5,17 +5,11 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
-import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText, BarChart, CalendarDays, HandCoins } from 'lucide-react';
+import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText, Briefcase, ShoppingCart } from 'lucide-react';
 import { useMemo } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-} from '@/components/ui/chart';
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from './ui/badge';
 
 export default function Dashboard() {
   const { settings } = useAppState();
@@ -27,8 +21,8 @@ export default function Dashboard() {
     totalMiscCollections,
     netWorth,
     remainingLimit,
-    latestWeeklyReport,
-    salesChartData
+    latestMonthlyReport,
+    recentManagerTransactions,
   } = useMemo(() => {
     if (!settings) {
       return {
@@ -38,8 +32,8 @@ export default function Dashboard() {
         totalMiscCollections: 0,
         netWorth: 0,
         remainingLimit: 0,
-        latestWeeklyReport: null,
-        salesChartData: [],
+        latestMonthlyReport: null,
+        recentManagerTransactions: [],
       };
     }
 
@@ -71,18 +65,11 @@ export default function Dashboard() {
     const remainingLimit = sanctionedAmount - netWorth;
     
     // Sort reports by date to find the latest one
-    const latestWeeklyReport = settings.weeklyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
+    const latestMonthlyReport = settings.monthlyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
     
-    const salesChartData = (settings.weeklyReports || [])
-      .slice(0, 7) // Get last 7 reports
-      .map(report => ({
-        date: formatDate(parseISO(report.endDate), 'MMM dd'),
-        Sales: report.totalSales,
-        Profit: report.estProfit,
-      }))
-      .reverse(); // To show oldest first
+    const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
 
-    return { totalStockValue, currentOutstandingCredit, currentBankBalance, totalMiscCollections, netWorth, remainingLimit, latestWeeklyReport, salesChartData };
+    return { totalStockValue, currentOutstandingCredit, currentBankBalance, totalMiscCollections, netWorth, remainingLimit, latestMonthlyReport, recentManagerTransactions };
   }, [settings]);
 
   if (!settings) {
@@ -95,17 +82,6 @@ export default function Dashboard() {
     return 'bg-green-500';
   };
   
-  const chartConfig = {
-    Sales: {
-      label: 'Sales',
-      color: 'hsl(var(--chart-2))',
-    },
-    Profit: {
-      label: 'Profit',
-      color: 'hsl(var(--chart-1))',
-    },
-  };
-
   return (
     <>
       <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
@@ -118,71 +94,93 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="font-headline">Weekly Sales</CardTitle>
-              <CardDescription>Performance of the last 7 weekly reports.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="font-headline">Manager Ledger</CardTitle>
+                    <CardDescription>Recent transactions with the manager.</CardDescription>
+                </div>
+                <Briefcase className="w-6 h-6 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
-              {salesChartData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                  <RechartsBarChart accessibilityLayer data={salesChartData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      tickFormatter={(value) => `₹${value / 1000}k`}
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar dataKey="Sales" fill="var(--color-Sales)" radius={4} />
-                    <Bar dataKey="Profit" fill="var(--color-Profit)" radius={4} />
-                  </RechartsBarChart>
-                </ChartContainer>
+              {recentManagerTransactions.length > 0 ? (
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {recentManagerTransactions.map(tx => (
+                            <TableRow key={tx.id}>
+                                <TableCell>{formatDate(parseISO(tx.date), 'dd MMM')}</TableCell>
+                                <TableCell className="font-medium">{tx.description}</TableCell>
+                                <TableCell>
+                                    <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'secondary'} className={cn(tx.type === 'payment_from_manager' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                                        {tx.type === 'payment_from_manager' ? 'From Manager' : 'To Manager'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-right font-semibold">{formatCurrency(tx.amount)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                 </Table>
               ) : (
                 <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                  No weekly reports found to display chart.
+                  No manager transactions recorded yet.
                 </div>
               )}
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">Tank Overview</CardTitle>
-              <CardDescription>Initial stock levels from settings.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-6">
-              {settings.tanks.map(tank => {
-                const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-                const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
-                const stockValue = tank.initialStock * (fuel?.cost || 0);
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Tank Overview</CardTitle>
+                <CardDescription>Initial stock levels from settings.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                {settings.tanks.map(tank => {
+                  const fuel = settings.fuels.find(f => f.id === tank.fuelId);
+                  const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
+                  const stockValue = tank.initialStock * (fuel?.cost || 0);
 
-                return (
-                  <div key={tank.id} className="flex items-center gap-4">
-                     <div className="flex-1 space-y-1">
-                      <div className="flex items-baseline justify-between">
-                        <p className="text-sm font-medium leading-none">{fuel?.name || 'Unknown Fuel'}</p>
-                        <p className="text-sm font-semibold text-muted-foreground">{tank.initialStock.toLocaleString()} L</p>
+                  return (
+                    <div key={tank.id} className="flex items-center gap-4">
+                       <div className="flex-1 space-y-1">
+                        <div className="flex items-baseline justify-between">
+                          <p className="text-sm font-medium leading-none">{fuel?.name || 'Unknown Fuel'}</p>
+                          <p className="text-sm font-semibold text-muted-foreground">{tank.initialStock.toLocaleString()} L</p>
+                        </div>
+                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className={cn("h-full transition-all", getTankLevelColor(percentage))}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                         <p className="text-xs text-muted-foreground">Value (Cost): {formatCurrency(stockValue)}</p>
                       </div>
-                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className={cn("h-full transition-all", getTankLevelColor(percentage))}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                       <p className="text-xs text-muted-foreground">Value (Cost): {formatCurrency(stockValue)}</p>
                     </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
+                  )
+                })}
+              </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="font-headline">Recent Purchases</CardTitle>
+                        <CardDescription>A log of recent fuel deliveries.</CardDescription>
+                    </div>
+                    <ShoppingCart className="w-6 h-6 text-muted-foreground"/>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-center h-24 text-muted-foreground">
+                        <p>No purchase data available yet.</p>
+                    </div>
+                </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
       <FloatingCashDisplay />

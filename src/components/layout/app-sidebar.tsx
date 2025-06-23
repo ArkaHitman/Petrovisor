@@ -30,7 +30,7 @@ import { useAppState } from '@/contexts/app-state-provider';
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/reports', label: 'Weekly Reports', icon: FileText },
+  { href: '/reports', label: 'Monthly Reports', icon: FileText },
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
   { href: '/tanks', label: 'Live Tank Status', icon: Database },
   { href: '/bank', label: 'Bank Ledger', icon: Landmark },
