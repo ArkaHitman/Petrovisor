@@ -122,6 +122,7 @@ export default function DownloadReportPage() {
         },
         columnStyles: {
             0: { fontStyle: 'bold' },
+            1: { halign: 'right' },
         },
     });
     lastY = (doc as any).lastAutoTable.finalY + 10;
@@ -144,6 +145,10 @@ export default function DownloadReportPage() {
           fillColor: primaryColor,
           textColor: whiteColor,
           fontStyle: 'bold'
+      },
+      columnStyles: {
+          1: { halign: 'right' },
+          2: { halign: 'right' }
       },
     });
     lastY = (doc as any).lastAutoTable.finalY + 10;
@@ -169,6 +174,7 @@ export default function DownloadReportPage() {
         },
         columnStyles: {
           0: { fontStyle: 'bold' },
+          1: { halign: 'right' }
         }
       });
     }
