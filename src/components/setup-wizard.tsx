@@ -146,11 +146,71 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Landmark size={20}/> Financial Details</h3>
                 <p className="text-sm text-muted-foreground mb-4">Enter your banking and financial starting points.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="bankName" render={({ field }) => <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., State Bank of India" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="bankAccountNumber" render={({ field }) => <FormItem><FormLabel>Bank Account Number</FormLabel><FormControl><Input placeholder="e.g., 12345678901" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="initialBankBalance" render={({ field }) => <FormItem><FormLabel>Initial Bank Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="sanctionedAmount" render={({ field }) => <FormItem><FormLabel>Sanctioned Bank Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="managerInitialBalance" render={({ field }) => <FormItem><FormLabel>Initial Manager Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField
+                    control={form.control}
+                    name="bankName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., State Bank of India" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bankAccountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Account Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 12345678901" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="initialBankBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Initial Bank Balance</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="sanctionedAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sanctioned Bank Amount</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="managerInitialBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Initial Manager Balance</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </div>
               
@@ -178,7 +238,7 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Database size={20}/> Storage Tanks</h3>
                 <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
                 {tankFields.map((field, index) => (
-                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[repeat(5,1fr)_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
+                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
                     <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField
                       control={form.control}
@@ -214,7 +274,7 @@ export default function SetupWizard() {
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select a chart" />
-                              </SelectTrigger>
+                              </Trigger>
                             </FormControl>
                             <SelectContent>
                                <SelectItem value="none">None</SelectItem>
