@@ -46,30 +46,32 @@ const setupSchema = z.object({
     path: ["fuels"],
 });
 
+// Create default data outside the component to ensure stable references
+const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95, nozzleCount: 1 };
+const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88, nozzleCount: 1 };
+const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104, nozzleCount: 0 };
+const initialFuels = [petrolFuel, dieselFuel, xtraFuel];
+
+const initialTanks = [
+  { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
+  { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
+  { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0, dipChartType: '16kl' as const },
+];
+
 export default function SetupWizard() {
   const { finishSetup } = useAppState();
   
   const form = useForm<z.infer<typeof setupSchema>>({
     resolver: zodResolver(setupSchema),
-    defaultValues: () => {
-      const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95, nozzleCount: 1 };
-      const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88, nozzleCount: 1 };
-      const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104, nozzleCount: 0 };
-      
-      return {
-        pumpName: '',
-        bankName: '',
-        bankAccountNumber: '',
-        sanctionedAmount: 500000,
-        initialBankBalance: 100000,
-        managerInitialBalance: 0,
-        fuels: [petrolFuel, dieselFuel, xtraFuel],
-        tanks: [
-          { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
-          { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
-          { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0, dipChartType: '16kl' as const },
-        ],
-      }
+    defaultValues: {
+      pumpName: '',
+      bankName: '',
+      bankAccountNumber: '',
+      sanctionedAmount: 500000,
+      initialBankBalance: 100000,
+      managerInitialBalance: 0,
+      fuels: initialFuels,
+      tanks: initialTanks,
     },
   });
 
@@ -188,31 +190,33 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Fuel size={20}/> Fuel Types & Nozzles</h3>
                 <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, costs, and nozzle counts.</p>
                 {fuelFields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <div className="sm:col-span-3">
-                        <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (
-                            <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
+                  <Card key={field.id} className="p-3 mb-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                      <div className="sm:col-span-3">
+                          <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (
+                              <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                      </div>
+                      <div className="sm:col-span-3">
+                          <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (
+                              <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                      </div>
+                      <div className="sm:col-span-3">
+                          <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (
+                              <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                      </div>
+                      <div className="sm:col-span-2">
+                          <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (
+                              <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                      </div>
+                      <div className="sm:col-span-1">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </div>
                     </div>
-                    <div className="sm:col-span-3">
-                        <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (
-                            <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                    </div>
-                    <div className="sm:col-span-3">
-                        <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (
-                            <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                    </div>
-                    <div className="sm:col-span-2">
-                        <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (
-                            <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                    </div>
-                    <div className="sm:col-span-1">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </div>
+                  </Card>
                 ))}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Fuel</Button>
                 {form.formState.errors.fuels && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.fuels?.message}</p>}
@@ -224,29 +228,30 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Database size={20}/> Storage Tanks</h3>
                 <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
                 {tankFields.map((field, index) => (
-                   <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <div className="md:col-span-2">
-                      <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (
-                          <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                      )}/>
-                    </div>
-                    <div className="md:col-span-1">
-                      <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Fuel</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                  {watchedFuels.map((fuel) => (
-                                      <SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>
-                                  ))}
-                                  </SelectContent>
-                              </Select>
-                              <FormMessage />
-                          </FormItem>
-                      )}/>
-                    </div>
-                    <div className="md:col-span-1">
+                  <Card key={field.id} className="p-3 mb-2">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
+                      <div className="md:col-span-2">
+                        <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (
+                            <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                      </div>
+                      <div className="md:col-span-1">
+                        <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Fuel</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                    {watchedFuels.map((fuel) => (
+                                        <SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                      </div>
+                      <div className="md:col-span-1">
                        <FormField control={form.control} name={`tanks.${index}.dipChartType`} render={({ field }) => (
                           <FormItem>
                               <FormLabel>DIP Chart</FormLabel>
@@ -272,10 +277,11 @@ export default function SetupWizard() {
                           <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                       )}/>
                     </div>
-                    <div className="md:col-span-6 flex justify-end">
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <div className="flex justify-end w-full md:col-span-6">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </div>
                     </div>
-                  </div>
+                  </Card>
                 ))}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', capacity: 10000, initialStock: 0, dipChartType: 'none' })}>
                     <PlusCircle size={16} className="mr-2"/> Add Tank
