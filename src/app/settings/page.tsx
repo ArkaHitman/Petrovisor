@@ -1,19 +1,21 @@
 
 'use client';
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import AppLayout from '@/components/layout/app-layout';
+import PageHeader from '@/components/page-header';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Fuel, FuelPriceEntry, Settings, Tank } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-import { PlusCircle, Trash2, X } from 'lucide-react';
+import { PlusCircle, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
@@ -23,7 +25,6 @@ export default function SettingsPage() {
   const { toast } = useToast();
   
   const [localSettings, setLocalSettings] = useState<Settings | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(true);
 
   // State for the "Add New Price" form
   const [newPriceDate, setNewPriceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -31,7 +32,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (settings) {
-      // Deep copy settings to local state and ensure data integrity
       const newLocalSettings = JSON.parse(JSON.stringify(settings));
       
       if (!newLocalSettings.fuelPriceHistory) {
@@ -43,7 +43,6 @@ export default function SettingsPage() {
       if (!newLocalSettings.monthlyReports) {
         newLocalSettings.monthlyReports = [];
       }
-
 
       setLocalSettings(newLocalSettings);
 
@@ -60,23 +59,21 @@ export default function SettingsPage() {
     if (localSettings?.theme) {
       document.documentElement.classList.remove('light', 'dark');
       document.documentElement.classList.add(localSettings.theme);
-    }
-  }, [localSettings?.theme]);
 
-  const handleClose = () => {
-    setIsModalOpen(false);
-    // Restore original theme on close without saving
-    if (settings?.theme) {
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(settings.theme);
+      // when component unmounts, restore original theme
+      return () => {
+         if (settings?.theme) {
+            document.documentElement.classList.remove('light', 'dark');
+            document.documentElement.classList.add(settings.theme);
+        }
+      }
     }
-    setTimeout(() => router.back(), 300); // Wait for animation
-  };
+  }, [localSettings?.theme, settings?.theme]);
+
 
   const handleSave = () => {
     if (!localSettings) return;
     
-    // Simple validation
     if (!localSettings.pumpName) {
         toast({ title: "Validation Error", description: "Petrol Pump Name is required.", variant: 'destructive' });
         return;
@@ -84,8 +81,12 @@ export default function SettingsPage() {
 
     setSettings(localSettings);
     toast({ title: "Settings Saved", description: "Your changes have been saved successfully." });
-    handleClose();
+    router.push('/');
   };
+
+  const handleCancel = () => {
+    router.back();
+  }
 
   const handleInputChange = (field: keyof Settings, value: any) => {
     setLocalSettings(prev => prev ? { ...prev, [field]: value } : null);
@@ -166,7 +167,6 @@ export default function SettingsPage() {
 
         let logEntries: { date: string; category: string; description: string; amount: string; }[] = [];
 
-        // Bank Transactions
         settings.bankLedger?.forEach(tx => logEntries.push({
             date: tx.date,
             category: 'Bank Ledger',
@@ -174,7 +174,6 @@ export default function SettingsPage() {
             amount: tx.type === 'credit' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
         }));
 
-        // Manager Transactions
         settings.managerLedger?.forEach(tx => logEntries.push({
             date: tx.date,
             category: 'Manager Ledger',
@@ -182,7 +181,6 @@ export default function SettingsPage() {
             amount: tx.type === 'payment_from_manager' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
         }));
 
-        // Misc Collections
         settings.miscCollections?.forEach(c => logEntries.push({
             date: c.date,
             category: 'Misc Collection',
@@ -190,7 +188,6 @@ export default function SettingsPage() {
             amount: formatCurrency(c.amount),
         }));
 
-        // Fuel Purchases
         settings.purchases?.forEach(p => {
             const fuel = settings.fuels.find(f => f.id === p.fuelId);
             logEntries.push({
@@ -201,7 +198,6 @@ export default function SettingsPage() {
             });
         });
         
-        // Credit History
         settings.creditHistory?.forEach(c => {
            logEntries.push({
                date: c.date,
@@ -211,7 +207,6 @@ export default function SettingsPage() {
            })
         });
         
-        // Price History
         settings.fuelPriceHistory?.forEach(p => {
             const prices = Object.entries(p.prices).map(([fid, price]) => {
                 const fuel = settings.fuels.find(f => f.id === fid);
@@ -225,10 +220,8 @@ export default function SettingsPage() {
             });
         });
 
-        // Sort by date descending
         logEntries.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
-        // Generate CSV
         const headers = ['Date', 'Category', 'Description', 'Amount (INR)'];
         const csvRows = [
             headers.join(','),
@@ -259,179 +252,191 @@ export default function SettingsPage() {
 
   if (!localSettings) {
     return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center">
-        <div className="text-white">Loading Settings...</div>
-      </div>
+      <AppLayout>
+          <div className="p-8">Loading Settings...</div>
+      </AppLayout>
     );
   }
 
   const { fuels, tanks } = localSettings;
 
   return (
-    <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 animate-fadeInScaleUp">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="font-headline text-2xl font-bold text-primary">Settings</DialogTitle>
-        </DialogHeader>
+    <AppLayout>
+        <PageHeader 
+            title="Settings"
+            description="Manage your application settings and data."
+        />
+        <div className="p-4 md:p-8 space-y-8">
+            {/* General Settings Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">General Settings</CardTitle>
+                    <CardDescription>Basic information and preferences for your station.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="pumpName">Petrol Pump Name</Label>
+                        <Input id="pumpName" value={localSettings.pumpName} onChange={(e) => handleInputChange('pumpName', e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="theme">Theme</Label>
+                         <Select value={localSettings.theme} onValueChange={(value: 'light' | 'dark') => handleInputChange('theme', value)}>
+                            <SelectTrigger id="theme">
+                                <SelectValue placeholder="Select theme" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="light">Light Theme</SelectItem>
+                                <SelectItem value="dark">Dark Theme</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
+                        <Input id="bankAccountNumber" value={localSettings.bankAccountNumber || ''} onChange={(e) => handleInputChange('bankAccountNumber', e.target.value)} />
+                    </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="initialBankBalance">Initial Bank Balance (at setup)</Label>
+                        <Input id="initialBankBalance" type="number" value={localSettings.initialBankBalance || ''} onChange={(e) => handleInputChange('initialBankBalance', parseFloat(e.target.value))} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="sanctionedAmount">Sanctioned Bank Amount</Label>
+                        <Input id="sanctionedAmount" type="number" value={localSettings.sanctionedAmount || ''} onChange={(e) => handleInputChange('sanctionedAmount', parseFloat(e.target.value))} />
+                    </div>
+                </CardContent>
+            </Card>
 
-        <div className="px-6 space-y-4">
-            <Accordion type="multiple" defaultValue={['general']} className="w-full">
-                <AccordionItem value="general">
-                    <AccordionTrigger className="text-xl font-semibold">General</AccordionTrigger>
-                    <AccordionContent className="pt-2 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Fuel Price History */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Fuel Price History</CardTitle>
+                    <CardDescription>Manage historical fuel prices for accurate profit calculation.</CardDescription>
+                </CardHeader>
+                 <CardContent className="space-y-6">
+                    <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
+                        <h4 className="font-semibold">Add New Price Entry</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
                             <div className="space-y-2">
-                                <Label htmlFor="pumpName">Petrol Pump Name</Label>
-                                <Input id="pumpName" value={localSettings.pumpName} onChange={(e) => handleInputChange('pumpName', e.target.value)} />
+                                <Label htmlFor="price-date">Date</Label>
+                                <Input id="price-date" type="date" value={newPriceDate} onChange={(e) => setNewPriceDate(e.target.value)} />
                             </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="theme">Theme</Label>
-                                 <Select value={localSettings.theme} onValueChange={(value: 'light' | 'dark') => handleInputChange('theme', value)}>
-                                    <SelectTrigger id="theme">
-                                        <SelectValue placeholder="Select theme" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="light">Light Theme</SelectItem>
-                                        <SelectItem value="dark">Dark Theme</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
-                                <Input id="bankAccountNumber" value={localSettings.bankAccountNumber || ''} onChange={(e) => handleInputChange('bankAccountNumber', e.target.value)} />
-                            </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="initialBankBalance">Initial Bank Balance (at setup)</Label>
-                                <Input id="initialBankBalance" type="number" value={localSettings.initialBankBalance || ''} onChange={(e) => handleInputChange('initialBankBalance', parseFloat(e.target.value))} />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="sanctionedAmount">Sanctioned Bank Amount</Label>
-                                <Input id="sanctionedAmount" type="number" value={localSettings.sanctionedAmount || ''} onChange={(e) => handleInputChange('sanctionedAmount', parseFloat(e.target.value))} />
-                            </div>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="fuel-prices">
-                    <AccordionTrigger className="text-xl font-semibold">Fuel Price History</AccordionTrigger>
-                    <AccordionContent className="pt-2 space-y-4">
-                        <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
-                            <h4 className="font-semibold">Add New Price Entry</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
-                                <div className="space-y-2">
-                                    <Label htmlFor="price-date">Date</Label>
-                                    <Input id="price-date" type="date" value={newPriceDate} onChange={(e) => setNewPriceDate(e.target.value)} />
-                                </div>
-                                {fuels.map(fuel => (
-                                     <div key={fuel.id} className="space-y-2">
-                                        <Label htmlFor={`price-${fuel.id}`}>{fuel.name} Price</Label>
-                                        <Input id={`price-${fuel.id}`} type="number" value={newPrices[fuel.id] || ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: parseFloat(e.target.value)}))} />
-                                    </div>
-                                ))}
-                                <Button onClick={handleAddPrice} size="sm"><PlusCircle className="mr-2" /> Add</Button>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <h4 className="font-semibold">Existing Prices</h4>
-                             <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                                {localSettings.fuelPriceHistory && localSettings.fuelPriceHistory.length > 0 ? localSettings.fuelPriceHistory.map(entry => (
-                                    <div key={entry.id} className="flex justify-between items-center p-2 border rounded-md text-sm">
-                                        <span>{format(parseISO(entry.date), 'dd MMM yyyy')}</span>
-                                        <div className="flex items-center gap-4">
-                                            {fuels.map(fuel => (
-                                                <span key={fuel.id}>{fuel.name.charAt(0)}: {entry.prices[fuel.id] || 'N/A'}</span>
-                                            ))}
-                                        </div>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeletePrice(entry.id)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                )) : <p className="text-sm text-muted-foreground text-center py-4">No price history recorded.</p>}
-                            </div>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-
-                 <AccordionItem value="tanks">
-                    <AccordionTrigger className="text-xl font-semibold">Tank Configuration</AccordionTrigger>
-                    <AccordionContent className="pt-2 space-y-4">
-                        {tanks.map(tank => {
-                            const fuel = fuels.find(f => f.id === tank.fuelId);
-                            return (
-                                <div key={tank.id} className="p-4 border rounded-lg bg-muted/50">
-                                    <h4 className="font-semibold mb-2">{tank.name} ({fuel?.name || 'Unknown Fuel'})</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value))} /></div>
-                                        <div className="space-y-2"><Label>Initial Stock (Ltrs)</Label><Input type="number" value={tank.initialStock} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value))} /></div>
-                                        <div className="space-y-2"><Label>Stock Last Updated</Label><Input type="date" value={tank.lastStockUpdateDate || ''} onChange={e => handleTankChange(tank.id, 'lastStockUpdateDate', e.target.value)} /></div>
-                                        <div className="space-y-2">
-                                            <Label>DIP Chart Type</Label>
-                                            <Select value={tank.dipChartType || 'none'} onValueChange={value => handleTankChange(tank.id, 'dipChartType', value === 'none' ? undefined : value)}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select Chart" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">None</SelectItem>
-                                                    <SelectItem value="16kl">16KL Chart</SelectItem>
-                                                    <SelectItem value="21kl">21KL Chart</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="nozzles">
-                    <AccordionTrigger className="text-xl font-semibold">Default Nozzles Per Fuel Type</AccordionTrigger>
-                    <AccordionContent className="pt-2">
-                         <div className="p-4 border rounded-lg bg-muted/50 grid grid-cols-1 md:grid-cols-3 gap-4">
                             {fuels.map(fuel => (
-                                <div key={fuel.id} className="space-y-2">
-                                    <Label>{fuel.name} Nozzles</Label>
-                                    <Input type="number" min="0" max="10" value={localSettings.nozzlesPerFuel?.[fuel.id] || 0} onChange={e => handleNozzleChange(fuel.id, parseInt(e.target.value, 10))} />
+                                 <div key={fuel.id} className="space-y-2">
+                                    <Label htmlFor={`price-${fuel.id}`}>{fuel.name} Price</Label>
+                                    <Input id={`price-${fuel.id}`} type="number" value={newPrices[fuel.id] || ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: parseFloat(e.target.value)}))} />
                                 </div>
                             ))}
-                         </div>
-                    </AccordionContent>
-                </AccordionItem>
+                            <Button onClick={handleAddPrice}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <h4 className="font-semibold text-muted-foreground">Existing Price Records</h4>
+                         <div className="max-h-60 overflow-y-auto space-y-2 pr-2 border rounded-md p-2">
+                            {localSettings.fuelPriceHistory && localSettings.fuelPriceHistory.length > 0 ? localSettings.fuelPriceHistory.map(entry => (
+                                <div key={entry.id} className="flex justify-between items-center p-2 border rounded-md text-sm bg-background hover:bg-muted/50">
+                                    <span className="font-medium">{format(parseISO(entry.date), 'dd MMM yyyy')}</span>
+                                    <div className="flex items-center gap-4 text-muted-foreground">
+                                        {fuels.map(fuel => (
+                                            <span key={fuel.id}>{fuel.name.charAt(0)}: {formatCurrency(entry.prices[fuel.id] || 0)}</span>
+                                        ))}
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeletePrice(entry.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                            )) : <p className="text-sm text-muted-foreground text-center py-8">No price history recorded.</p>}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-                <AccordionItem value="data">
-                    <AccordionTrigger className="text-xl font-semibold">Data Management</AccordionTrigger>
-                    <AccordionContent className="pt-2 space-y-4">
-                         <div className="flex flex-wrap gap-4">
-                            <Button variant="outline" onClick={handleExportData}>Export All Data</Button>
-                            <Button variant="outline" onClick={handleDownloadLog}>Download Log Report</Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive">Factory Reset Application</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete all your application data from this device.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleFactoryReset}>Continue</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                         </div>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
+            {/* Tank Config */}
+            <Card>
+                 <CardHeader>
+                    <CardTitle className="font-headline">Tank Configuration</CardTitle>
+                    <CardDescription>Define the properties of your physical fuel tanks.</CardDescription>
+                </CardHeader>
+                 <CardContent className="space-y-4">
+                    {tanks.map(tank => {
+                        const fuel = fuels.find(f => f.id === tank.fuelId);
+                        return (
+                            <div key={tank.id} className="p-4 border rounded-lg bg-muted/50">
+                                <h4 className="font-semibold mb-2">{tank.name} ({fuel?.name || 'Unknown Fuel'})</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value))} /></div>
+                                    <div className="space-y-2"><Label>Current Stock (Ltrs)</Label><Input type="number" value={tank.initialStock} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value))} /></div>
+                                    <div className="space-y-2"><Label>Stock Last Updated</Label><Input type="date" value={tank.lastStockUpdateDate || ''} onChange={e => handleTankChange(tank.id, 'lastStockUpdateDate', e.target.value)} /></div>
+                                    <div className="space-y-2">
+                                        <Label>DIP Chart Type</Label>
+                                        <Select value={tank.dipChartType || 'none'} onValueChange={value => handleTankChange(tank.id, 'dipChartType', value === 'none' ? undefined : value)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Chart" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="16kl">16KL Chart</SelectItem>
+                                                <SelectItem value="21kl">21KL Chart</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </CardContent>
+            </Card>
+
+            {/* Nozzles */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Default Nozzles Per Fuel Type</CardTitle>
+                    <CardDescription>Set the number of nozzles for each fuel type. This is used when creating new monthly reports.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {fuels.map(fuel => (
+                        <div key={fuel.id} className="space-y-2">
+                            <Label>{fuel.name} Nozzles</Label>
+                            <Input type="number" min="0" max="10" value={localSettings.nozzlesPerFuel?.[fuel.id] || 0} onChange={e => handleNozzleChange(fuel.id, parseInt(e.target.value, 10))} />
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            {/* Data Management */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Data Management</CardTitle>
+                    <CardDescription>Export your data for backup or reset the application.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center gap-4">
+                     <Button variant="outline" onClick={handleExportData}>Export All Data</Button>
+                    <Button variant="outline" onClick={handleDownloadLog}>Download Log Report</Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive">Factory Reset Application</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete all your application data from this device.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleFactoryReset}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardContent>
+            </Card>
+
+            <Separator />
+
+            <div className="flex justify-end gap-4 sticky bottom-4 bg-background py-4">
+                <Button variant="outline" onClick={handleCancel}>Cancel</Button>
+                <Button onClick={handleSave} className="bg-accent hover:bg-accent/90">Save Changes</Button>
+            </div>
         </div>
-        
-        <DialogFooter className="p-6 pt-4">
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </AppLayout>
   );
 }
