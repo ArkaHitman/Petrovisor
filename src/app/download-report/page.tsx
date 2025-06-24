@@ -10,12 +10,15 @@ import { Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 export default function DownloadReportPage() {
   const { settings } = useAppState();
   const { toast } = useToast();
+  const [printOnLetterhead, setPrintOnLetterhead] = useState(false);
 
   const financialData = useMemo(() => {
     if (!settings) {
@@ -98,21 +101,60 @@ export default function DownloadReportPage() {
     const whiteColor = '#FFFFFF';
     const positiveColor = '#22c55e'; // green-500
     const negativeColor = '#ef4444'; // red-500
+    
+    let lastY = 15;
 
-    // --- Header ---
-    doc.setFillColor(primaryColor);
-    doc.rect(0, 0, pageWidth, 35, 'F');
-    
-    doc.setTextColor(whiteColor);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(settings.pumpName || 'PetroVisor Station', 14, 18);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Report Generated: ${formattedDate}`, pageWidth - 14, 18, { align: 'right' });
-    
-    let lastY = 45;
+    if (printOnLetterhead) {
+        // --- Letterhead Header ---
+        const startX = 14;
+        const endX = pageWidth - 14;
+        let currentY = 18;
+
+        // Left side: Logo text
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('IndianOil', startX, currentY + 5);
+
+        // Right side: Company Details
+        const detailsX = 60;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('M/S. OM SRIMAA SANTOSHI FUEL', detailsX, currentY - 5);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('Dealer: Indian Oil Corporation Limited', detailsX, currentY + 2);
+        doc.text('P.S. -Talsara, Dist. - Sundargarh, Odisha', detailsX, currentY + 7);
+        doc.text('Mob: 9437083729', detailsX, currentY + 12);
+        
+        currentY = 42;
+        // Draw lines
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.2);
+        doc.line(startX, currentY, endX, currentY);
+        currentY += 0.7;
+        doc.line(startX, currentY, endX, currentY);
+
+        lastY = currentY + 8;
+        
+        // Reset colors for the rest of the document
+        doc.setTextColor(0,0,0);
+    } else {
+        // --- Standard Header ---
+        doc.setFillColor(primaryColor);
+        doc.rect(0, 0, pageWidth, 35, 'F');
+        
+        doc.setTextColor(whiteColor);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.text(settings.pumpName || 'PetroVisor Station', 14, 18);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Report Generated: ${formattedDate}`, pageWidth - 14, 18, { align: 'right' });
+        
+        lastY = 45;
+    }
 
     // --- Financial Position ---
     const financialBody = [
@@ -257,7 +299,15 @@ export default function DownloadReportPage() {
               This includes financial standing, live fuel stock values, and a summary of the latest monthly sales report if available.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent className="flex flex-col items-center gap-4">
+             <div className="flex items-center space-x-2">
+                <Switch
+                    id="letterhead-switch"
+                    checked={printOnLetterhead}
+                    onCheckedChange={setPrintOnLetterhead}
+                />
+                <Label htmlFor="letterhead-switch">Print on Letterhead</Label>
+            </div>
             <Button onClick={handleDownloadPdf}>
               <Download className="mr-2 h-4 w-4" />
               Download PDF Summary
