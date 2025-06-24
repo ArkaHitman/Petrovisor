@@ -129,6 +129,7 @@ export default function SettingsPage() {
         id: crypto.randomUUID(),
         date: newPriceDate,
         prices: newPrices,
+        createdAt: new Date().toISOString(),
     };
 
     setLocalSettings(prev => {
@@ -365,7 +366,14 @@ export default function SettingsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value))} /></div>
                                     <div className="space-y-2"><Label>Current Stock (Ltrs)</Label><Input type="number" value={tank.initialStock} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value))} /></div>
-                                    <div className="space-y-2"><Label>Stock Last Updated</Label><Input type="date" value={tank.lastStockUpdateDate || ''} onChange={e => handleTankChange(tank.id, 'lastStockUpdateDate', e.target.value)} /></div>
+                                    <div className="space-y-2">
+                                        <Label>Stock Last Updated</Label>
+                                        <Input
+                                            readOnly
+                                            value={tank.lastStockUpdateTimestamp ? format(parseISO(tank.lastStockUpdateTimestamp), 'dd MMM yyyy, h:mm a') : 'Never'}
+                                            className="bg-background/50"
+                                        />
+                                    </div>
                                     <div className="space-y-2">
                                         <Label>DIP Chart Type</Label>
                                         <Select value={tank.dipChartType || 'none'} onValueChange={value => handleTankChange(tank.id, 'dipChartType', value === 'none' ? undefined : value)}>

@@ -14,6 +14,7 @@ export interface FuelPriceEntry {
   id:string;
   date: string; // YYYY-MM-DD
   prices: Record<string, number>; // Map of fuel ID to its price
+  createdAt: string;
 }
 
 export interface Tank {
@@ -22,7 +23,7 @@ export interface Tank {
   fuelId: string;
   capacity: number;
   initialStock: number;
-  lastStockUpdateDate?: string; // YYYY-MM-DD
+  lastStockUpdateTimestamp?: string; // Full ISO string
   dipChartType?: '16kl' | '21kl';
 }
 
@@ -41,6 +42,7 @@ export interface ManagerTransaction {
   description: string;
   type: 'payment_to_manager' | 'payment_from_manager';
   amount: number;
+  createdAt: string;
 }
 
 export interface BankTransaction {
@@ -51,6 +53,7 @@ export interface BankTransaction {
   amount: number;
   source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
+  createdAt: string;
 }
 
 export interface CreditHistoryEntry {
@@ -59,6 +62,7 @@ export interface CreditHistoryEntry {
   type: 'given' | 'repaid';
   amount: number;
   repaymentDestination?: 'cash' | 'bank';
+  createdAt: string;
 }
 
 export interface MiscCollection {
@@ -66,6 +70,7 @@ export interface MiscCollection {
     date: string;
     description: string;
     amount: number;
+    createdAt: string;
 }
 
 export interface FuelPurchase {
@@ -76,6 +81,7 @@ export interface FuelPurchase {
   quantity: number; // in Litres
   amount: number; // total cost
   invoiceNumber?: string;
+  createdAt: string;
 }
 
 export interface MeterReading {
@@ -108,6 +114,8 @@ export interface MonthlyReport {
   bankDeposits: number;
   creditSales: number;
   netCash: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Settings {
@@ -145,7 +153,7 @@ export interface AppStateContextType extends AppState {
   resetApp: () => void;
 
   // Manager Ledger
-  addManagerTransaction: (transaction: Omit<ManagerTransaction, 'id'>) => void;
+  addManagerTransaction: (transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => void;
   deleteManagerTransaction: (transactionId: string) => void;
 
   // Credit Register
@@ -153,18 +161,18 @@ export interface AppStateContextType extends AppState {
   addCreditRepayment: (amount: number, destination: 'cash' | 'bank') => void;
 
   // Bank Ledger
-  addBankTransaction: (transaction: Omit<BankTransaction, 'id'>) => void;
+  addBankTransaction: (transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => void;
   deleteBankTransaction: (transactionId: string) => void;
 
   // Misc Collections
-  addMiscCollection: (collection: Omit<MiscCollection, 'id'>) => void;
+  addMiscCollection: (collection: Omit<MiscCollection, 'id' | 'createdAt'>) => void;
   deleteMiscCollection: (collectionId: string) => void;
   
   // Monthly Reports
-  addOrUpdateMonthlyReport: (report: MonthlyReport) => void;
+  addOrUpdateMonthlyReport: (report: Omit<MonthlyReport, 'createdAt' | 'updatedAt'>) => void;
   deleteMonthlyReport: (reportId: string) => void;
 
   // Fuel Purchases
-  addFuelPurchase: (purchase: Omit<FuelPurchase, 'id'>) => void;
+  addFuelPurchase: (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => void;
   deleteFuelPurchase: (purchaseId: string) => void;
 }

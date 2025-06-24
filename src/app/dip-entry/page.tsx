@@ -38,7 +38,7 @@ export default function DipEntryPage() {
     
     if (settings) {
       const newTanks = settings.tanks.map(t =>
-        t.id === tank.id ? { ...t, initialStock: newVolume, lastStockUpdateDate: new Date().toISOString().split('T')[0] } : t
+        t.id === tank.id ? { ...t, initialStock: newVolume, lastStockUpdateTimestamp: new Date().toISOString() } : t
       );
       setSettings({ ...settings, tanks: newTanks });
 
