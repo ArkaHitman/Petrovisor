@@ -119,38 +119,52 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addCreditRepayment = (amount: number, destination: 'cash' | 'bank') => {
     setAppState(prev => {
       if (!prev.settings) return prev;
+      
       const date = format(new Date(), 'yyyy-MM-dd');
-      const newEntry: CreditHistoryEntry = {
+      const now = new Date().toISOString();
+
+      const newCreditEntry: CreditHistoryEntry = {
         id: crypto.randomUUID(),
         date,
         type: 'repaid',
         amount,
         repaymentDestination: destination,
-        createdAt: new Date().toISOString(),
-      };
-      
-      let newSettings: Settings = { 
-        ...prev.settings, 
-        creditHistory: [...(prev.settings.creditHistory || []), newEntry].sort((a, b) => b.date.localeCompare(a.date)) 
+        createdAt: now,
       };
 
+      const newCreditHistory = [...(prev.settings.creditHistory || []), newCreditEntry].sort((a,b) => b.date.localeCompare(a.date));
+      let newBankLedger = prev.settings.bankLedger || [];
+      let newMiscCollections = prev.settings.miscCollections || [];
+
       if (destination === 'bank') {
-        const newBankTx: Omit<BankTransaction, 'id' | 'createdAt'> = {
+        const newBankTx: BankTransaction = {
+          id: crypto.randomUUID(),
+          createdAt: now,
           date,
           description: 'Credit Repayment',
           type: 'credit',
           amount,
           source: 'credit_repayment',
         };
-        addBankTransaction(newBankTx); // This will add it with a new timestamp
+        newBankLedger = [...newBankLedger, newBankTx].sort((a, b) => b.date.localeCompare(a.date));
       } else { // destination === 'cash'
-         const newMiscCollection: Omit<MiscCollection, 'id' | 'createdAt'> = {
+         const newMiscCollection: MiscCollection = {
+           id: crypto.randomUUID(),
+           createdAt: now,
            date,
            description: 'Credit Repayment Received in Cash',
            amount,
          }
-         addMiscCollection(newMiscCollection); // This will add it with a new timestamp
+         newMiscCollections = [...newMiscCollections, newMiscCollection].sort((a, b) => b.date.localeCompare(a.date));
       }
+
+      const newSettings: Settings = { 
+        ...prev.settings, 
+        creditHistory: newCreditHistory,
+        bankLedger: newBankLedger,
+        miscCollections: newMiscCollections
+      };
+      
       return { ...prev, settings: newSettings };
     });
   };
