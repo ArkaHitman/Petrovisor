@@ -101,7 +101,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       const newSettings: Settings = {
         ...prev.settings,
-        creditHistory: [...prev.settings.creditHistory, newEntry],
+        creditHistory: [...prev.settings.creditHistory, newEntry].sort((a,b) => b.date.localeCompare(a.date)),
       };
       return { ...prev, settings: newSettings };
     });
@@ -119,7 +119,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         repaymentDestination: destination,
       };
       
-      let newSettings = { ...prev.settings, creditHistory: [...prev.settings.creditHistory, newEntry] };
+      let newSettings = { 
+        ...prev.settings, 
+        creditHistory: [...prev.settings.creditHistory, newEntry].sort((a, b) => b.date.localeCompare(a.date)) 
+      };
 
       if (destination === 'bank') {
         const newBankTx: BankTransaction = {

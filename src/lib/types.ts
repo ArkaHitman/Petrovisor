@@ -117,7 +117,6 @@ export interface Settings {
   bankAccountNumber?: string;
   sanctionedAmount?: number;
   initialBankBalance?: number;
-  creditOutstanding?: number; // This will now be the initial value
   managerInitialBalance?: number;
   debtRecovered?: number;
   fuels: Fuel[];

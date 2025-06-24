@@ -45,13 +45,12 @@ export default function Dashboard() {
       return total + (tank.initialStock * (fuel?.cost || 0));
     }, 0);
 
-    const initialCredit = settings.creditOutstanding || 0;
     const creditHistory = settings.creditHistory || [];
     const currentOutstandingCredit = creditHistory.reduce((acc, tx) => {
         if (tx.type === 'given') return acc + tx.amount;
         if (tx.type === 'repaid') return acc - tx.amount;
         return acc;
-    }, initialCredit);
+    }, 0);
 
     const initialBankBalance = settings.initialBankBalance || 0;
     const bankLedger = settings.bankLedger || [];

@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { HandCoins, Landmark, ArrowLeftRight } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { format, parseISO } from 'date-fns';
 
 const giveCreditSchema = z.object({
     amount: z.coerce.number().positive("Amount must be positive"),
@@ -30,16 +31,15 @@ export default function CreditPage() {
     const { settings, addCreditGiven, addCreditRepayment } = useAppState();
     const { toast } = useToast();
 
-    const initialCredit = settings?.creditOutstanding || 0;
-    const creditHistory = settings?.creditHistory || [];
+    const creditHistory = useMemo(() => (settings?.creditHistory || []).sort((a, b) => b.date.localeCompare(a.date)), [settings?.creditHistory]);
 
     const currentOutstandingCredit = useMemo(() => {
         return creditHistory.reduce((acc, tx) => {
             if (tx.type === 'given') return acc + tx.amount;
             if (tx.type === 'repaid') return acc - tx.amount;
             return acc;
-        }, initialCredit);
-    }, [creditHistory, initialCredit]);
+        }, 0);
+    }, [creditHistory]);
 
     const giveCreditForm = useForm<z.infer<typeof giveCreditSchema>>({
         resolver: zodResolver(giveCreditSchema),
@@ -155,7 +155,7 @@ export default function CreditPage() {
                                  </div>
                                  <div className="flex-1">
                                     <p className="font-medium">{tx.type === 'given' ? 'Credit Given' : 'Credit Repaid'}</p>
-                                    <p className="text-sm text-muted-foreground">{formatCurrency(tx.amount)} on {tx.date}</p>
+                                    <p className="text-sm text-muted-foreground">{formatCurrency(tx.amount)} on {format(parseISO(tx.date), 'dd MMM yyyy')}</p>
                                  </div>
                                </div>
                             ))}
