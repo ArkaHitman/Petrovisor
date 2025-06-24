@@ -60,7 +60,7 @@ export default function DownloadReportPage() {
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 5);
 
-    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance;
+    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
