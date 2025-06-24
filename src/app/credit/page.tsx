@@ -31,7 +31,10 @@ export default function CreditPage() {
     const { settings, addCreditGiven, addCreditRepayment } = useAppState();
     const { toast } = useToast();
 
-    const creditHistory = useMemo(() => (settings?.creditHistory || []).sort((a, b) => b.date.localeCompare(a.date)), [settings?.creditHistory]);
+    const creditHistory = useMemo(() => {
+        // Create a shallow copy before sorting to avoid mutating state directly
+        return [...(settings?.creditHistory || [])].sort((a, b) => b.date.localeCompare(a.date));
+    }, [settings?.creditHistory]);
 
     const currentOutstandingCredit = useMemo(() => {
         return creditHistory.reduce((acc, tx) => {
@@ -150,8 +153,12 @@ export default function CreditPage() {
                            <div className="max-h-[500px] overflow-y-auto pr-2 space-y-4">
                             {creditHistory.map(tx => (
                                <div key={tx.id} className="flex items-center">
-                                 <div className={cn("flex h-8 w-8 items-center justify-center rounded-full mr-4", tx.type === 'given' ? 'bg-red-100' : 'bg-green-100')}>
-                                     <ArrowLeftRight className={cn("h-4 w-4", tx.type === 'given' ? 'text-red-600' : 'text-green-600')}/>
+                                 <div className={cn("flex h-8 w-8 items-center justify-center rounded-full mr-4", 
+                                     tx.type === 'given' ? 'bg-destructive/10' : 'bg-primary/10'
+                                 )}>
+                                     <ArrowLeftRight className={cn("h-4 w-4", 
+                                         tx.type === 'given' ? 'text-destructive' : 'text-primary'
+                                     )}/>
                                  </div>
                                  <div className="flex-1">
                                     <p className="font-medium">{tx.type === 'given' ? 'Credit Given' : 'Credit Repaid'}</p>
