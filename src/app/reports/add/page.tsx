@@ -1,3 +1,4 @@
+
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -66,6 +67,11 @@ export default function AddReportPage() {
 
     const existingReport = reportId ? settings?.monthlyReports.find(r => r.id === reportId) : undefined;
     
+    // Find the latest report to pre-fill opening meters for a new entry.
+    const latestReport = !reportId && settings?.monthlyReports && settings.monthlyReports.length > 0 
+        ? [...settings.monthlyReports].sort((a, b) => b.endDate.localeCompare(a.endDate))[0] 
+        : null;
+
     const form = useForm<z.infer<typeof monthlyReportSchema>>({
         resolver: zodResolver(monthlyReportSchema),
         defaultValues: existingReport ? {
@@ -86,23 +92,30 @@ export default function AddReportPage() {
             endDate: format(new Date(), 'yyyy-MM-dd'),
             bankDeposits: 0,
             creditSales: 0,
-            fuelSales: settings?.fuels.map(fuel => ({
-                fuelId: fuel.id,
-                readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => ({
-                    nozzleId: i + 1,
-                    opening: 0,
-                    closing: 0,
-                    testing: 0,
-                    saleLitres: 0,
-                    saleAmount: 0,
+            fuelSales: settings?.fuels.map(fuel => {
+                const latestFuelSale = latestReport?.fuelSales.find(fs => fs.fuelId === fuel.id);
+                return {
+                    fuelId: fuel.id,
+                    readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
+                        const nozzleId = i + 1;
+                        const latestReading = latestFuelSale?.readings.find(r => r.nozzleId === nozzleId);
+                        return {
+                            nozzleId: nozzleId,
+                            opening: latestReading?.closing || 0,
+                            closing: latestReading?.closing || 0, // Also pre-fill closing to avoid validation error on load
+                            testing: 0,
+                            saleLitres: 0,
+                            saleAmount: 0,
+                            estProfit: 0,
+                        };
+                    }),
+                    totalLitres: 0,
+                    totalSales: 0,
                     estProfit: 0,
-                })),
-                totalLitres: 0,
-                totalSales: 0,
-                estProfit: 0,
-                pricePerLitre: 0,
-                costPerLitre: 0,
-            })) || []
+                    pricePerLitre: 0,
+                    costPerLitre: 0,
+                };
+            }) || []
         },
     });
 
@@ -115,46 +128,6 @@ export default function AddReportPage() {
     const watchedEndDate = form.watch('endDate');
     const watchedBankDeposits = form.watch('bankDeposits');
     const watchedCreditSales = form.watch('creditSales');
-
-    // Pre-fill opening meters on date change for new reports
-    useEffect(() => {
-        if (reportId || !settings || !settings.monthlyReports || settings.monthlyReports.length === 0) {
-            return;
-        }
-
-        const previousReport = [...settings.monthlyReports]
-            .sort((a, b) => b.endDate.localeCompare(a.endDate))
-            .find(r => r.endDate < watchedEndDate);
-        
-        const fuelSales = form.getValues('fuelSales');
-
-        if (!previousReport) {
-            fuelSales.forEach((fuelSale, fuelIndex) => {
-                fuelSale.readings.forEach((_, readingIndex) => {
-                    form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, 0);
-                });
-            });
-            return;
-        }
-
-        fuelSales.forEach((fuelSale, fuelIndex) => {
-            const previousFuelSale = previousReport.fuelSales.find(fs => fs.fuelId === fuelSale.fuelId);
-            
-            fuelSale.readings.forEach((reading, readingIndex) => {
-                if (previousFuelSale) {
-                    const previousReading = previousFuelSale.readings.find(pr => pr.nozzleId === reading.nozzleId);
-                    if (previousReading) {
-                        form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, previousReading.closing);
-                    } else {
-                        form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, 0);
-                    }
-                } else {
-                     form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.opening`, 0);
-                }
-            });
-        });
-
-    }, [reportId, watchedEndDate, settings, form]);
 
     useEffect(() => {
         if (!settings) return;
@@ -232,7 +205,13 @@ export default function AddReportPage() {
                         </Card>
 
                         <Card>
-                             <CardHeader><CardTitle className="font-headline">Meter Readings</CardTitle><CardDescription>Enter opening and closing meter readings for each nozzle.</CardDescription></CardHeader>
+                             <CardHeader>
+                                <CardTitle className="font-headline">Meter Readings</CardTitle>
+                                <CardDescription>
+                                    Enter opening and closing meter readings for each nozzle.
+                                    {latestReport && !reportId && ' Opening meters have been pre-filled from the last report.'}
+                                </CardDescription>
+                            </CardHeader>
                              <CardContent>
                                 <Accordion type="multiple" defaultValue={settings.fuels.map(f => f.id)}>
                                     {fuelSalesFields.map((field, index) => {
