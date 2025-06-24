@@ -66,7 +66,7 @@ export default function Dashboard() {
     
     // The total miscellaneous collections are considered cash in hand, but not part of the core asset tracking for net worth against sanctioned limit.
     // They are tracked via the FloatingCashDisplay component.
-    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
+    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance;
     
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
