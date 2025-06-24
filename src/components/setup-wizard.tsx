@@ -35,6 +35,7 @@ const tankSchema = z.object({
 const setupSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
   bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
   sanctionedAmount: z.coerce.number().min(0, 'Must be positive').optional(),
   initialBankBalance: z.coerce.number().optional(),
   managerInitialBalance: z.coerce.number().optional(),
@@ -56,6 +57,7 @@ export default function SetupWizard() {
     return {
       pumpName: '',
       bankName: '',
+      bankAccountNumber: '',
       sanctionedAmount: 500000,
       initialBankBalance: 100000,
       managerInitialBalance: 0,
@@ -145,9 +147,10 @@ export default function SetupWizard() {
                 <p className="text-sm text-muted-foreground mb-4">Enter your banking and financial starting points.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="bankName" render={({ field }) => <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., State Bank of India" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="sanctionedAmount" render={({ field }) => <FormItem><FormLabel>Sanctioned Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="initialBankBalance" render={({ field }) => <FormItem><FormLabel>Opening Bank Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="managerInitialBalance" render={({ field }) => <FormItem><FormLabel>Opening Manager Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="bankAccountNumber" render={({ field }) => <FormItem><FormLabel>Bank Account Number</FormLabel><FormControl><Input placeholder="e.g., 12345678901" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="initialBankBalance" render={({ field }) => <FormItem><FormLabel>Initial Bank Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="sanctionedAmount" render={({ field }) => <FormItem><FormLabel>Sanctioned Bank Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="managerInitialBalance" render={({ field }) => <FormItem><FormLabel>Initial Manager Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                 </div>
               </div>
               
