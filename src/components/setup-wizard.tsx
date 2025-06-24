@@ -188,20 +188,30 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Fuel size={20}/> Fuel Types & Nozzles</h3>
                 <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, costs, and nozzle counts.</p>
                 {fuelFields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_0.5fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (
-                        <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (
-                        <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (
-                        <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (
-                        <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  <div key={field.id} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end mb-2 p-3 border rounded-lg">
+                    <div className="sm:col-span-3">
+                        <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (
+                            <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <div className="sm:col-span-3">
+                        <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (
+                            <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <div className="sm:col-span-3">
+                        <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (
+                            <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <div className="sm:col-span-2">
+                        <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (
+                            <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <div className="sm:col-span-1">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
                   </div>
                 ))}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Fuel</Button>
@@ -214,48 +224,60 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Database size={20}/> Storage Tanks</h3>
                 <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
                 {tankFields.map((field, index) => (
-                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (
-                        <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Fuel</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a fuel" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                {watchedFuels.map((fuel) => (
-                                    <SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-                     <FormField control={form.control} name={`tanks.${index}.dipChartType`} render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>DIP Chart</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || 'none'}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a chart" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                   <SelectItem value="none">None</SelectItem>
-                                   <SelectItem value="16kl">16KL Chart</SelectItem>
-                                   <SelectItem value="21kl">21KL Chart</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                     )}/>
-                    <FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => (
-                        <FormItem><FormLabel>Capacity (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => (
-                        <FormItem><FormLabel>Current Stock (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                   <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end mb-2 p-3 border rounded-lg">
+                    <div className="md:col-span-2">
+                      <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (
+                          <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      )}/>
+                    </div>
+                    <div className="md:col-span-1">
+                      <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Fuel</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                  <SelectContent>
+                                  {watchedFuels.map((fuel) => (
+                                      <SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>
+                                  ))}
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                      )}/>
+                    </div>
+                    <div className="md:col-span-1">
+                       <FormField control={form.control} name={`tanks.${index}.dipChartType`} render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>DIP Chart</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                  <SelectContent>
+                                     <SelectItem value="none">None</SelectItem>
+                                     <SelectItem value="16kl">16KL</SelectItem>
+                                     <SelectItem value="21kl">21KL</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                       )}/>
+                    </div>
+                    <div className="md:col-span-1">
+                      <FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => (
+                          <FormItem><FormLabel>Capacity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                      )}/>
+                    </div>
+                    <div className="md:col-span-1">
+                      <FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => (
+                          <FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                      )}/>
+                    </div>
+                    <div className="md:col-span-6 flex justify-end">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
                   </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', capacity: 10000, initialStock: 0 })}>
+                <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', capacity: 10000, initialStock: 0, dipChartType: 'none' })}>
                     <PlusCircle size={16} className="mr-2"/> Add Tank
                 </Button>
               </div>
