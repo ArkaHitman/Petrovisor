@@ -2,7 +2,6 @@
 import AppLayout from '@/components/layout/app-layout';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Fuel } from 'lucide-react';
@@ -42,13 +41,13 @@ export default function TanksPage() {
         description="Real-time display of tank levels, capacity, and stock value based on initial stock."
       />
       <div className="p-4 md:p-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {settings.tanks.map(tank => {
+        {settings.tanks.map((tank, index) => {
           const fuel = settings.fuels.find(f => f.id === tank.fuelId);
           const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
           const stockValue = tank.initialStock * (fuel?.cost || 0);
 
           return (
-            <Card key={tank.id}>
+            <Card key={tank.id} className="opacity-0 animate-card-in" style={{ animationDelay: `${index * 100}ms` }}>
               <CardHeader>
                   <CardTitle className="font-headline flex items-center gap-2">
                     <Fuel className="w-5 h-5 text-muted-foreground" />
@@ -56,13 +55,18 @@ export default function TanksPage() {
                   </CardTitle>
                   <CardDescription>Current estimated stock for {fuel?.name || 'N/A'}.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                  <Progress value={percentage} aria-label={`${percentage.toFixed(0)}% full`} />
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>{tank.initialStock.toLocaleString()} L</span>
-                      <span>{tank.capacity.toLocaleString()} L</span>
+              <CardContent className="space-y-4 pt-2">
+                  <div className="relative h-4 w-full overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-500 ease-in-out", getTankLevelColor(percentage))}
+                        style={{ width: `${percentage}%` }}
+                      />
                   </div>
-                  <p className="text-sm font-medium">Est. Value (Cost): <span className="font-headline font-semibold">{formatCurrency(stockValue)}</span></p>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                      <span className="font-bold">{percentage.toFixed(1)}% Full</span>
+                      <span>{tank.initialStock.toLocaleString()} L / {tank.capacity.toLocaleString()} L</span>
+                  </div>
+                  <p className="text-lg font-medium pt-2">Est. Value (Cost): <span className="font-headline font-semibold">{formatCurrency(stockValue)}</span></p>
               </CardContent>
             </Card>
           );

@@ -102,12 +102,17 @@ export default {
           'from': { opacity: '0', transform: 'scale(0.95)' },
           'to': { opacity: '1', transform: 'scale(1)' },
         },
+        'card-in': {
+          'from': { opacity: '0', transform: 'translateY(1rem) scale(0.98)' },
+          'to': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fadeIn': 'fadeIn 0.2s ease-in-out',
         'fadeInScaleUp': 'fadeInScaleUp 0.2s ease-in-out',
+        'card-in': 'card-in 0.5s ease-out forwards',
       },
     },
   },
