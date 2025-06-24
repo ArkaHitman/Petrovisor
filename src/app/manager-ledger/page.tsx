@@ -123,7 +123,7 @@ export default function ManagerLedgerPage() {
     }, [managerLedger, initialBalance]);
     
     const balanceStatus = netBalance > 0 ? "Manager Owes You" : netBalance < 0 ? "You Owe Manager" : "Settled";
-    const balanceColor = netBalance > 0 ? "text-chart-2" : netBalance < 0 ? "text-destructive" : "text-muted-foreground";
+    const balanceColor = netBalance > 0 ? "text-primary" : netBalance < 0 ? "text-destructive" : "text-muted-foreground";
 
     return (
         <AppLayout>

@@ -56,7 +56,7 @@ export default function DownloadReportPage() {
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 5);
 
-    const netWorth = totalStockValue + currentOutstandingCredit + totalMiscCollections + currentBankBalance + netManagerBalance;
+    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
@@ -119,7 +119,6 @@ export default function DownloadReportPage() {
         ['Sanctioned Amount', { content: formatNumberForPdf(financialData.sanctionedAmount), styles: { halign: 'right' } }],
         ['Total Stock Value (Cost)', { content: formatNumberForPdf(financialData.totalStockValue), styles: { halign: 'right' } }],
         ['Credit Outstanding', { content: formatNumberForPdf(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
-        ['Miscellaneous Collections', { content: formatNumberForPdf(financialData.totalMiscCollections), styles: { halign: 'right' } }],
         ['Current Bank Balance', { content: formatNumberForPdf(financialData.currentBankBalance), styles: { halign: 'right' } }],
         ['Net Manager Balance', { content: formatNumberForPdf(financialData.netManagerBalance), styles: { halign: 'right', textColor: financialData.netManagerBalance >= 0 ? undefined : negativeColor } }],
         [

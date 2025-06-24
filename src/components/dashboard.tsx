@@ -5,7 +5,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
-import { Landmark, Database, Wallet, ShieldCheck, Droplets, ReceiptText, Briefcase, ShoppingCart } from 'lucide-react';
+import { Landmark, Wallet, ShieldCheck, ReceiptText, Briefcase, ShoppingCart } from 'lucide-react';
 import { useMemo } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,10 +18,9 @@ export default function Dashboard() {
     totalStockValue,
     currentOutstandingCredit,
     currentBankBalance,
-    totalMiscCollections,
+    netManagerBalance,
     netWorth,
     remainingLimit,
-    latestMonthlyReport,
     recentManagerTransactions,
     recentPurchases,
   } = useMemo(() => {
@@ -30,10 +29,9 @@ export default function Dashboard() {
         totalStockValue: 0,
         currentOutstandingCredit: 0,
         currentBankBalance: 0,
-        totalMiscCollections: 0,
+        netManagerBalance: 0,
         netWorth: 0,
         remainingLimit: 0,
-        latestMonthlyReport: null,
         recentManagerTransactions: [],
         recentPurchases: [],
       };
@@ -41,7 +39,6 @@ export default function Dashboard() {
 
     const totalStockValue = settings.tanks.reduce((total, tank) => {
       const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-      // NOTE: This uses initialStock which is now the "live" stock.
       return total + (tank.initialStock * (fuel?.cost || 0));
     }, 0);
 
@@ -60,18 +57,24 @@ export default function Dashboard() {
         return acc;
     }, initialBankBalance);
 
-    const totalMiscCollections = settings.miscCollections?.reduce((acc, c) => acc + c.amount, 0) || 0;
-    const netWorth = totalStockValue + currentOutstandingCredit + totalMiscCollections + currentBankBalance;
+    const managerInitialBalance = settings.managerInitialBalance || 0;
+    const managerLedger = settings.managerLedger || [];
+    const netManagerBalance = managerLedger.reduce((acc, tx) => {
+        if (tx.type === 'payment_from_manager') return acc + tx.amount;
+        return acc - tx.amount;
+    }, managerInitialBalance);
+    
+    // The total miscellaneous collections are considered cash in hand, but not part of the core asset tracking for net worth against sanctioned limit.
+    // They are tracked via the FloatingCashDisplay component.
+    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
+    
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
-    
-    // Sort reports by date to find the latest one
-    const latestMonthlyReport = settings.monthlyReports?.sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
     
     const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
     const recentPurchases = (settings.purchases || []).slice(0, 5);
 
-    return { totalStockValue, currentOutstandingCredit, currentBankBalance, totalMiscCollections, netWorth, remainingLimit, latestMonthlyReport, recentManagerTransactions, recentPurchases };
+    return { totalStockValue, currentOutstandingCredit, currentBankBalance, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases };
   }, [settings]);
 
   if (!settings) {
@@ -84,6 +87,9 @@ export default function Dashboard() {
     return 'bg-green-500';
   };
   
+  const managerBalanceStatus = netManagerBalance > 0 ? "Manager Owes You" : netManagerBalance < 0 ? "You Owe Manager" : "Settled";
+  const managerBalanceColor = netManagerBalance > 0 ? "text-green-600" : netManagerBalance < 0 ? "text-destructive" : "text-muted-foreground";
+
   return (
     <>
       <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
@@ -99,11 +105,17 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="font-headline">Manager Ledger</CardTitle>
-                    <CardDescription>Recent transactions with the manager.</CardDescription>
+                    <CardDescription>Current balance and recent transactions with the manager.</CardDescription>
                 </div>
                 <Briefcase className="w-6 h-6 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
+              <div className="mb-6 p-4 rounded-lg bg-muted">
+                  <p className="text-sm text-muted-foreground">Net Manager Balance</p>
+                  <p className={cn("text-2xl font-bold font-headline", managerBalanceColor)}>{formatCurrency(Math.abs(netManagerBalance))}</p>
+                  <p className="text-sm font-semibold">{managerBalanceStatus}</p>
+              </div>
+
               {recentManagerTransactions.length > 0 ? (
                  <Table>
                     <TableHeader>
@@ -130,7 +142,7 @@ export default function Dashboard() {
                     </TableBody>
                  </Table>
               ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[150px] flex items-center justify-center text-muted-foreground">
                   No manager transactions recorded yet.
                 </div>
               )}
