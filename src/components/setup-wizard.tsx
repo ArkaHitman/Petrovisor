@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Droplets, Fuel, Database, Trash2, PlusCircle, Landmark } from 'lucide-react';
 import { Separator } from './ui/separator';
-import type { Settings, NozzlesPerFuel } from '@/lib/types';
+import type { Settings, NozzlesPerFuel, Fuel as FuelType } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const fuelSchema = z.object({
@@ -19,6 +19,7 @@ const fuelSchema = z.object({
   name: z.string().min(1, 'Fuel name is required.'),
   price: z.coerce.number().min(0, 'Price must be positive.'),
   cost: z.coerce.number().min(0, 'Cost must be positive.'),
+  nozzleCount: z.coerce.number().int().min(0).default(0),
 });
 
 const tankSchema = z.object({
@@ -36,24 +37,20 @@ const setupSchema = z.object({
   sanctionedAmount: z.coerce.number().min(0, 'Must be positive').optional(),
   initialBankBalance: z.coerce.number().optional(),
   managerInitialBalance: z.coerce.number().optional(),
-  nozzlesPerFuel: z.object({
-    petrol: z.coerce.number().int().min(0).default(0),
-    diesel: z.coerce.number().int().min(0).default(0),
-    xtra: z.coerce.number().int().min(0).default(0),
-  }).refine(data => data.petrol + data.diesel + data.xtra > 0, {
-      message: "At least one nozzle is required in total."
-  }),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
   tanks: z.array(tankSchema).min(1, 'At least one tank is required.'),
+}).refine(data => data.fuels.reduce((acc, fuel) => acc + fuel.nozzleCount, 0) > 0, {
+    message: "You must have at least one nozzle in total across all fuel types.",
+    path: ["fuels"],
 });
 
 export default function SetupWizard() {
   const { finishSetup } = useAppState();
   
   const [initialValues] = useState(() => {
-    const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95 };
-    const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88 };
-    const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104 };
+    const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95, nozzleCount: 1 };
+    const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88, nozzleCount: 1 };
+    const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104, nozzleCount: 0 };
     
     return {
       pumpName: '',
@@ -61,11 +58,6 @@ export default function SetupWizard() {
       sanctionedAmount: 500000,
       initialBankBalance: 100000,
       managerInitialBalance: 0,
-      nozzlesPerFuel: {
-          petrol: 1,
-          diesel: 1,
-          xtra: 0,
-      },
       fuels: [petrolFuel, dieselFuel, xtraFuel],
       tanks: [
         { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
@@ -95,16 +87,15 @@ export default function SetupWizard() {
   const onSubmit = (data: z.infer<typeof setupSchema>) => {
     
     const nozzlesPerFuel: NozzlesPerFuel = {};
-    const petrolFuel = data.fuels.find(f => f.name.toLowerCase() === 'petrol');
-    const dieselFuel = data.fuels.find(f => f.name.toLowerCase() === 'diesel');
-    const xtraFuel = data.fuels.find(f => f.name.toLowerCase() === 'xtra');
+    const finalFuels: FuelType[] = data.fuels.map(fuelWithNozzles => {
+        nozzlesPerFuel[fuelWithNozzles.id] = fuelWithNozzles.nozzleCount;
+        const { nozzleCount, ...fuel } = fuelWithNozzles;
+        return fuel;
+    });
 
-    if (petrolFuel) nozzlesPerFuel[petrolFuel.id] = data.nozzlesPerFuel.petrol;
-    if (dieselFuel) nozzlesPerFuel[dieselFuel.id] = data.nozzlesPerFuel.diesel;
-    if (xtraFuel) nozzlesPerFuel[xtraFuel.id] = data.nozzlesPerFuel.xtra;
-    
     const settings: Settings = {
       ...data,
+      fuels: finalFuels,
       theme: 'light',
       fuelPriceHistory: [],
       nozzlesPerFuel,
@@ -162,17 +153,19 @@ export default function SetupWizard() {
               <Separator />
 
               <div>
-                <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Fuel size={20}/> Fuel Types</h3>
-                <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, and costs.</p>
+                <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Fuel size={20}/> Fuel Types & Nozzles</h3>
+                <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, costs, and nozzle counts.</p>
                 {fuelFields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
+                  <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_0.5fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
                     <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0 })}><PlusCircle size={16} className="mr-2"/> Add Fuel</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Fuel</Button>
+                {form.formState.errors.fuels && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.fuels.message}</p>}
               </div>
 
               <Separator />
@@ -249,18 +242,7 @@ export default function SetupWizard() {
                 </Button>
               </div>
 
-               <Separator />
-               
-              <div>
-                <h3 className="text-lg font-medium font-headline">Nozzles Per Fuel Type</h3>
-                 <p className="text-sm text-muted-foreground mb-4">Enter the number of nozzles for each fuel type.</p>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField control={form.control} name="nozzlesPerFuel.petrol" render={({ field }) => <FormItem><FormLabel>Petrol Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name="nozzlesPerFuel.diesel" render={({ field }) => <FormItem><FormLabel>Diesel Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name="nozzlesPerFuel.xtra" render={({ field }) => <FormItem><FormLabel>Xtra Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                 </div>
-                 {form.formState.errors.nozzlesPerFuel && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.nozzlesPerFuel.message}</p>}
-              </div>
+              <Separator />
 
               <Button type="submit" className="w-full bg-accent hover:bg-accent/90">Finish Setup</Button>
             </form>
