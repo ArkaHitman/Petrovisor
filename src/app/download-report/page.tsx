@@ -45,7 +45,18 @@ export default function DownloadReportPage() {
     const miscCollections = settings.miscCollections || [];
     const totalMiscCollections = miscCollections.reduce((acc, c) => acc + c.amount, 0);
 
-    const netWorth = totalStockValue + currentOutstandingCredit + totalMiscCollections + currentBankBalance;
+    const managerLedger = settings.managerLedger || [];
+    const managerInitialBalance = settings.managerInitialBalance || 0;
+    const netManagerBalance = managerLedger.reduce((acc, tx) => {
+        if (tx.type === 'payment_from_manager') return acc + tx.amount;
+        return acc - tx.amount;
+    }, managerInitialBalance);
+
+    const recentPurchases = (settings.purchases || [])
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 5);
+
+    const netWorth = totalStockValue + currentOutstandingCredit + totalMiscCollections + currentBankBalance + netManagerBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
     
@@ -54,6 +65,8 @@ export default function DownloadReportPage() {
       currentOutstandingCredit, 
       currentBankBalance, 
       totalMiscCollections,
+      netManagerBalance,
+      recentPurchases,
       netWorth, 
       sanctionedAmount,
       remainingLimit 
@@ -108,6 +121,7 @@ export default function DownloadReportPage() {
         ['Credit Outstanding', { content: formatNumberForPdf(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
         ['Miscellaneous Collections', { content: formatNumberForPdf(financialData.totalMiscCollections), styles: { halign: 'right' } }],
         ['Current Bank Balance', { content: formatNumberForPdf(financialData.currentBankBalance), styles: { halign: 'right' } }],
+        ['Net Manager Balance', { content: formatNumberForPdf(financialData.netManagerBalance), styles: { halign: 'right', textColor: financialData.netManagerBalance >= 0 ? undefined : negativeColor } }],
         [
             { content: 'Net Worth', styles: { fontStyle: 'bold', fillColor: lightGrey } },
             { content: formatNumberForPdf(financialData.netWorth), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } },
@@ -161,6 +175,35 @@ export default function DownloadReportPage() {
     });
     lastY = (doc as any).lastAutoTable.finalY + 10;
     
+    // --- Recent Fuel Purchases ---
+    if (financialData.recentPurchases.length > 0) {
+      autoTable(doc, {
+        startY: lastY,
+        head: [['Recent Fuel Purchases', 'Date', 'Quantity (L)', 'Amount (INR)']],
+        body: financialData.recentPurchases.map(p => {
+          const fuel = settings.fuels.find(f => f.id === p.fuelId);
+          return [
+            fuel?.name || 'Unknown',
+            formatDate(parseISO(p.date), 'dd-MM-yy'),
+            { content: p.quantity.toLocaleString(), styles: { halign: 'right' } },
+            { content: formatNumberForPdf(p.amount), styles: { halign: 'right' } },
+          ];
+        }),
+        theme: 'striped',
+        headStyles: { 
+            fillColor: primaryColor,
+            textColor: whiteColor,
+            fontStyle: 'bold'
+        },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+        },
+      });
+      lastY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
     // --- Latest Monthly Sales Summary ---
     if (settings.monthlyReports && settings.monthlyReports.length > 0) {
       const latestReport = settings.monthlyReports[0];
