@@ -1,3 +1,4 @@
+
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -105,15 +106,16 @@ export default function DownloadReportPage() {
     let lastY = 15;
 
     if (printOnLetterhead) {
+        // --- Indian Oil Logo ---
+        const logoBase64 = 'data:image/png;base64,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';
+
         // --- Letterhead Header ---
         const startX = 14;
         const endX = pageWidth - 14;
         let currentY = 18;
 
-        // Left side: Logo text
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
-        doc.text('IndianOil', startX, currentY + 5);
+        // Left side: Logo
+        doc.addImage(logoBase64, 'PNG', startX, currentY - 8, 20, 20);
 
         // Right side: Company Details
         const detailsX = 60;
