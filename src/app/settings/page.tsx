@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -365,7 +366,7 @@ export default function SettingsPage() {
                                         <div className="space-y-2"><Label>Stock Last Updated</Label><Input type="date" value={tank.lastStockUpdateDate || ''} onChange={e => handleTankChange(tank.id, 'lastStockUpdateDate', e.target.value)} /></div>
                                         <div className="space-y-2">
                                             <Label>DIP Chart Type</Label>
-                                            <Select value={tank.dipChartType || ''} onValueChange={value => handleTankChange(tank.id, 'dipChartType', value)}>
+                                            <Select value={tank.dipChartType || 'none'} onValueChange={value => handleTankChange(tank.id, 'dipChartType', value === 'none' ? undefined : value)}>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select Chart" />
                                                 </SelectTrigger>

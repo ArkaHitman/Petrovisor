@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -28,7 +29,7 @@ const tankSchema = z.object({
   fuelId: z.string().min(1, 'Please select a fuel type.'),
   capacity: z.coerce.number().min(1, 'Capacity must be greater than 0.'),
   initialStock: z.coerce.number().min(0, 'Initial stock cannot be negative.'),
-  dipChartType: z.enum(['16kl', '21kl']).optional(),
+  dipChartType: z.enum(['16kl', '21kl', 'none']).optional().transform(val => val === 'none' ? undefined : val),
 });
 
 const setupSchema = z.object({
@@ -206,13 +207,14 @@ export default function SetupWizard() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>DIP Chart</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value || 'none'}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select a chart" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                               <SelectItem value="none">None</SelectItem>
                                <SelectItem value="16kl">16KL Chart</SelectItem>
                                <SelectItem value="21kl">21KL Chart</SelectItem>
                             </SelectContent>
