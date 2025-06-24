@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Droplets, Fuel, Database, Trash2, PlusCircle, Landmark } from 'lucide-react';
-import { Separator } from './ui/separator';
+import { Separator } from '@/components/ui/separator';
 import type { Settings, NozzlesPerFuel, Fuel as FuelType } from '@/lib/types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -49,30 +49,28 @@ const setupSchema = z.object({
 export default function SetupWizard() {
   const { finishSetup } = useAppState();
   
-  const [initialValues] = useState(() => {
-    const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95, nozzleCount: 1 };
-    const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88, nozzleCount: 1 };
-    const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104, nozzleCount: 0 };
-    
-    return {
-      pumpName: '',
-      bankName: '',
-      bankAccountNumber: '',
-      sanctionedAmount: 500000,
-      initialBankBalance: 100000,
-      managerInitialBalance: 0,
-      fuels: [petrolFuel, dieselFuel, xtraFuel],
-      tanks: [
-        { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
-        { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
-        { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0, dipChartType: '16kl' as const },
-      ],
-    }
-  });
-
   const form = useForm<z.infer<typeof setupSchema>>({
     resolver: zodResolver(setupSchema),
-    defaultValues: initialValues,
+    defaultValues: () => {
+      const petrolFuel = { id: crypto.randomUUID(), name: 'Petrol', price: 100, cost: 95, nozzleCount: 1 };
+      const dieselFuel = { id: crypto.randomUUID(), name: 'Diesel', price: 92, cost: 88, nozzleCount: 1 };
+      const xtraFuel = { id: crypto.randomUUID(), name: 'Xtra', price: 110, cost: 104, nozzleCount: 0 };
+      
+      return {
+        pumpName: '',
+        bankName: '',
+        bankAccountNumber: '',
+        sanctionedAmount: 500000,
+        initialBankBalance: 100000,
+        managerInitialBalance: 0,
+        fuels: [petrolFuel, dieselFuel, xtraFuel],
+        tanks: [
+          { id: crypto.randomUUID(), name: 'Petrol Tank', fuelId: petrolFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
+          { id: crypto.randomUUID(), name: 'Diesel Tank', fuelId: dieselFuel.id, capacity: 20000, initialStock: 0, dipChartType: '21kl' as const },
+          { id: crypto.randomUUID(), name: 'Xtra Fuel Tank', fuelId: xtraFuel.id, capacity: 15000, initialStock: 0, dipChartType: '16kl' as const },
+        ],
+      }
+    },
   });
 
   const { fields: fuelFields, append: appendFuel, remove: removeFuel } = useFieldArray({
@@ -146,71 +144,41 @@ export default function SetupWizard() {
                 <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Landmark size={20}/> Financial Details</h3>
                 <p className="text-sm text-muted-foreground mb-4">Enter your banking and financial starting points.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="bankName"
-                    render={({ field }) => (
+                  <FormField control={form.control} name="bankName" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bank Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., State Bank of India" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                          <FormLabel>Bank Name</FormLabel>
+                          <FormControl><Input placeholder="e.g., State Bank of India" {...field} /></FormControl>
+                          <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bankAccountNumber"
-                    render={({ field }) => (
+                  )} />
+                  <FormField control={form.control} name="bankAccountNumber" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bank Account Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., 12345678901" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                          <FormLabel>Bank Account Number</FormLabel>
+                          <FormControl><Input placeholder="e.g., 12345678901" {...field} /></FormControl>
+                          <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="initialBankBalance"
-                    render={({ field }) => (
+                  )} />
+                  <FormField control={form.control} name="initialBankBalance" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Initial Bank Balance</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                          <FormLabel>Initial Bank Balance</FormLabel>
+                          <FormControl><Input type="number" {...field} /></FormControl>
+                          <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="sanctionedAmount"
-                    render={({ field }) => (
+                  )} />
+                  <FormField control={form.control} name="sanctionedAmount" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sanctioned Bank Amount</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                          <FormLabel>Sanctioned Bank Amount</FormLabel>
+                          <FormControl><Input type="number" {...field} /></FormControl>
+                          <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="managerInitialBalance"
-                    render={({ field }) => (
+                  )} />
+                  <FormField control={form.control} name="managerInitialBalance" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Initial Manager Balance</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                          <FormLabel>Initial Manager Balance</FormLabel>
+                          <FormControl><Input type="number" {...field} /></FormControl>
+                          <FormMessage />
                       </FormItem>
-                    )}
-                  />
+                  )} />
                 </div>
               </div>
               
@@ -221,15 +189,23 @@ export default function SetupWizard() {
                 <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, costs, and nozzle counts.</p>
                 {fuelFields.map((field, index) => (
                   <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_0.5fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (
+                        <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (
+                        <FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (
+                        <FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (
+                        <FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 ))}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Fuel</Button>
-                {form.formState.errors.fuels && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.fuels.message}</p>}
+                {form.formState.errors.fuels && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.fuels?.message}</p>}
               </div>
 
               <Separator />
@@ -239,71 +215,48 @@ export default function SetupWizard() {
                 <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
                 {tankFields.map((field, index) => (
                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-2 items-end mb-2 p-3 border rounded-lg">
-                    <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField
-                      control={form.control}
-                      name={`tanks.${index}.fuelId`}
-                      render={({ field }) => (
+                    <FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (
+                        <FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Fuel</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a fuel" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {watchedFuels.map((fuel) => (
-                                <SelectItem key={fuel.id} value={fuel.id}>
-                                  {fuel.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
+                            <FormLabel>Fuel</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select a fuel" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                {watchedFuels.map((fuel) => (
+                                    <SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
                         </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name={`tanks.${index}.dipChartType`}
-                      render={({ field }) => (
+                    )}/>
+                     <FormField control={form.control} name={`tanks.${index}.dipChartType`} render={({ field }) => (
                         <FormItem>
-                          <FormLabel>DIP Chart</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || 'none'}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a chart" />
-                              </Trigger>
-                            </FormControl>
-                            <SelectContent>
-                               <SelectItem value="none">None</SelectItem>
-                               <SelectItem value="16kl">16KL Chart</SelectItem>
-                               <SelectItem value="21kl">21KL Chart</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
+                            <FormLabel>DIP Chart</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select a chart" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                   <SelectItem value="none">None</SelectItem>
+                                   <SelectItem value="16kl">16KL Chart</SelectItem>
+                                   <SelectItem value="21kl">21KL Chart</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
                         </FormItem>
-                      )}
-                    />
-                    <FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => <FormItem><FormLabel>Capacity (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => <FormItem><FormLabel>Current Stock (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                     )}/>
+                    <FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => (
+                        <FormItem><FormLabel>Capacity (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => (
+                        <FormItem><FormLabel>Current Stock (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 ))}
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => appendTank({ 
-                    id: crypto.randomUUID(), 
-                    name: '', 
-                    fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', 
-                    capacity: 10000, 
-                    initialStock: 0 
-                  })}
-                >
-                  <PlusCircle size={16} className="mr-2"/> Add Tank
+                <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', capacity: 10000, initialStock: 0 })}>
+                    <PlusCircle size={16} className="mr-2"/> Add Tank
                 </Button>
               </div>
 
