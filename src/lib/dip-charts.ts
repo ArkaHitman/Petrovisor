@@ -4,10 +4,7 @@
 // calibration chart data provided by your tank manufacturer to ensure
 // accurate stock measurement.
 
-interface DipChartEntry {
-  dip: number; // Dip reading in cm
-  volume: number; // Corresponding volume in Litres
-}
+import type { DipChartEntry } from "./types";
 
 // Placeholder chart for a 16KL (16,000 Litre) tank
 // Assuming a max dip of 250 cm
