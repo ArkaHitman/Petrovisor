@@ -41,7 +41,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('petrovisor-data');
       setAppState(defaultState);
-      window.location.href = '/';
     }
   };
 
@@ -120,7 +119,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         repaymentDestination: destination,
       };
       
-      let newSettings = { 
+      let newSettings: Settings = { 
         ...prev.settings, 
         creditHistory: [...(prev.settings.creditHistory || []), newEntry].sort((a, b) => b.date.localeCompare(a.date)) 
       };

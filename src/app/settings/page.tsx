@@ -248,6 +248,7 @@ export default function SettingsPage() {
 
   const handleFactoryReset = () => {
     resetApp();
+    router.push('/');
   };
 
   if (!localSettings) {

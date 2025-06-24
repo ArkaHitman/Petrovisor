@@ -111,7 +111,7 @@ export default {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fadeIn': 'fadeIn 0.2s ease-in-out',
-        'fadeInScaleUp': 'fadeInScaleUp 0.2s ease-in-out',
+        'fadeInScaleUp': 'fadeInScaleUp 0.5s ease-in-out',
         'card-in': 'card-in 0.5s ease-out forwards',
       },
     },
