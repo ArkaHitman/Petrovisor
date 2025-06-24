@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext } from 'react';
@@ -50,7 +51,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const newTransaction = { ...transaction, id: crypto.randomUUID() };
       const newSettings = {
         ...prev.settings,
-        managerLedger: [...prev.settings.managerLedger, newTransaction].sort((a,b) => b.date.localeCompare(a.date)),
+        managerLedger: [...(prev.settings.managerLedger || []), newTransaction].sort((a,b) => b.date.localeCompare(a.date)),
       };
       return { ...prev, settings: newSettings };
     });
@@ -61,7 +62,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!prev.settings) return prev;
       const newSettings = {
         ...prev.settings,
-        managerLedger: prev.settings.managerLedger.filter(t => t.id !== transactionId),
+        managerLedger: (prev.settings.managerLedger || []).filter(t => t.id !== transactionId),
       };
       return { ...prev, settings: newSettings };
     });
@@ -73,7 +74,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const newTransaction = { ...transaction, id: crypto.randomUUID() };
       const newSettings = {
         ...prev.settings,
-        bankLedger: [...prev.settings.bankLedger, newTransaction].sort((a,b) => b.date.localeCompare(a.date)),
+        bankLedger: [...(prev.settings.bankLedger || []), newTransaction].sort((a,b) => b.date.localeCompare(a.date)),
       };
       return { ...prev, settings: newSettings };
     });
@@ -84,7 +85,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!prev.settings) return prev;
       const newSettings = {
         ...prev.settings,
-        bankLedger: prev.settings.bankLedger.filter(t => t.id !== transactionId),
+        bankLedger: (prev.settings.bankLedger || []).filter(t => t.id !== transactionId),
       };
       return { ...prev, settings: newSettings };
     });
@@ -101,7 +102,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       const newSettings: Settings = {
         ...prev.settings,
-        creditHistory: [...prev.settings.creditHistory, newEntry].sort((a,b) => b.date.localeCompare(a.date)),
+        creditHistory: [...(prev.settings.creditHistory || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
       };
       return { ...prev, settings: newSettings };
     });
@@ -121,7 +122,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       
       let newSettings = { 
         ...prev.settings, 
-        creditHistory: [...prev.settings.creditHistory, newEntry].sort((a, b) => b.date.localeCompare(a.date)) 
+        creditHistory: [...(prev.settings.creditHistory || []), newEntry].sort((a, b) => b.date.localeCompare(a.date)) 
       };
 
       if (destination === 'bank') {
@@ -135,7 +136,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         };
         newSettings = {
           ...newSettings,
-          bankLedger: [...newSettings.bankLedger, newBankTx].sort((a, b) => b.date.localeCompare(a.date)),
+          bankLedger: [...(newSettings.bankLedger || []), newBankTx].sort((a, b) => b.date.localeCompare(a.date)),
         };
       } else { // destination === 'cash'
          const newMiscCollection: MiscCollection = {
@@ -146,7 +147,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
          }
          newSettings = {
            ...newSettings,
-           miscCollections: [...newSettings.miscCollections, newMiscCollection].sort((a, b) => b.date.localeCompare(a.date)),
+           miscCollections: [...(newSettings.miscCollections || []), newMiscCollection].sort((a, b) => b.date.localeCompare(a.date)),
          }
       }
       return { ...prev, settings: newSettings };
@@ -159,7 +160,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const newCollection = { ...collection, id: crypto.randomUUID() };
         const newSettings = {
             ...prev.settings,
-            miscCollections: [...prev.settings.miscCollections, newCollection].sort((a, b) => b.date.localeCompare(a.date)),
+            miscCollections: [...(prev.settings.miscCollections || []), newCollection].sort((a, b) => b.date.localeCompare(a.date)),
         };
         return { ...prev, settings: newSettings };
     });
@@ -170,7 +171,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!prev.settings) return prev;
       const newSettings = {
         ...prev.settings,
-        miscCollections: prev.settings.miscCollections.filter(c => c.id !== collectionId),
+        miscCollections: (prev.settings.miscCollections || []).filter(c => c.id !== collectionId),
       };
       return { ...prev, settings: newSettings };
     });
@@ -180,7 +181,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
-      const newReports = [...prev.settings.monthlyReports];
+      const newReports = [...(prev.settings.monthlyReports || [])];
       const existingReportIndex = newReports.findIndex(r => r.id === report.id);
 
       if (existingReportIndex > -1) {
@@ -191,7 +192,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       newReports.sort((a, b) => b.endDate.localeCompare(a.endDate));
 
       // Atomically update the bank ledger for the report's deposit
-      let newBankLedger = prev.settings.bankLedger.filter(tx => tx.sourceId !== report.id);
+      let newBankLedger = (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== report.id);
       
       if (report.bankDeposits > 0) {
         const depositTx: BankTransaction = {
@@ -222,8 +223,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       const newSettings = {
         ...prev.settings,
-        monthlyReports: prev.settings.monthlyReports.filter(r => r.id !== reportId),
-        bankLedger: prev.settings.bankLedger.filter(tx => tx.sourceId !== reportId),
+        monthlyReports: (prev.settings.monthlyReports || []).filter(r => r.id !== reportId),
+        bankLedger: (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== reportId),
       };
       return { ...prev, settings: newSettings };
     });
@@ -256,7 +257,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         sourceId: newPurchase.id,
       };
 
-      const newBankLedger = [...prev.settings.bankLedger, newBankTx].sort((a,b) => b.date.localeCompare(a.date));
+      const newBankLedger = [...(prev.settings.bankLedger || []), newBankTx].sort((a,b) => b.date.localeCompare(a.date));
 
       const newSettings = {
         ...prev.settings,
@@ -276,7 +277,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const purchaseToDelete = prev.settings.purchases.find(p => p.id === purchaseId);
         if (!purchaseToDelete) return prev;
 
-        const newPurchases = prev.settings.purchases.filter(p => p.id !== purchaseId);
+        const newPurchases = (prev.settings.purchases || []).filter(p => p.id !== purchaseId);
 
         const newTanks = prev.settings.tanks.map(tank => {
             if (tank.id === purchaseToDelete.tankId) {
@@ -285,7 +286,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             return tank;
         });
 
-        const newBankLedger = prev.settings.bankLedger.filter(tx => tx.sourceId !== purchaseId);
+        const newBankLedger = (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== purchaseId);
         
         const newSettings = {
             ...prev.settings,
