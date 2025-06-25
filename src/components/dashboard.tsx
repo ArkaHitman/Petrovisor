@@ -77,7 +77,7 @@ export default function Dashboard() {
     const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
     
     const sanctionedAmount = settings.sanctionedAmount || 0;
-    const remainingLimit = sanctionedAmount - netWorth;
+    const remainingLimit = netWorth - sanctionedAmount;
     
     const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
     const recentPurchases = (settings.purchases || []).slice(0, 5);
@@ -105,7 +105,7 @@ export default function Dashboard() {
             <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} />
             <StatCard title="Bank Balance" value={formatCurrency(currentBankBalance)} icon={Landmark} />
             <StatCard title="Outstanding Credit" value={formatCurrency(currentOutstandingCredit)} icon={ReceiptText} />
-            <StatCard title="Remaining Limit" value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}/>
+            <StatCard title="Remaining Limit" value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-destructive' : 'text-green-600'}/>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -72,7 +72,7 @@ export default function DownloadReportPage() {
 
     const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
     const sanctionedAmount = settings.sanctionedAmount || 0;
-    const remainingLimit = sanctionedAmount - netWorth;
+    const remainingLimit = netWorth - sanctionedAmount;
     
     return { 
       totalStockValue, 
@@ -173,8 +173,8 @@ export default function DownloadReportPage() {
             { content: formatNumberForPdf(financialData.netWorth), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } },
         ],
         [
-            { content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
-            { content: formatNumberForPdf(financialData.remainingLimit), styles: { fontStyle: 'bold', halign: 'right', textColor: financialData.remainingLimit >= 0 ? positiveColor : negativeColor } },
+            { content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: financialData.remainingLimit >= 0 ? negativeColor : positiveColor } },
+            { content: formatNumberForPdf(financialData.remainingLimit), styles: { fontStyle: 'bold', halign: 'right', textColor: financialData.remainingLimit >= 0 ? negativeColor : positiveColor } },
         ],
     ];
 
