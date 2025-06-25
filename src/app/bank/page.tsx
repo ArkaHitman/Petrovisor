@@ -214,9 +214,10 @@ function AnalyzeStatementDialog({ open, setOpen }: { open: boolean; setOpen: (op
 }
 
 export default function BankPage() {
-    const { settings, deleteBankTransaction } = useAppState();
+    const { settings, deleteBankTransaction, clearManualBankTransactions } = useAppState();
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
     const [isAnalyzeDialogOpen, setIsAnalyzeDialogOpen] = React.useState(false);
+    const { toast } = useToast();
 
     const bankLedger = settings?.bankLedger || [];
     const initialBalance = settings?.initialBankBalance || 0;
@@ -234,6 +235,11 @@ export default function BankPage() {
         if (!source) return true;
         return !nonDeletableSources.includes(source);
     };
+
+    const handleClearManualTransactions = () => {
+        clearManualBankTransactions();
+        toast({ title: 'Success', description: 'Manually added transactions have been cleared.' });
+    };
     
     return (
         <AppLayout>
@@ -241,7 +247,28 @@ export default function BankPage() {
                 title="Bank Ledger"
                 description="Track all your bank transactions and view your current balance."
             >
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={bankLedger.filter(tx => canDeleteTransaction(tx.source)).length === 0}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Clear Manual Entries
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Clear All Manual Transactions?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will permanently delete all transactions added manually or via statement import.
+                                    System-generated transactions (from fuel purchases, reports, etc.) will not be affected. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearManualTransactions}>Clear Entries</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                     <Button variant="outline" onClick={() => setIsAnalyzeDialogOpen(true)}>
                         <FileUp className="mr-2 h-4 w-4" />
                         Analyze Statement

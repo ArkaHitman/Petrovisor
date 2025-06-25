@@ -3,8 +3,9 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, FuelSale, MeterReading } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
+import { getFuelPricesForDate } from '@/lib/utils';
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
 
@@ -97,6 +98,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
+  
+  const clearManualBankTransactions = useCallback(() => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const deletableSources = ['manual', 'statement_import'];
+      const newSettings = {
+        ...prev.settings,
+        bankLedger: (prev.settings.bankLedger || []).filter(tx => !deletableSources.includes(tx.source || '')),
+      };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
 
   const addCreditGiven = useCallback((amount: number) => {
     setAppState(prev => {
@@ -123,6 +136,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const date = format(new Date(), 'yyyy-MM-dd');
       const now = new Date().toISOString();
 
+      const newSettings = {...prev.settings};
+      
       const newCreditEntry: CreditHistoryEntry = {
         id: crypto.randomUUID(),
         date,
@@ -131,8 +146,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         repaymentDestination: destination,
         createdAt: now,
       };
-      
-      const newSettings = {...prev.settings};
       newSettings.creditHistory = [...(newSettings.creditHistory || []), newCreditEntry].sort((a,b) => b.date.localeCompare(a.date));
 
       if (destination === 'bank') {
@@ -328,6 +341,117 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
+  const processDsrData = useCallback((data: AnalyzeDsrOutput) => {
+    setAppState(prev => {
+        if (!prev.settings) return prev;
+
+        const now = new Date().toISOString();
+        const newSettings = JSON.parse(JSON.stringify(prev.settings));
+
+        // 1. Add credit sales to history
+        if (data.creditSales > 0) {
+            const newCreditEntry: CreditHistoryEntry = {
+                id: crypto.randomUUID(),
+                date: data.reportDate,
+                type: 'given',
+                amount: data.creditSales,
+                createdAt: now,
+            };
+            newSettings.creditHistory.push(newCreditEntry);
+        }
+
+        // 2. Add bank deposits to ledger
+        data.bankDeposits.forEach(deposit => {
+            const newBankTx: BankTransaction = {
+                id: crypto.randomUUID(),
+                date: data.reportDate,
+                description: `${deposit.description}${deposit.destinationAccount ? ` to ${deposit.destinationAccount}` : ''}`,
+                type: 'credit',
+                amount: deposit.amount,
+                source: 'dsr_import',
+                createdAt: now,
+            };
+            newSettings.bankLedger.push(newBankTx);
+        });
+
+        // 3. Construct a daily report from the DSR data
+        let totalSales = 0;
+        let totalProfit = 0;
+        let totalLitres = 0;
+
+        const fuelSalesForReport: FuelSale[] = newSettings.fuels.map((fuel: any) => {
+            const aiReadingsForFuel = data.fuelSales.filter(fs => fs.fuelName.toLowerCase() === fuel.name.toLowerCase());
+            
+            const { costPrice } = getFuelPricesForDate(fuel.id, data.reportDate, newSettings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
+            
+            let fuelTotalLitres = 0;
+            let fuelTotalSales = 0;
+            let fuelTotalProfit = 0;
+
+            const meterReadings: MeterReading[] = aiReadingsForFuel.map(r => {
+                const saleLitres = Math.max(0, r.closingReading - r.openingReading - r.testing);
+                const saleAmount = saleLitres * r.pricePerLitre;
+                const estProfit = saleLitres * (r.pricePerLitre - costPrice);
+
+                fuelTotalLitres += saleLitres;
+                fuelTotalSales += saleAmount;
+                fuelTotalProfit += estProfit;
+
+                return {
+                    nozzleId: r.nozzleId,
+                    opening: r.openingReading,
+                    closing: r.closingReading,
+                    testing: r.testing,
+                    saleLitres,
+                    saleAmount,
+                    estProfit,
+                };
+            });
+            
+            totalSales += fuelTotalSales;
+            totalProfit += fuelTotalProfit;
+            totalLitres += fuelTotalLitres;
+
+            // Find the price per litre from the first relevant reading, or fall back.
+            const pricePerLitre = aiReadingsForFuel.length > 0 ? aiReadingsForFuel[0].pricePerLitre : 0;
+
+            return {
+                fuelId: fuel.id,
+                readings: meterReadings,
+                totalLitres: fuelTotalLitres,
+                totalSales: fuelTotalSales,
+                estProfit: fuelTotalProfit,
+                pricePerLitre,
+                costPerLitre: costPrice,
+            };
+        });
+        
+        const totalBankDepositsFromDSR = data.bankDeposits.reduce((sum, dep) => sum + dep.amount, 0);
+
+        const newReport: MonthlyReport = {
+            id: crypto.randomUUID(),
+            endDate: data.reportDate,
+            fuelSales: fuelSalesForReport.filter(fs => fs.totalLitres > 0), // Only include fuels that had sales
+            totalSales,
+            estProfit: totalProfit,
+            litresSold: totalLitres,
+            bankDeposits: totalBankDepositsFromDSR,
+            creditSales: data.creditSales,
+            netCash: totalSales - totalBankDepositsFromDSR - data.creditSales,
+            createdAt: now,
+            updatedAt: now,
+        };
+        newSettings.monthlyReports.push(newReport);
+        
+        // Sort all modified arrays by date
+        newSettings.creditHistory.sort((a: any, b: any) => b.date.localeCompare(a.date));
+        newSettings.bankLedger.sort((a: any, b: any) => b.date.localeCompare(a.date));
+        newSettings.monthlyReports.sort((a: any, b: any) => b.endDate.localeCompare(a.endDate));
+
+        return { ...prev, settings: newSettings };
+    });
+}, [setAppState]);
+
 
   const value = useMemo(() => ({
     ...appState,
@@ -340,12 +464,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addCreditRepayment,
     addBankTransaction,
     deleteBankTransaction,
+    clearManualBankTransactions,
     addMiscCollection,
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
     addFuelPurchase,
     deleteFuelPurchase,
+    processDsrData,
   }), [
     appState,
     setSettings,
@@ -357,12 +483,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addCreditRepayment,
     addBankTransaction,
     deleteBankTransaction,
+    clearManualBankTransactions,
     addMiscCollection,
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
     addFuelPurchase,
     deleteFuelPurchase,
+    processDsrData,
   ]);
 
   return (

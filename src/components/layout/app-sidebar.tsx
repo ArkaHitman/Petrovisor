@@ -28,6 +28,7 @@ import {
   Banknote,
   Download,
   Ruler,
+  FileScan,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -40,6 +41,7 @@ const operationsMenuItems = [
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
   { href: '/tanks', label: 'Live Tank Status', icon: Database },
   { href: '/dip-entry', label: 'DIP Entry', icon: Ruler },
+  { href: '/dsr', label: 'DSR Analysis', icon: FileScan },
 ];
 
 const financialsMenuItems = [

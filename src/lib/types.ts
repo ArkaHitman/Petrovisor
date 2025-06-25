@@ -51,7 +51,7 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }
@@ -118,6 +118,30 @@ export interface MonthlyReport {
   updatedAt: string;
 }
 
+// Types for DSR AI Flow
+export interface AnalyzeDsrInput {
+  dsrDataUri: string;
+}
+
+export interface AnalyzeDsrOutput {
+    reportDate: string;
+    fuelSales: {
+        fuelName: string;
+        pricePerLitre: number;
+        nozzleId: number;
+        openingReading: number;
+        closingReading: number;
+        testing: number;
+    }[];
+    creditSales: number;
+    bankDeposits: {
+        description: string;
+        amount: number;
+        destinationAccount?: string;
+    }[];
+}
+
+
 export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark';
@@ -163,6 +187,7 @@ export interface AppStateContextType extends AppState {
   // Bank Ledger
   addBankTransaction: (transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => void;
   deleteBankTransaction: (transactionId: string) => void;
+  clearManualBankTransactions: () => void;
 
   // Misc Collections
   addMiscCollection: (collection: Omit<MiscCollection, 'id' | 'createdAt'>) => void;
@@ -175,4 +200,7 @@ export interface AppStateContextType extends AppState {
   // Fuel Purchases
   addFuelPurchase: (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => void;
   deleteFuelPurchase: (purchaseId: string) => void;
+  
+  // DSR Processing
+  processDsrData: (data: AnalyzeDsrOutput) => void;
 }
