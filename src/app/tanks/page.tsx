@@ -1,3 +1,4 @@
+
 'use client';
 import AppLayout from '@/components/layout/app-layout';
 import PageHeader from '@/components/page-header';
@@ -50,13 +51,14 @@ export default function TanksPage() {
 
           const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
           
-          const { costPrice } = getFuelPricesForDate(
+          const { costPrice, sellingPrice } = getFuelPricesForDate(
             tank.fuelId, 
             today, 
             settings.fuelPriceHistory,
             { sellingPrice: fuel.price, costPrice: fuel.cost }
           );
-          const stockValue = tank.initialStock * costPrice;
+          const costStockValue = tank.initialStock * costPrice;
+          const sellingStockValue = tank.initialStock * sellingPrice;
 
           return (
             <Card key={tank.id} className="opacity-0 animate-card-in" style={{ animationDelay: `${index * 100}ms` }}>
@@ -78,7 +80,10 @@ export default function TanksPage() {
                       <span className="font-bold">{percentage.toFixed(1)}% Full</span>
                       <span>{tank.initialStock.toLocaleString()} L / {tank.capacity.toLocaleString()} L</span>
                   </div>
-                  <p className="text-lg font-medium pt-2">Est. Value (Cost): <span className="font-headline font-semibold">{formatCurrency(stockValue)}</span></p>
+                  <div className="pt-2">
+                    <p className="text-lg font-medium">Est. Value (Cost): <span className="font-headline font-semibold">{formatCurrency(costStockValue)}</span></p>
+                    <p className="text-sm font-medium text-muted-foreground">Est. Value (Selling): <span className="font-semibold">{formatCurrency(sellingStockValue)}</span></p>
+                  </div>
               </CardContent>
             </Card>
           );
