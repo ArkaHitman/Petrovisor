@@ -35,6 +35,7 @@ export default function ReportDetails({ report, isOpen, onClose }: ReportDetails
                     <p>Total Sales: <span className="font-bold font-headline">{formatCurrency(report.totalSales)}</span></p>
                     <p>Est. Profit: <span className="font-bold font-headline">{formatCurrency(report.estProfit)}</span></p>
                     <p>Litres Sold: <span className="font-bold font-headline">{report.litresSold.toFixed(2)} L</span></p>
+                    <p>Lube Sales: <span className="font-bold font-headline">{formatCurrency(report.lubricantSales)}</span></p>
                     <p>Bank Deposits: <span className="font-bold font-headline">{formatCurrency(report.bankDeposits)}</span></p>
                     <p>Credit Sales: <span className="font-bold font-headline">{formatCurrency(report.creditSales)}</span></p>
                     <p className="text-destructive">Net Cash: <span className="font-bold font-headline">{formatCurrency(report.netCash)}</span></p>

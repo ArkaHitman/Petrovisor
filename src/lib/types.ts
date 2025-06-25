@@ -108,6 +108,7 @@ export interface MonthlyReport {
   id: string;
   endDate: string; // YYYY-MM-DD
   fuelSales: FuelSale[];
+  lubricantSales: number;
   totalSales: number;
   estProfit: number;
   litresSold: number;
@@ -133,12 +134,15 @@ export interface AnalyzeDsrOutput {
         closingReading: number;
         testing: number;
     }[];
+    lubricantSales: number;
     creditSales: number;
+    phonepeSales: number;
     bankDeposits: {
         description: string;
         amount: number;
         destinationAccount?: string;
     }[];
+    cashInHand: number;
 }
 
 

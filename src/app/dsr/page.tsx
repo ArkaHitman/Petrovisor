@@ -139,11 +139,14 @@ export default function DsrPage() {
                     </div>
                 ) : analysisResult ? (
                     <div className="space-y-4">
-                        <div className="p-3 rounded-md border bg-background space-y-2">
-                             <p className="text-sm font-semibold">Report End Date: <span className="font-normal">{format(parseISO(analysisResult.reportDate), 'dd MMM yyyy')}</span></p>
-                             <p className="text-sm font-semibold">Total Sales Found: <span className="font-normal">{formatCurrency(analysisResult.fuelSales.reduce((acc, s) => acc + (s.closingReading - s.openingReading - s.testing) * s.pricePerLitre, 0))}</span></p>
-                             <p className="text-sm font-semibold">Credit Sales: <span className="font-normal">{formatCurrency(analysisResult.creditSales)}</span></p>
-                             <p className="text-sm font-semibold">Bank Deposits: <span className="font-normal">{analysisResult.bankDeposits.length} transaction(s) totaling {formatCurrency(analysisResult.bankDeposits.reduce((acc, d) => acc + d.amount, 0))}</span></p>
+                        <div className="p-3 rounded-md border bg-background space-y-2 text-sm">
+                            <p className="font-semibold">Report End Date: <span className="font-normal">{format(parseISO(analysisResult.reportDate), 'dd MMM yyyy')}</span></p>
+                            <p className="font-semibold">Total Fuel Sales: <span className="font-normal">{formatCurrency(analysisResult.fuelSales.reduce((acc, s) => acc + (s.closingReading - s.openingReading - s.testing) * s.pricePerLitre, 0))}</span></p>
+                            <p className="font-semibold">Lube Sales: <span className="font-normal">{formatCurrency(analysisResult.lubricantSales)}</span></p>
+                            <p className="font-semibold">Credit Sales: <span className="font-normal">{formatCurrency(analysisResult.creditSales)}</span></p>
+                            <p className="font-semibold">PhonePe Sales: <span className="font-normal">{formatCurrency(analysisResult.phonepeSales)}</span></p>
+                            <p className="font-semibold">Other Bank Deposits: <span className="font-normal">{analysisResult.bankDeposits.length} transaction(s) totaling {formatCurrency(analysisResult.bankDeposits.reduce((acc, d) => acc + d.amount, 0))}</span></p>
+                             <p className="font-semibold">Net Cash in Hand: <span className="font-normal">{formatCurrency(analysisResult.cashInHand)}</span></p>
                         </div>
                         <div className="flex items-center gap-2 p-3 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md">
                            <CheckCircle className="h-4 w-4"/>

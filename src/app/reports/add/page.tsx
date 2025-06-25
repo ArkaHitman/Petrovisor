@@ -54,6 +54,7 @@ const monthlyReportSchema = z.object({
     }),
     bankDeposits: z.coerce.number().min(0),
     creditSales: z.coerce.number().min(0),
+    lubricantSales: z.coerce.number().min(0).optional().default(0),
     fuelSales: z.array(fuelSaleSchema),
 });
 
@@ -92,6 +93,7 @@ export default function AddReportPage() {
             endDate: format(new Date(), 'yyyy-MM-dd'),
             bankDeposits: 0,
             creditSales: 0,
+            lubricantSales: 0,
             fuelSales: settings?.fuels.map(fuel => {
                 const latestFuelSale = latestReport?.fuelSales.find(fs => fs.fuelId === fuel.id);
                 return {
@@ -128,6 +130,7 @@ export default function AddReportPage() {
     const watchedEndDate = form.watch('endDate');
     const watchedBankDeposits = form.watch('bankDeposits');
     const watchedCreditSales = form.watch('creditSales');
+    const watchedLubricantSales = form.watch('lubricantSales') || 0;
 
     useEffect(() => {
         if (!settings) return;
@@ -166,7 +169,8 @@ export default function AddReportPage() {
 
     }, [watchedFuelSales, watchedEndDate, settings, form]);
 
-    const overallTotalSales = watchedFuelSales.reduce((acc, fs) => acc + fs.totalSales, 0);
+    const fuelTotalSales = watchedFuelSales.reduce((acc, fs) => acc + fs.totalSales, 0);
+    const overallTotalSales = fuelTotalSales + watchedLubricantSales;
     const overallTotalProfit = watchedFuelSales.reduce((acc, fs) => acc + fs.estProfit, 0);
     const overallLitresSold = watchedFuelSales.reduce((acc, fs) => acc + fs.totalLitres, 0);
     const netCash = overallTotalSales - watchedBankDeposits - watchedCreditSales;
@@ -174,6 +178,7 @@ export default function AddReportPage() {
     const onSubmit = (data: z.infer<typeof monthlyReportSchema>) => {
         const report: MonthlyReport = {
             ...data,
+            lubricantSales: data.lubricantSales || 0,
             totalSales: overallTotalSales,
             estProfit: overallTotalProfit,
             litresSold: overallLitresSold,
@@ -196,10 +201,11 @@ export default function AddReportPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                         <Card>
                             <CardHeader><CardTitle className="font-headline">General Information</CardTitle></CardHeader>
-                            <CardContent className="grid md:grid-cols-3 gap-4">
+                            <CardContent className="grid md:grid-cols-4 gap-4">
                                 <FormField control={form.control} name="endDate" render={({ field }) => <FormItem><FormLabel>Month Ending Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>} />
                                 <FormField control={form.control} name="bankDeposits" render={({ field }) => <FormItem><FormLabel>Bank Deposits This Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                                 <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales This Month</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField control={form.control} name="lubricantSales" render={({ field }) => <FormItem><FormLabel>Lubricant Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                             </CardContent>
                         </Card>
 

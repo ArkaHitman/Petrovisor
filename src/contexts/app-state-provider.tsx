@@ -214,12 +214,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         finalReport = {
             ...newReports[existingReportIndex],
             ...report,
+            lubricantSales: report.lubricantSales || 0,
             updatedAt: new Date().toISOString(),
         };
         newReports[existingReportIndex] = finalReport;
       } else {
         finalReport = {
             ...report,
+            lubricantSales: report.lubricantSales || 0,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
@@ -360,22 +362,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             newSettings.creditHistory.push(newCreditEntry);
         }
 
-        // 2. Add bank deposits to ledger
-        data.bankDeposits.forEach(deposit => {
-            const newBankTx: BankTransaction = {
-                id: crypto.randomUUID(),
-                date: data.reportDate,
-                description: `${deposit.description}${deposit.destinationAccount ? ` to ${deposit.destinationAccount}` : ''}`,
-                type: 'credit',
-                amount: deposit.amount,
-                source: 'dsr_import',
-                createdAt: now,
-            };
-            newSettings.bankLedger.push(newBankTx);
+        // 2. Combine all deposits and add to bank ledger
+        const allDeposits = [...data.bankDeposits];
+        if (data.phonepeSales > 0) {
+            allDeposits.push({ description: 'PhonePe Collection', amount: data.phonepeSales });
+        }
+
+        allDeposits.forEach(deposit => {
+            if (deposit.amount > 0) {
+                const newBankTx: BankTransaction = {
+                    id: crypto.randomUUID(),
+                    date: data.reportDate,
+                    description: `${deposit.description}${deposit.destinationAccount ? ` to ${deposit.destinationAccount}` : ''}`,
+                    type: 'credit',
+                    amount: deposit.amount,
+                    source: 'dsr_import',
+                    createdAt: now,
+                };
+                newSettings.bankLedger.push(newBankTx);
+            }
         });
 
         // 3. Construct a monthly report from the DSR data
-        let totalSales = 0;
         let totalProfit = 0;
         let totalLitres = 0;
 
@@ -408,11 +416,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                 };
             });
             
-            totalSales += fuelTotalSales;
             totalProfit += fuelTotalProfit;
             totalLitres += fuelTotalLitres;
 
-            // Find the price per litre from the first relevant reading, or fall back.
             const pricePerLitre = aiReadingsForFuel.length > 0 ? aiReadingsForFuel[0].pricePerLitre : 0;
 
             return {
@@ -426,18 +432,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             };
         });
         
-        const totalBankDepositsFromDSR = data.bankDeposits.reduce((sum, dep) => sum + dep.amount, 0);
+        const finalFuelSales = fuelSalesForReport.filter(fs => fs.totalLitres > 0);
+        const finalFuelTotalSales = finalFuelSales.reduce((sum, fs) => sum + fs.totalSales, 0);
+        
+        const totalSales = finalFuelTotalSales + (data.lubricantSales || 0);
+        const totalBankDepositsFromDSR = allDeposits.reduce((sum, dep) => sum + dep.amount, 0);
 
         const newReport: MonthlyReport = {
             id: crypto.randomUUID(),
             endDate: data.reportDate,
-            fuelSales: fuelSalesForReport.filter(fs => fs.totalLitres > 0), // Only include fuels that had sales
+            fuelSales: finalFuelSales,
+            lubricantSales: data.lubricantSales || 0,
             totalSales,
             estProfit: totalProfit,
             litresSold: totalLitres,
             bankDeposits: totalBankDepositsFromDSR,
             creditSales: data.creditSales,
-            netCash: totalSales - totalBankDepositsFromDSR - data.creditSales,
+            netCash: data.cashInHand || (totalSales - totalBankDepositsFromDSR - data.creditSales),
             createdAt: now,
             updatedAt: now,
         };
