@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
@@ -16,11 +16,11 @@ const defaultState: AppState = {
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useLocalStorage<AppState>('petrovisor-data', defaultState);
 
-  const setSettings = (newSettings: Settings) => {
+  const setSettings = useCallback((newSettings: Settings) => {
     setAppState((prevState) => ({ ...prevState, settings: newSettings }));
-  };
+  }, [setAppState]);
   
-  const finishSetup = (settings: Settings) => {
+  const finishSetup = useCallback((settings: Settings) => {
     const fullSettings = {
       ...settings,
       managerLedger: [],
@@ -30,21 +30,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       monthlyReports: [],
       purchases: [],
     };
-    setAppState({
-      ...appState,
+    setAppState(prevState => ({
+      ...prevState,
       settings: fullSettings,
       isSetupComplete: true,
-    });
-  };
+    }));
+  }, [setAppState]);
 
-  const resetApp = () => {
+  const resetApp = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('petrovisor-data');
       setAppState(defaultState);
     }
-  };
+  }, [setAppState]);
 
-  const addManagerTransaction = (transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => {
+  const addManagerTransaction = useCallback((transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newTransaction: ManagerTransaction = { 
@@ -58,9 +58,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const deleteManagerTransaction = (transactionId: string) => {
+  const deleteManagerTransaction = useCallback((transactionId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newSettings = {
@@ -69,9 +69,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
   
-  const addBankTransaction = (transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => {
+  const addBankTransaction = useCallback((transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newTransaction: BankTransaction = { 
@@ -85,9 +85,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
   
-  const deleteBankTransaction = (transactionId: string) => {
+  const deleteBankTransaction = useCallback((transactionId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newSettings = {
@@ -96,9 +96,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const addCreditGiven = (amount: number) => {
+  const addCreditGiven = useCallback((amount: number) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newEntry: CreditHistoryEntry = {
@@ -114,9 +114,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const addCreditRepayment = (amount: number, destination: 'cash' | 'bank') => {
+  const addCreditRepayment = useCallback((amount: number, destination: 'cash' | 'bank') => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
@@ -131,10 +131,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         repaymentDestination: destination,
         createdAt: now,
       };
-
-      const newCreditHistory = [...(prev.settings.creditHistory || []), newCreditEntry].sort((a,b) => b.date.localeCompare(a.date));
-      let newBankLedger = prev.settings.bankLedger || [];
-      let newMiscCollections = prev.settings.miscCollections || [];
+      
+      const newSettings = {...prev.settings};
+      newSettings.creditHistory = [...(newSettings.creditHistory || []), newCreditEntry].sort((a,b) => b.date.localeCompare(a.date));
 
       if (destination === 'bank') {
         const newBankTx: BankTransaction = {
@@ -146,7 +145,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           amount,
           source: 'credit_repayment',
         };
-        newBankLedger = [...newBankLedger, newBankTx].sort((a, b) => b.date.localeCompare(a.date));
+        newSettings.bankLedger = [...(newSettings.bankLedger || []), newBankTx].sort((a, b) => b.date.localeCompare(a.date));
       } else { // destination === 'cash'
          const newMiscCollection: MiscCollection = {
            id: crypto.randomUUID(),
@@ -155,21 +154,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
            description: 'Credit Repayment Received in Cash',
            amount,
          }
-         newMiscCollections = [...newMiscCollections, newMiscCollection].sort((a, b) => b.date.localeCompare(a.date));
+         newSettings.miscCollections = [...(newSettings.miscCollections || []), newMiscCollection].sort((a, b) => b.date.localeCompare(a.date));
       }
-
-      const newSettings: Settings = { 
-        ...prev.settings, 
-        creditHistory: newCreditHistory,
-        bankLedger: newBankLedger,
-        miscCollections: newMiscCollections
-      };
       
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
   
-  const addMiscCollection = (collection: Omit<MiscCollection, 'id' | 'createdAt'>) => {
+  const addMiscCollection = useCallback((collection: Omit<MiscCollection, 'id' | 'createdAt'>) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
         const newCollection: MiscCollection = { 
@@ -183,9 +175,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         };
         return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
   
-  const deleteMiscCollection = (collectionId: string) => {
+  const deleteMiscCollection = useCallback((collectionId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newSettings = {
@@ -194,9 +186,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const addOrUpdateMonthlyReport = (report: Omit<MonthlyReport, 'createdAt' | 'updatedAt'>) => {
+  const addOrUpdateMonthlyReport = useCallback((report: Omit<MonthlyReport, 'createdAt' | 'updatedAt'>) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
@@ -207,8 +199,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       if (existingReportIndex > -1) {
         finalReport = {
+            ...newReports[existingReportIndex],
             ...report,
-            createdAt: newReports[existingReportIndex].createdAt,
             updatedAt: new Date().toISOString(),
         };
         newReports[existingReportIndex] = finalReport;
@@ -247,9 +239,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const deleteMonthlyReport = (reportId: string) => {
+  const deleteMonthlyReport = useCallback((reportId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
 
@@ -260,9 +252,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       };
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const addFuelPurchase = (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => {
+  const addFuelPurchase = useCallback((purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
 
@@ -305,9 +297,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
-  const deleteFuelPurchase = (purchaseId: string) => {
+  const deleteFuelPurchase = useCallback((purchaseId: string) => {
     setAppState(prev => {
         if (!prev.settings || !prev.settings.purchases) return prev;
         
@@ -334,10 +326,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
         return { ...prev, settings: newSettings };
     });
-  };
+  }, [setAppState]);
 
 
-  const value = {
+  const value = useMemo(() => ({
     ...appState,
     setSettings,
     finishSetup,
@@ -354,7 +346,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMonthlyReport,
     addFuelPurchase,
     deleteFuelPurchase,
-  };
+  }), [
+    appState,
+    setSettings,
+    finishSetup,
+    resetApp,
+    addManagerTransaction,
+    deleteManagerTransaction,
+    addCreditGiven,
+    addCreditRepayment,
+    addBankTransaction,
+    deleteBankTransaction,
+    addMiscCollection,
+    deleteMiscCollection,
+    addOrUpdateMonthlyReport,
+    deleteMonthlyReport,
+    addFuelPurchase,
+    deleteFuelPurchase,
+  ]);
 
   return (
     <AppStateContext.Provider value={value}>
