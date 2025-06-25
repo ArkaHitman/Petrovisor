@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const AnalyzeBankStatementInputSchema = z.object({
+const AnalyzeBankStatementInputSchema = z.object({
   statementDataUri: z
     .string()
     .describe(
@@ -26,7 +26,7 @@ const AnalyzedTransactionSchema = z.object({
     type: z.enum(['credit', 'debit']).describe("The type of transaction: 'credit' for deposits, 'debit' for withdrawals."),
 });
 
-export const AnalyzeBankStatementOutputSchema = z.array(AnalyzedTransactionSchema);
+const AnalyzeBankStatementOutputSchema = z.array(AnalyzedTransactionSchema);
 export type AnalyzeBankStatementOutput = z.infer<typeof AnalyzeBankStatementOutputSchema>;
 
 export async function analyzeBankStatement(input: AnalyzeBankStatementInput): Promise<AnalyzeBankStatementOutput> {
