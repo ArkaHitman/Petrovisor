@@ -298,11 +298,11 @@ export default function SettingsPage() {
                     </div>
                       <div className="space-y-2">
                         <Label htmlFor="initialBankBalance">Initial Bank Balance (at setup)</Label>
-                        <Input id="initialBankBalance" type="number" value={localSettings.initialBankBalance || ''} onChange={(e) => handleInputChange('initialBankBalance', parseFloat(e.target.value))} />
+                        <Input id="initialBankBalance" type="number" value={localSettings.initialBankBalance || ''} onChange={(e) => handleInputChange('initialBankBalance', parseFloat(e.target.value) || 0)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="sanctionedAmount">Sanctioned Bank Amount</Label>
-                        <Input id="sanctionedAmount" type="number" value={localSettings.sanctionedAmount || ''} onChange={(e) => handleInputChange('sanctionedAmount', parseFloat(e.target.value))} />
+                        <Input id="sanctionedAmount" type="number" value={localSettings.sanctionedAmount || ''} onChange={(e) => handleInputChange('sanctionedAmount', parseFloat(e.target.value) || 0)} />
                     </div>
                 </CardContent>
             </Card>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
                             {fuels.map(fuel => (
                                  <div key={fuel.id} className="space-y-2">
                                     <Label htmlFor={`price-${fuel.id}`}>{fuel.name} Price</Label>
-                                    <Input id={`price-${fuel.id}`} type="number" value={newPrices[fuel.id] || ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: parseFloat(e.target.value)}))} />
+                                    <Input id={`price-${fuel.id}`} type="number" value={newPrices[fuel.id] || ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: parseFloat(e.target.value) || 0}))} />
                                 </div>
                             ))}
                             <Button onClick={handleAddPrice}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
@@ -364,8 +364,8 @@ export default function SettingsPage() {
                             <div key={tank.id} className="p-4 border rounded-lg bg-muted/50">
                                 <h4 className="font-semibold mb-2">{tank.name} ({fuel?.name || 'Unknown Fuel'})</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value))} /></div>
-                                    <div className="space-y-2"><Label>Current Stock (Ltrs)</Label><Input type="number" value={tank.initialStock} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value))} /></div>
+                                    <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity || ''} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value) || 0)} /></div>
+                                    <div className="space-y-2"><Label>Current Stock (Ltrs)</Label><Input type="number" value={tank.initialStock || ''} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value) || 0)} /></div>
                                     <div className="space-y-2">
                                         <Label>Stock Last Updated</Label>
                                         <Input
@@ -404,7 +404,7 @@ export default function SettingsPage() {
                     {fuels.map(fuel => (
                         <div key={fuel.id} className="space-y-2">
                             <Label>{fuel.name} Nozzles</Label>
-                            <Input type="number" min="0" max="10" value={localSettings.nozzlesPerFuel?.[fuel.id] || 0} onChange={e => handleNozzleChange(fuel.id, parseInt(e.target.value, 10))} />
+                            <Input type="number" min="0" max="10" value={localSettings.nozzlesPerFuel?.[fuel.id] || 0} onChange={e => handleNozzleChange(fuel.id, parseInt(e.target.value, 10) || 0)} />
                         </div>
                     ))}
                 </CardContent>
