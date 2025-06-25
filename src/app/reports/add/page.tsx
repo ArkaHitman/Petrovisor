@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency, getFuelPriceForDate } from '@/lib/utils';
+import { formatCurrency, getFuelPricesForDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -136,11 +136,10 @@ export default function AddReportPage() {
             const fuel = settings.fuels.find(f => f.id === fuelSale.fuelId);
             if (!fuel) return;
 
-            const { price } = getFuelPriceForDate(fuel.id, watchedEndDate, settings.fuelPriceHistory, fuel.price);
-            const cost = fuel.cost;
+            const { sellingPrice, costPrice } = getFuelPricesForDate(fuel.id, watchedEndDate, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
 
-            form.setValue(`fuelSales.${fuelIndex}.pricePerLitre`, price);
-            form.setValue(`fuelSales.${fuelIndex}.costPerLitre`, cost);
+            form.setValue(`fuelSales.${fuelIndex}.pricePerLitre`, sellingPrice);
+            form.setValue(`fuelSales.${fuelIndex}.costPerLitre`, costPrice);
             
             let fuelTotalLitres = 0;
             let fuelTotalSales = 0;
@@ -148,8 +147,8 @@ export default function AddReportPage() {
 
             fuelSale.readings.forEach((reading, readingIndex) => {
                 const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
-                const saleAmount = saleLitres * price;
-                const estProfit = saleLitres * (price - cost);
+                const saleAmount = saleLitres * sellingPrice;
+                const estProfit = saleLitres * (sellingPrice - costPrice);
 
                 form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleLitres`, saleLitres, { shouldValidate: true });
                 form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleAmount`, saleAmount);

@@ -15,7 +15,7 @@ export function formatCurrency(amount: number, currency = 'INR') {
   }).format(amount);
 }
 
-export function getFuelPriceForDate(fuelId: string, date: string, priceHistory: FuelPriceEntry[], fallbackPrice: number): { price: number, entryDate: string | null } {
+export function getFuelPricesForDate(fuelId: string, date: string, priceHistory: FuelPriceEntry[], fallbackPrices: { sellingPrice: number, costPrice: number }): { sellingPrice: number, costPrice: number, entryDate: string | null } {
   const targetDate = parseISO(date);
   
   const relevantPriceEntry = priceHistory
@@ -27,8 +27,12 @@ export function getFuelPriceForDate(fuelId: string, date: string, priceHistory: 
     [0];
 
   if (relevantPriceEntry && relevantPriceEntry.prices[fuelId] !== undefined) {
-    return { price: relevantPriceEntry.prices[fuelId], entryDate: relevantPriceEntry.date };
+    return { 
+        sellingPrice: relevantPriceEntry.prices[fuelId].sellingPrice,
+        costPrice: relevantPriceEntry.prices[fuelId].costPrice,
+        entryDate: relevantPriceEntry.date 
+    };
   }
   
-  return { price: fallbackPrice, entryDate: null };
+  return { ...fallbackPrices, entryDate: null };
 }

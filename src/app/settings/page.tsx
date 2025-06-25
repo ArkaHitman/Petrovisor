@@ -28,7 +28,7 @@ export default function SettingsPage() {
 
   // State for the "Add New Price" form
   const [newPriceDate, setNewPriceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [newPrices, setNewPrices] = useState<Record<string, number>>({});
+  const [newPrices, setNewPrices] = useState<Record<string, { sellingPrice: number; costPrice: number }>>({});
 
   useEffect(() => {
     if (settings) {
@@ -46,9 +46,9 @@ export default function SettingsPage() {
 
       setLocalSettings(newLocalSettings);
 
-      const initialPrices: Record<string, number> = {};
+      const initialPrices: Record<string, { sellingPrice: number; costPrice: number; }> = {};
       newLocalSettings.fuels.forEach((fuel: Fuel) => {
-        initialPrices[fuel.id] = fuel.price;
+        initialPrices[fuel.id] = { sellingPrice: fuel.price, costPrice: fuel.cost };
       });
       setNewPrices(initialPrices);
     }
@@ -120,7 +120,7 @@ export default function SettingsPage() {
         toast({ title: "Error", description: "A price entry for this date already exists.", variant: "destructive" });
         return;
     }
-    if (Object.values(newPrices).some(p => p <= 0)) {
+    if (Object.values(newPrices).some(p => p.sellingPrice <= 0 || p.costPrice <= 0)) {
         toast({ title: "Error", description: "All fuel prices must be positive.", variant: "destructive" });
         return;
     }
@@ -211,7 +211,7 @@ export default function SettingsPage() {
         settings.fuelPriceHistory?.forEach(p => {
             const prices = Object.entries(p.prices).map(([fid, price]) => {
                 const fuel = settings.fuels.find(f => f.id === fid);
-                return `${fuel?.name || 'Unknown'}: ${price}`;
+                return `${fuel?.name || 'Unknown'}: Sell ${price.sellingPrice}/Cost ${price.costPrice}`;
             }).join('; ');
             logEntries.push({
                 date: p.date,
@@ -298,11 +298,11 @@ export default function SettingsPage() {
                     </div>
                       <div className="space-y-2">
                         <Label htmlFor="initialBankBalance">Initial Bank Balance (at setup)</Label>
-                        <Input id="initialBankBalance" type="number" value={localSettings.initialBankBalance || ''} onChange={(e) => handleInputChange('initialBankBalance', parseFloat(e.target.value) || 0)} />
+                        <Input id="initialBankBalance" type="number" value={localSettings.initialBankBalance} onChange={(e) => handleInputChange('initialBankBalance', parseFloat(e.target.value) || 0)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="sanctionedAmount">Sanctioned Bank Amount</Label>
-                        <Input id="sanctionedAmount" type="number" value={localSettings.sanctionedAmount || ''} onChange={(e) => handleInputChange('sanctionedAmount', parseFloat(e.target.value) || 0)} />
+                        <Input id="sanctionedAmount" type="number" value={localSettings.sanctionedAmount} onChange={(e) => handleInputChange('sanctionedAmount', parseFloat(e.target.value) || 0)} />
                     </div>
                 </CardContent>
             </Card>
@@ -311,37 +311,57 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline">Fuel Price History</CardTitle>
-                    <CardDescription>Manage historical fuel prices for accurate profit calculation.</CardDescription>
+                    <CardDescription>Manage historical fuel selling and cost prices for accurate profit calculation.</CardDescription>
                 </CardHeader>
                  <CardContent className="space-y-6">
                     <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
                         <h4 className="font-semibold">Add New Price Entry</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
-                            <div className="space-y-2">
-                                <Label htmlFor="price-date">Date</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div className="space-y-2 md:col-span-1">
+                                <Label htmlFor="price-date">Effective Date</Label>
                                 <Input id="price-date" type="date" value={newPriceDate} onChange={(e) => setNewPriceDate(e.target.value)} />
                             </div>
+                            <div className="md:col-span-3">
+                                <Button onClick={handleAddPrice}><PlusCircle className="mr-2 h-4 w-4" /> Add Price Entry</Button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                             {fuels.map(fuel => (
-                                 <div key={fuel.id} className="space-y-2">
-                                    <Label htmlFor={`price-${fuel.id}`}>{fuel.name} Price</Label>
-                                    <Input id={`price-${fuel.id}`} type="number" value={newPrices[fuel.id] || ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: parseFloat(e.target.value) || 0}))} />
-                                </div>
+                                <Card key={fuel.id} className="bg-background">
+                                    <CardHeader className="p-3">
+                                        <CardTitle className="text-base">{fuel.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-3 pt-0 space-y-2">
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`selling-price-${fuel.id}`} className="text-xs">Selling Price</Label>
+                                            <Input id={`selling-price-${fuel.id}`} type="number" step="0.01" value={newPrices[fuel.id]?.sellingPrice ?? ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: {...(p[fuel.id] || {costPrice: 0}), sellingPrice: parseFloat(e.target.value) || 0}}))} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`cost-price-${fuel.id}`} className="text-xs">Cost Price</Label>
+                                            <Input id={`cost-price-${fuel.id}`} type="number" step="0.01" value={newPrices[fuel.id]?.costPrice ?? ''} onChange={(e) => setNewPrices(p => ({...p, [fuel.id]: {...(p[fuel.id] || {sellingPrice: 0}), costPrice: parseFloat(e.target.value) || 0}}))} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             ))}
-                            <Button onClick={handleAddPrice}><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
                         </div>
                     </div>
+
                     <div className="space-y-2">
                         <h4 className="font-semibold text-muted-foreground">Existing Price Records</h4>
                          <div className="max-h-60 overflow-y-auto space-y-2 pr-2 border rounded-md p-2">
                             {localSettings.fuelPriceHistory && localSettings.fuelPriceHistory.length > 0 ? localSettings.fuelPriceHistory.map(entry => (
                                 <div key={entry.id} className="flex justify-between items-center p-2 border rounded-md text-sm bg-background hover:bg-muted/50">
-                                    <span className="font-medium">{format(parseISO(entry.date), 'dd MMM yyyy')}</span>
-                                    <div className="flex items-center gap-4 text-muted-foreground">
-                                        {fuels.map(fuel => (
-                                            <span key={fuel.id}>{fuel.name.charAt(0)}: {formatCurrency(entry.prices[fuel.id] || 0)}</span>
-                                        ))}
+                                    <div>
+                                        <span className="font-medium">{format(parseISO(entry.date), 'dd MMM yyyy')}</span>
+                                        <div className="flex items-center gap-x-4 gap-y-1 text-muted-foreground flex-wrap">
+                                            {fuels.map(fuel => (
+                                                <span key={fuel.id} className="text-xs">
+                                                    <span className="font-semibold">{fuel.name}:</span> Sell {formatCurrency(entry.prices[fuel.id]?.sellingPrice || 0)} / Cost {formatCurrency(entry.prices[fuel.id]?.costPrice || 0)}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeletePrice(entry.id)}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeletePrice(entry.id)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                 </div>
@@ -364,8 +384,8 @@ export default function SettingsPage() {
                             <div key={tank.id} className="p-4 border rounded-lg bg-muted/50">
                                 <h4 className="font-semibold mb-2">{tank.name} ({fuel?.name || 'Unknown Fuel'})</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity || ''} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value) || 0)} /></div>
-                                    <div className="space-y-2"><Label>Current Stock (Ltrs)</Label><Input type="number" value={tank.initialStock || ''} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value) || 0)} /></div>
+                                    <div className="space-y-2"><Label>Capacity (Ltrs)</Label><Input type="number" value={tank.capacity} onChange={e => handleTankChange(tank.id, 'capacity', parseFloat(e.target.value) || 0)} /></div>
+                                    <div className="space-y-2"><Label>Current Stock (Ltrs)</Label><Input type="number" value={tank.initialStock} onChange={e => handleTankChange(tank.id, 'initialStock', parseFloat(e.target.value) || 0)} /></div>
                                     <div className="space-y-2">
                                         <Label>Stock Last Updated</Label>
                                         <Input

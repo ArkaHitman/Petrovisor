@@ -11,9 +11,9 @@ export interface Fuel {
 }
 
 export interface FuelPriceEntry {
-  id:string;
+  id: string;
   date: string; // YYYY-MM-DD
-  prices: Record<string, number>; // Map of fuel ID to its price
+  prices: Record<string, { sellingPrice: number; costPrice: number }>; // Map of fuel ID to its prices
   createdAt: string;
 }
 
@@ -158,7 +158,7 @@ export interface AppStateContextType extends AppState {
 
   // Credit Register
   addCreditGiven: (amount: number) => void;
-  addCreditRepayment: (amount: number, destination: 'cash' | 'bank') => void;
+  addCreditRepayment: (amount: number, destination: 'cash' | 'bank'>) => void;
 
   // Bank Ledger
   addBankTransaction: (transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => void;
