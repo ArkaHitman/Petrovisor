@@ -3,8 +3,9 @@ import AppLayout from '@/components/layout/app-layout';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAppState } from '@/contexts/app-state-provider';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, getFuelPricesForDate } from '@/lib/utils';
 import { Fuel } from 'lucide-react';
+import { format as formatDate } from 'date-fns';
 
 export default function TanksPage() {
   const { settings } = useAppState();
@@ -34,6 +35,8 @@ export default function TanksPage() {
     return 'bg-green-500';
   };
 
+  const today = formatDate(new Date(), 'yyyy-MM-dd');
+
   return (
     <AppLayout>
       <PageHeader
@@ -43,8 +46,17 @@ export default function TanksPage() {
       <div className="p-4 md:p-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {settings.tanks.map((tank, index) => {
           const fuel = settings.fuels.find(f => f.id === tank.fuelId);
+          if (!fuel) return null;
+
           const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
-          const stockValue = tank.initialStock * (fuel?.cost || 0);
+          
+          const { costPrice } = getFuelPricesForDate(
+            tank.fuelId, 
+            today, 
+            settings.fuelPriceHistory,
+            { sellingPrice: fuel.price, costPrice: fuel.cost }
+          );
+          const stockValue = tank.initialStock * costPrice;
 
           return (
             <Card key={tank.id} className="opacity-0 animate-card-in" style={{ animationDelay: `${index * 100}ms` }}>

@@ -6,7 +6,7 @@ import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAppState } from '@/contexts/app-state-provider';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getFuelPricesForDate } from '@/lib/utils';
 import { Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -26,9 +26,19 @@ export default function DownloadReportPage() {
       return null;
     }
 
+    const today = formatDate(new Date(), 'yyyy-MM-dd');
     const totalStockValue = settings.tanks.reduce((total, tank) => {
       const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-      return total + (tank.initialStock * (fuel?.cost || 0));
+      if (!fuel) return total;
+      
+      const { costPrice } = getFuelPricesForDate(
+        tank.fuelId,
+        today,
+        settings.fuelPriceHistory,
+        { sellingPrice: fuel.price, costPrice: fuel.cost }
+      );
+      
+      return total + (tank.initialStock * costPrice);
     }, 0);
 
     const creditHistory = settings.creditHistory || [];
@@ -191,9 +201,19 @@ export default function DownloadReportPage() {
       head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost) (INR)']],
       body: settings.tanks.map(tank => {
         const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-        const stockValue = tank.initialStock * (fuel?.cost || 0);
+        if (!fuel) return ['Unknown', { content: '0 L', styles: { halign: 'right' } }, { content: '0.00', styles: { halign: 'right' } }];
+
+        const reportDate = formatDate(today, 'yyyy-MM-dd');
+        const { costPrice } = getFuelPricesForDate(
+            tank.fuelId,
+            reportDate,
+            settings.fuelPriceHistory,
+            { sellingPrice: fuel.price, costPrice: fuel.cost }
+        );
+        const stockValue = tank.initialStock * costPrice;
+        
         return [
-          fuel?.name || 'Unknown',
+          fuel.name,
           { content: `${tank.initialStock.toLocaleString()} L`, styles: { halign: 'right' } },
           { content: formatNumberForPdf(stockValue), styles: { halign: 'right' } },
         ];

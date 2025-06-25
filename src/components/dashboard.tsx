@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppState } from '@/contexts/app-state-provider';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, getFuelPricesForDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
@@ -37,9 +37,19 @@ export default function Dashboard() {
       };
     }
 
+    const today = formatDate(new Date(), 'yyyy-MM-dd');
     const totalStockValue = settings.tanks.reduce((total, tank) => {
       const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-      return total + (tank.initialStock * (fuel?.cost || 0));
+      if (!fuel) return total;
+      
+      const { costPrice } = getFuelPricesForDate(
+          tank.fuelId, 
+          today, 
+          settings.fuelPriceHistory,
+          { sellingPrice: fuel.price, costPrice: fuel.cost }
+      );
+
+      return total + (tank.initialStock * costPrice);
     }, 0);
 
     const creditHistory = settings.creditHistory || [];
@@ -64,9 +74,7 @@ export default function Dashboard() {
         return acc - tx.amount;
     }, managerInitialBalance);
     
-    // The total miscellaneous collections are considered cash in hand, but not part of the core asset tracking for net worth against sanctioned limit.
-    // They are tracked via the FloatingCashDisplay component.
-    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance;
+    const netWorth = totalStockValue + currentOutstandingCredit + currentBankBalance + netManagerBalance;
     
     const sanctionedAmount = settings.sanctionedAmount || 0;
     const remainingLimit = sanctionedAmount - netWorth;
@@ -158,7 +166,17 @@ export default function Dashboard() {
                 {settings.tanks.map(tank => {
                   const fuel = settings.fuels.find(f => f.id === tank.fuelId);
                   const percentage = tank.capacity > 0 ? (tank.initialStock / tank.capacity) * 100 : 0;
-                  const stockValue = tank.initialStock * (fuel?.cost || 0);
+                  
+                  if (!fuel) return null;
+
+                  const today = formatDate(new Date(), 'yyyy-MM-dd');
+                  const { costPrice } = getFuelPricesForDate(
+                      tank.fuelId, 
+                      today, 
+                      settings.fuelPriceHistory,
+                      { sellingPrice: fuel.price, costPrice: fuel.cost }
+                  );
+                  const stockValue = tank.initialStock * costPrice;
 
                   return (
                     <div key={tank.id} className="flex items-center gap-4">
