@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const AnalyzeDsrInputSchema = z.object({
+const AnalyzeDsrInputSchema = z.object({
   dsrDataUri: z
     .string()
     .describe(
@@ -19,7 +19,7 @@ export const AnalyzeDsrInputSchema = z.object({
 });
 export type AnalyzeDsrInput = z.infer<typeof AnalyzeDsrInputSchema>;
 
-export const AnalyzeDsrOutputSchema = z.object({
+const AnalyzeDsrOutputSchema = z.object({
     reportDate: z.string().describe("The date of the sales report in YYYY-MM-DD format."),
     fuelSales: z.array(z.object({
         fuelName: z.string().describe("Name of the fuel, e.g., 'Petrol', 'Diesel'. Match it to standard names."),
