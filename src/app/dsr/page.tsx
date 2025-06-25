@@ -77,7 +77,7 @@ export default function DsrPage() {
         }
         try {
             processDsrData(analysisResult);
-            toast({ title: "Success!", description: "DSR data has been successfully saved and applied." });
+            toast({ title: "Success!", description: "Monthly report data has been successfully saved and applied." });
             setFile(null);
             setAnalysisResult(null);
         } catch (e) {
@@ -89,15 +89,15 @@ export default function DsrPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="DSR Analysis"
-        description="Upload a Daily Sales Report PDF to automatically update your records."
+        title="Monthly Report Analysis"
+        description="Upload a Monthly Sales Report PDF to automatically create your monthly summary."
       />
       <div className="p-4 md:p-8 grid gap-8 md:grid-cols-2">
         {/* Upload Card */}
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">1. Upload Report</CardTitle>
-                <CardDescription>Select the DSR file from your device.</CardDescription>
+                <CardDescription>Select the monthly sales report file from your device.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <Label htmlFor="dsr-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
@@ -108,7 +108,7 @@ export default function DsrPage() {
                         ) : (
                             <>
                                 <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                <p className="text-xs text-muted-foreground">PDF file of your DSR</p>
+                                <p className="text-xs text-muted-foreground">PDF file of your Monthly Sales Report</p>
                             </>
                         )}
                     </div>
@@ -120,7 +120,7 @@ export default function DsrPage() {
                     {isAnalyzing ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</>
                     ) : (
-                        <><Bot className="mr-2 h-4 w-4" /> Analyze DSR</>
+                        <><Bot className="mr-2 h-4 w-4" /> Analyze Report</>
                     )}
                 </Button>
             </CardContent>
@@ -140,7 +140,7 @@ export default function DsrPage() {
                 ) : analysisResult ? (
                     <div className="space-y-4">
                         <div className="p-3 rounded-md border bg-background space-y-2">
-                             <p className="text-sm font-semibold">Report Date: <span className="font-normal">{format(parseISO(analysisResult.reportDate), 'dd MMM yyyy')}</span></p>
+                             <p className="text-sm font-semibold">Report End Date: <span className="font-normal">{format(parseISO(analysisResult.reportDate), 'dd MMM yyyy')}</span></p>
                              <p className="text-sm font-semibold">Total Sales Found: <span className="font-normal">{formatCurrency(analysisResult.fuelSales.reduce((acc, s) => acc + (s.closingReading - s.openingReading - s.testing) * s.pricePerLitre, 0))}</span></p>
                              <p className="text-sm font-semibold">Credit Sales: <span className="font-normal">{formatCurrency(analysisResult.creditSales)}</span></p>
                              <p className="text-sm font-semibold">Bank Deposits: <span className="font-normal">{analysisResult.bankDeposits.length} transaction(s) totaling {formatCurrency(analysisResult.bankDeposits.reduce((acc, d) => acc + d.amount, 0))}</span></p>

@@ -374,7 +374,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             newSettings.bankLedger.push(newBankTx);
         });
 
-        // 3. Construct a daily report from the DSR data
+        // 3. Construct a monthly report from the DSR data
         let totalSales = 0;
         let totalProfit = 0;
         let totalLitres = 0;
@@ -450,7 +450,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
         return { ...prev, settings: newSettings };
     });
-}, [setAppState]);
+  }, [setAppState]);
 
 
   const value = useMemo(() => ({
