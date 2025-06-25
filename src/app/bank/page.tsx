@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency, cn } from '@/lib/utils';
-import { Banknote, Landmark, PlusCircle, Trash2 } from 'lucide-react';
+import { Banknote, Landmark, PlusCircle, Trash2, FileUp, Loader2 } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
@@ -29,6 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import { analyzeBankStatement } from '@/ai/flows/analyze-bank-statement-flow';
 
 const transactionSchema = z.object({
     date: z.string().min(1, 'Date is required'),
@@ -104,9 +106,117 @@ function AddTransactionDialog({ open, setOpen }: { open: boolean; setOpen: (open
     )
 }
 
+function AnalyzeStatementDialog({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
+    const { addBankTransaction } = useAppState();
+    const { toast } = useToast();
+    const [file, setFile] = React.useState<File | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = event.target.files?.[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            setError(null);
+        }
+    };
+
+    const handleAnalyze = async () => {
+        if (!file) {
+            setError("Please select a file first.");
+            return;
+        }
+
+        setIsAnalyzing(true);
+        setError(null);
+
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async (e) => {
+                const statementDataUri = e.target?.result as string;
+                if (!statementDataUri) {
+                    setError("Could not read the file.");
+                    setIsAnalyzing(false);
+                    return;
+                }
+
+                const analyzedTransactions = await analyzeBankStatement({ statementDataUri });
+                
+                if (analyzedTransactions.length === 0) {
+                    toast({ title: "Analysis Complete", description: "No new transactions were found in the statement.", variant: 'default' });
+                } else {
+                    analyzedTransactions.forEach(tx => {
+                        addBankTransaction({ ...tx, source: 'statement_import' });
+                    });
+                    toast({ title: "Success", description: `Successfully added ${analyzedTransactions.length} transactions from the statement.` });
+                }
+                
+                setFile(null);
+                setOpen(false);
+            };
+            reader.onerror = () => {
+                setError("Failed to read file.");
+                setIsAnalyzing(false);
+            };
+        } catch (err) {
+            console.error(err);
+            const errorMessage = err instanceof Error ? err.message : "An unknown error occurred during analysis.";
+            setError(errorMessage);
+            toast({ title: "Analysis Failed", description: errorMessage, variant: 'destructive' });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+    
+    React.useEffect(() => {
+        if (!open) {
+            setFile(null);
+            setError(null);
+            setIsAnalyzing(false);
+        }
+    }, [open]);
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Analyze Bank Statement</DialogTitle>
+                    <DialogDescription>Upload an image or PDF of your bank statement, and the AI will automatically extract and record the transactions for you.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Label htmlFor="statement-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <FileUp className="w-8 h-8 mb-4 text-muted-foreground" />
+                            {file ? (
+                                <p className="font-semibold text-primary">{file.name}</p>
+                            ) : (
+                                <>
+                                  <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                  <p className="text-xs text-muted-foreground">PNG, JPG, or PDF file</p>
+                                </>
+                            )}
+                        </div>
+                        <Input id="statement-upload" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" />
+                    </Label>
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isAnalyzing}>Cancel</Button>
+                    <Button onClick={handleAnalyze} disabled={!file || isAnalyzing}>
+                        {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isAnalyzing ? 'Analyzing...' : 'Analyze Statement'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function BankPage() {
     const { settings, deleteBankTransaction } = useAppState();
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+    const [isAnalyzeDialogOpen, setIsAnalyzeDialogOpen] = React.useState(false);
 
     const bankLedger = settings?.bankLedger || [];
     const initialBalance = settings?.initialBankBalance || 0;
@@ -120,10 +230,8 @@ export default function BankPage() {
     }, [bankLedger, initialBalance]);
 
     const canDeleteTransaction = (source?: string) => {
-        // Only allow deleting manual or misc_payment transactions to avoid data inconsistency.
-        // Other transactions are linked to reports, purchases, or credit repayments.
         const nonDeletableSources = ['credit_repayment', 'monthly_report_deposit', 'fuel_purchase'];
-        if (!source) return true; // Backwards compatibility for old transactions
+        if (!source) return true;
         return !nonDeletableSources.includes(source);
     };
     
@@ -133,10 +241,16 @@ export default function BankPage() {
                 title="Bank Ledger"
                 description="Track all your bank transactions and view your current balance."
             >
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Transaction
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setIsAnalyzeDialogOpen(true)}>
+                        <FileUp className="mr-2 h-4 w-4" />
+                        Analyze Statement
+                    </Button>
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Transaction
+                    </Button>
+                </div>
             </PageHeader>
             <div className="p-4 md:p-8 space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -205,7 +319,7 @@ export default function BankPage() {
                                                         <AlertDialogHeader>
                                                           <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
                                                           <AlertDialogDescription>
-                                                            This will permanently delete this manual transaction. This action cannot be undone.
+                                                            This will permanently delete this transaction. This action cannot be undone.
                                                           </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
@@ -225,6 +339,7 @@ export default function BankPage() {
                 </Card>
             </div>
             <AddTransactionDialog open={isAddDialogOpen} setOpen={setIsAddDialogOpen} />
+            <AnalyzeStatementDialog open={isAnalyzeDialogOpen} setOpen={setIsAnalyzeDialogOpen} />
         </AppLayout>
     );
 }
