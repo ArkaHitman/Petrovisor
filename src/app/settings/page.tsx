@@ -24,11 +24,16 @@ export default function SettingsPage() {
   const { settings, setSettings, resetApp } = useAppState();
   const { toast } = useToast();
   
+  const [isClient, setIsClient] = useState(false);
   const [localSettings, setLocalSettings] = useState<Settings | null>(null);
 
   // State for the "Add New Price" form
   const [newPriceDate, setNewPriceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [newPrices, setNewPrices] = useState<Record<string, { sellingPrice: number; costPrice: number }>>({});
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -252,7 +257,7 @@ export default function SettingsPage() {
     router.push('/');
   };
 
-  if (!localSettings) {
+  if (!isClient || !localSettings) {
     return (
       <AppLayout>
           <div className="p-8">Loading Settings...</div>
