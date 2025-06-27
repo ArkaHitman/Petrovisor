@@ -128,7 +128,7 @@ export default function DailyReportPage() {
   
   if (!settings) return <AppLayout><div>Loading settings...</div></AppLayout>;
 
-  const readingsByFuel = settings.fuels.map(fuel => ({
+  const readingsByFuel = (settings.fuels || []).map(fuel => ({
     fuel,
     readings: meterReadingFields.map((field, index) => ({ field, index })).filter(({ field }) => field.fuelId === fuel.id)
   })).filter(group => group.readings.length > 0);
@@ -155,7 +155,7 @@ export default function DailyReportPage() {
             <Card>
               <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>For your first report, enter opening meter readings. Subsequently, they auto-fill from the previous day.</CardDescription></CardHeader>
               <CardContent>
-                 <Accordion type="multiple" defaultValue={settings.fuels.map(f => f.id)} className="w-full">
+                 <Accordion type="multiple" defaultValue={(settings.fuels || []).map(f => f.id)} className="w-full">
                     {readingsByFuel.map(({ fuel, readings }) => (
                       <AccordionItem key={fuel.id} value={fuel.id}>
                         <AccordionTrigger className="text-lg font-semibold">{fuel.name}</AccordionTrigger>
@@ -192,7 +192,7 @@ export default function DailyReportPage() {
                         <FormItem><FormLabel>Deposit To</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
-                                <SelectContent>{settings.bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                                <SelectContent>{(settings.bankAccounts || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
                             </Select><FormMessage />
                         </FormItem>
                     )} />
