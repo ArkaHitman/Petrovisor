@@ -44,7 +44,7 @@ export default function Dashboard() {
         return total + accountBalance;
     }, 0);
     
-    const overdraftAccount: BankAccount | null = settings.bankAccounts.find(acc => acc.isOverdraft) || settings.bankAccounts[0] || null;
+    const overdraftAccount: BankAccount | null = (settings.bankAccounts || []).find(acc => acc.isOverdraft) || (settings.bankAccounts || [])[0] || null;
 
     const netManagerBalance = (settings.managerLedger || []).reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
     
