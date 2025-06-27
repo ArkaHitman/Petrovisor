@@ -29,6 +29,7 @@ import {
   Download,
   Ruler,
   FileScan,
+  Spline,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -50,6 +51,7 @@ const financialsMenuItems = [
   { href: '/credit', label: 'Overall Credit', icon: ReceiptText },
   { href: '/misc-collection', label: 'Misc Collection', icon: HandCoins },
   { href: '/misc-payments', label: 'Misc Payments', icon: Banknote },
+  { href: '/fund-analysis', label: 'Fund Analysis', icon: Spline },
 ];
 
 const dataMenuItems = [
