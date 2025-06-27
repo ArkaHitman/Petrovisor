@@ -22,10 +22,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const giveCreditSchema = z.object({
+    date: z.string().min(1, 'Date is required'),
     amount: z.coerce.number().positive("Amount must be positive"),
 });
 
 const receiveRepaymentSchema = z.object({
+    date: z.string().min(1, 'Date is required'),
     amount: z.coerce.number().positive("Amount must be positive"),
     destination: z.string().min(1), // 'cash' or a bank account ID
 });
@@ -50,24 +52,24 @@ export default function CreditPage() {
 
     const giveCreditForm = useForm<z.infer<typeof giveCreditSchema>>({
         resolver: zodResolver(giveCreditSchema),
-        defaultValues: { amount: 0 },
+        defaultValues: { date: format(new Date(), 'yyyy-MM-dd'), amount: 0 },
     });
 
     const receiveRepaymentForm = useForm<z.infer<typeof receiveRepaymentSchema>>({
         resolver: zodResolver(receiveRepaymentSchema),
-        defaultValues: { amount: 0, destination: 'cash' },
+        defaultValues: { date: format(new Date(), 'yyyy-MM-dd'), amount: 0, destination: 'cash' },
     });
 
     const onGiveCredit = (values: z.infer<typeof giveCreditSchema>) => {
-        addCreditGiven(values.amount);
+        addCreditGiven(values.amount, values.date);
         toast({ title: "Success", description: "Credit has been recorded." });
-        giveCreditForm.reset();
+        giveCreditForm.reset({ date: format(new Date(), 'yyyy-MM-dd'), amount: 0 });
     };
 
     const onReceiveRepayment = (values: z.infer<typeof receiveRepaymentSchema>) => {
-        addCreditRepayment(values.amount, values.destination);
+        addCreditRepayment(values.amount, values.destination, values.date);
         toast({ title: "Success", description: "Credit repayment has been recorded." });
-        receiveRepaymentForm.reset();
+        receiveRepaymentForm.reset({ date: format(new Date(), 'yyyy-MM-dd'), amount: 0, destination: 'cash' });
     };
     
     return (
@@ -82,11 +84,15 @@ export default function CreditPage() {
                             <Tabs defaultValue="give">
                                 <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="give">Give Credit</TabsTrigger><TabsTrigger value="receive">Receive Repayment</TabsTrigger></TabsList>
                                 <TabsContent value="give" className="pt-4">
-                                     <Form {...giveCreditForm}><form onSubmit={giveCreditForm.handleSubmit(onGiveCredit)} className="space-y-4"><FormField control={giveCreditForm.control} name="amount" render={({ field }) => (<FormItem><FormLabel>Amount to Give</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} /><Button type="submit" className="w-full">Record Credit Given</Button></form></Form>
+                                     <Form {...giveCreditForm}><form onSubmit={giveCreditForm.handleSubmit(onGiveCredit)} className="space-y-4">
+                                        <FormField control={giveCreditForm.control} name="date" render={({ field }) => (<FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={giveCreditForm.control} name="amount" render={({ field }) => (<FormItem><FormLabel>Amount to Give</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <Button type="submit" className="w-full">Record Credit Given</Button></form></Form>
                                 </TabsContent>
                                 <TabsContent value="receive" className="pt-4">
                                      <Form {...receiveRepaymentForm}>
                                         <form onSubmit={receiveRepaymentForm.handleSubmit(onReceiveRepayment)} className="space-y-4">
+                                            <FormField control={receiveRepaymentForm.control} name="date" render={({ field }) => (<FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                              <FormField control={receiveRepaymentForm.control} name="amount" render={({ field }) => (<FormItem><FormLabel>Amount Received</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                              <FormField control={receiveRepaymentForm.control} name="destination" render={({ field }) => (
                                                 <FormItem className="space-y-2"><FormLabel>Repayment Destination</FormLabel>

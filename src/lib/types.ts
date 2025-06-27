@@ -223,8 +223,8 @@ export interface AppStateContextType extends AppState {
   deleteManagerTransaction: (transactionId: string) => void;
 
   // Credit Register
-  addCreditGiven: (amount: number) => void;
-  addCreditRepayment: (amount: number, destination: 'cash' | string) => void;
+  addCreditGiven: (amount: number, date: string) => void;
+  addCreditRepayment: (amount: number, destination: 'cash' | string, date: string) => void;
   deleteCreditEntry: (entryId: string) => void;
 
   // Bank Ledger

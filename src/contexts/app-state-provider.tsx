@@ -117,12 +117,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
-  const addCreditGiven = useCallback((amount: number) => {
+  const addCreditGiven = useCallback((amount: number, date: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newEntry: CreditHistoryEntry = {
         id: crypto.randomUUID(),
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: date,
         type: 'given',
         amount,
         createdAt: new Date().toISOString(),
@@ -136,11 +136,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
-  const addCreditRepayment = useCallback((amount: number, destination: 'cash' | string) => {
+  const addCreditRepayment = useCallback((amount: number, destination: 'cash' | string, date: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
-      const date = format(new Date(), 'yyyy-MM-dd');
       const now = new Date().toISOString();
 
       const newSettings = {...prev.settings};
