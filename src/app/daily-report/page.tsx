@@ -1,3 +1,4 @@
+
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -17,6 +18,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const meterReadingSchema = z.object({
   fuelId: z.string(),
@@ -36,6 +38,7 @@ const dailyReportSchema = z.object({
   meterReadings: z.array(meterReadingSchema),
   creditSales: z.coerce.number().min(0).default(0),
   onlinePayments: z.coerce.number().min(0).default(0),
+  onlinePaymentsAccountId: z.string().min(1, 'Please select an account for online payments.'),
   lubeSaleName: z.string().optional(),
   lubeSaleAmount: z.coerce.number().min(0).default(0),
 });
@@ -47,7 +50,7 @@ export default function DailyReportPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const latestDailyReport = settings?.dailyReports?.[0]; // Assumes reports are sorted desc by date
+  const latestDailyReport = settings?.dailyReports?.[0];
 
   const form = useForm<DailyReportFormValues>({
     resolver: zodResolver(dailyReportSchema),
@@ -70,6 +73,7 @@ export default function DailyReportPage() {
       ) || [],
       creditSales: 0,
       onlinePayments: 0,
+      onlinePaymentsAccountId: settings?.bankAccounts.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts[0]?.id || '',
       lubeSaleName: '',
       lubeSaleAmount: 0,
     }
@@ -80,31 +84,23 @@ export default function DailyReportPage() {
     name: "meterReadings",
   });
 
-  const watchedMeterReadings = form.watch('meterReadings');
-  const watchedDate = form.watch('date');
-  const watchedCreditSales = form.watch('creditSales');
-  const watchedOnlinePayments = form.watch('onlinePayments');
-  const watchedLubeSaleAmount = form.watch('lubeSaleAmount');
-
-  // By stringifying the watched values, we ensure the useEffect hook reliably triggers on any data change.
-  const watchedMeterReadingsString = JSON.stringify(watchedMeterReadings);
+  const watchedValuesString = JSON.stringify(form.watch());
 
   useEffect(() => {
     if (!settings) return;
 
-    // We parse the stringified value back into an object for use in our calculations.
-    const currentReadings = JSON.parse(watchedMeterReadingsString);
+    const currentValues = JSON.parse(watchedValuesString);
+    const { meterReadings, date } = currentValues;
 
-    currentReadings.forEach((reading: any, index: number) => {
+    meterReadings.forEach((reading: any, index: number) => {
       const fuel = settings.fuels.find(f => f.id === reading.fuelId);
       if (!fuel) return;
       
-      const { sellingPrice } = getFuelPricesForDate(fuel.id, watchedDate, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
+      const { sellingPrice } = getFuelPricesForDate(fuel.id, date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
       
       const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
       const saleAmount = saleLitres * sellingPrice;
 
-      // Only update if the value has changed to prevent infinite loops
       if (form.getValues(`meterReadings.${index}.saleLitres`) !== saleLitres) {
         form.setValue(`meterReadings.${index}.saleLitres`, saleLitres, { shouldValidate: true });
       }
@@ -113,11 +109,12 @@ export default function DailyReportPage() {
       }
     });
 
-  }, [watchedMeterReadingsString, watchedDate, settings, form]);
+  }, [watchedValuesString, settings, form]);
 
-  const totalFuelSales = watchedMeterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
-  const totalSales = totalFuelSales + (watchedLubeSaleAmount || 0);
-  const cashInHand = totalSales - watchedCreditSales - watchedOnlinePayments;
+  const { meterReadings, creditSales, onlinePayments, lubeSaleAmount } = JSON.parse(watchedValuesString);
+  const totalFuelSales = meterReadings.reduce((acc: number, r: any) => acc + r.saleAmount, 0);
+  const totalSales = totalFuelSales + (lubeSaleAmount || 0);
+  const cashInHand = totalSales - creditSales - onlinePayments;
 
   const onSubmit = (data: DailyReportFormValues) => {
     addDailyReport({
@@ -125,13 +122,12 @@ export default function DailyReportPage() {
       totalSales,
       cashInHand,
     });
-    toast({ title: 'Success', description: 'Daily report has been saved and all ledgers are updated.' });
+    toast({ title: 'Success', description: 'Daily report saved and ledgers updated.' });
     router.push('/');
   };
   
   if (!settings) return <AppLayout><div>Loading settings...</div></AppLayout>;
 
-  // Group readings by fuel for the UI
   const readingsByFuel = settings.fuels.map(fuel => ({
     fuel,
     readings: meterReadingFields.map((field, index) => ({ field, index })).filter(({ field }) => field.fuelId === fuel.id)
@@ -157,12 +153,7 @@ export default function DailyReportPage() {
             </Card>
             
             <Card>
-              <CardHeader>
-                <CardTitle>Meter Readings</CardTitle>
-                <CardDescription>
-                  For your first report, please enter the initial opening meter readings. For all subsequent reports, they will be automatically filled from the previous day's closing value.
-                </CardDescription>
-              </CardHeader>
+              <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>For your first report, enter opening meter readings. Subsequently, they auto-fill from the previous day.</CardDescription></CardHeader>
               <CardContent>
                  <Accordion type="multiple" defaultValue={settings.fuels.map(f => f.id)} className="w-full">
                     {readingsByFuel.map(({ fuel, readings }) => (
@@ -170,33 +161,12 @@ export default function DailyReportPage() {
                         <AccordionTrigger className="text-lg font-semibold">{fuel.name}</AccordionTrigger>
                         <AccordionContent className="space-y-4 pt-2">
                           <div className="grid grid-cols-[repeat(6,1fr)] gap-4 font-semibold text-sm text-muted-foreground px-2 items-center">
-                            <span>Nozzle</span>
-                            <span>Opening</span>
-                            <span>Closing</span>
-                            <span>Testing (L)</span>
-                            <span className="text-right">Sale (L)</span>
-                            <span className="text-right">Sale (INR)</span>
+                            <span>Nozzle</span><span>Opening</span><span>Closing</span><span>Testing (L)</span><span className="text-right">Sale (L)</span><span className="text-right">Sale (INR)</span>
                           </div>
                           {readings.map(({ field, index }) => (
                             <div key={field.id} className="grid grid-cols-[repeat(6,1fr)] gap-4 items-start px-2">
                                 <FormLabel className="pt-2">Nozzle {field.nozzleId}</FormLabel>
-                                <FormField 
-                                  control={form.control} 
-                                  name={`meterReadings.${index}.opening`} 
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input 
-                                          type="number" 
-                                          readOnly={!!latestDailyReport} 
-                                          className={!!latestDailyReport ? "bg-muted" : ""}
-                                          {...field} 
-                                        />
-                                      </FormControl>
-                                      <FormMessage/>
-                                    </FormItem>
-                                  )} 
-                                />
+                                <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly={!!latestDailyReport} className={!!latestDailyReport ? "bg-muted" : ""} {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.closing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.testing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
@@ -216,7 +186,17 @@ export default function DailyReportPage() {
                 <FormField control={form.control} name="lubeSaleName" render={({ field }) => <FormItem><FormLabel>Lube Sale Name (Optional)</FormLabel><FormControl><Input placeholder="e.g., Castrol GTX" {...field} /></FormControl><FormMessage /></FormItem>} />
                 <FormField control={form.control} name="lubeSaleAmount" render={({ field }) => <FormItem><FormLabel>Lube Sale Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                 <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments (PhonePe, etc.)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name="onlinePaymentsAccountId" render={({ field }) => (
+                        <FormItem><FormLabel>Deposit To</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
+                                <SelectContent>{settings.bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                            </Select><FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
               </CardContent>
             </Card>
 
@@ -225,8 +205,8 @@ export default function DailyReportPage() {
               <CardContent className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-lg">
                   <p>Total Sales: <span className="font-bold font-headline">{formatCurrency(totalSales)}</span></p>
-                  <p>Less Credit: <span className="font-bold font-headline text-destructive">{formatCurrency(watchedCreditSales)}</span></p>
-                  <p>Less Online: <span className="font-bold font-headline text-destructive">{formatCurrency(watchedOnlinePayments)}</span></p>
+                  <p>Less Credit: <span className="font-bold font-headline text-destructive">{formatCurrency(creditSales)}</span></p>
+                  <p>Less Online: <span className="font-bold font-headline text-destructive">{formatCurrency(onlinePayments)}</span></p>
                 </div>
                  <div className="bg-primary text-primary-foreground p-4 rounded-lg text-center">
                     <p className="text-base font-medium">Cash in Hand</p>
@@ -234,11 +214,8 @@ export default function DailyReportPage() {
                 </div>
               </CardContent>
               <Separator />
-               <CardContent className="pt-4">
-                 <Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90">Submit Daily Report</Button>
-              </CardContent>
+               <CardContent className="pt-4"><Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90">Submit Daily Report</Button></CardContent>
             </Card>
-
           </form>
         </Form>
       </div>

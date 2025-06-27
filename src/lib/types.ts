@@ -3,6 +3,15 @@ export interface DipChartEntry {
   volume: number; // Corresponding volume in Litres
 }
 
+export interface BankAccount {
+  id: string;
+  name: string;
+  accountNumber?: string;
+  initialBalance: number;
+  isOverdraft: boolean;
+  sanctionedAmount?: number;
+}
+
 export interface Fuel {
   id: string;
   name: string;
@@ -28,7 +37,7 @@ export interface Tank {
 }
 
 export interface Nozzle {
-  id: string;
+  id:string;
   pumpId: number;
   nozzleId: number;
   fuelId: string;
@@ -47,6 +56,7 @@ export interface ManagerTransaction {
 
 export interface BankTransaction {
   id: string;
+  accountId: string;
   date: string;
   description: string;
   type: 'credit' | 'debit';
@@ -61,7 +71,7 @@ export interface CreditHistoryEntry {
   date: string;
   type: 'given' | 'repaid';
   amount: number;
-  repaymentDestination?: 'cash' | 'bank';
+  repaymentDestination?: 'cash' | string; // Can be 'cash' or a bank account ID
   createdAt: string;
   source?: 'daily_report' | 'manual';
   sourceId?: string;
@@ -83,6 +93,7 @@ export interface FuelPurchase {
   fuelId: string;
   quantity: number; // in Litres
   amount: number; // total cost
+  accountId: string; // Account used for payment
   invoiceNumber?: string;
   createdAt: string;
 }
@@ -117,6 +128,7 @@ export interface MonthlyReport {
   litresSold: number;
   bankDeposits: number;
   creditSales: number;
+  accountId: string; // Account where deposits are made
   netCash: number;
   createdAt: string;
   updatedAt: string;
@@ -139,6 +151,7 @@ export interface DailyReport {
   totalSales: number;
   creditSales: number;
   onlinePayments: number;
+  onlinePaymentsAccountId: string;
   lubeSaleName?: string;
   lubeSaleAmount?: number;
   cashInHand: number;
@@ -177,10 +190,7 @@ export interface AnalyzeDsrOutput {
 export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark';
-  bankName?: string;
-  bankAccountNumber?: string;
-  sanctionedAmount?: number;
-  initialBankBalance?: number;
+  bankAccounts: BankAccount[];
   managerInitialBalance?: number;
   debtRecovered?: number;
   fuels: Fuel[];
@@ -190,8 +200,6 @@ export interface Settings {
   monthlyReports: MonthlyReport[];
   dailyReports: DailyReport[];
   purchases: FuelPurchase[];
-
-  // New ledgers and histories
   managerLedger: ManagerTransaction[];
   bankLedger: BankTransaction[];
   creditHistory: CreditHistoryEntry[];
@@ -201,7 +209,6 @@ export interface Settings {
 export interface AppState {
   settings: Settings | null;
   isSetupComplete: boolean;
-  // Add other state slices here, e.g., reports, purchases
 }
 
 export interface AppStateContextType extends AppState {
@@ -215,7 +222,7 @@ export interface AppStateContextType extends AppState {
 
   // Credit Register
   addCreditGiven: (amount: number) => void;
-  addCreditRepayment: (amount: number, destination: 'cash' | 'bank'>) => void;
+  addCreditRepayment: (amount: number, destination: 'cash' | string) => void;
 
   // Bank Ledger
   addBankTransaction: (transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => void;
