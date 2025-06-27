@@ -7,18 +7,21 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
 import { Landmark, Wallet, ShieldCheck, ReceiptText, Briefcase, ShoppingCart } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
 import type { BankAccount } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Dashboard() {
   const { settings } = useAppState();
+  const [selectedAccountId, setSelectedAccountId] = useState('all');
 
   const {
     totalStockValue,
     currentOutstandingCredit,
+    accountBalances,
     totalBankBalance,
     overdraftAccount,
     netManagerBalance,
@@ -27,7 +30,7 @@ export default function Dashboard() {
     recentManagerTransactions,
     recentPurchases,
   } = useMemo(() => {
-    if (!settings) return { totalStockValue: 0, currentOutstandingCredit: 0, totalBankBalance: 0, overdraftAccount: null, netManagerBalance: 0, netWorth: 0, remainingLimit: 0, recentManagerTransactions: [], recentPurchases: [] };
+    if (!settings) return { totalStockValue: 0, currentOutstandingCredit: 0, accountBalances: [], totalBankBalance: 0, overdraftAccount: null, netManagerBalance: 0, netWorth: 0, remainingLimit: 0, recentManagerTransactions: [], recentPurchases: [] };
 
     const today = formatDate(new Date(), 'yyyy-MM-dd');
     const totalStockValue = settings.tanks.reduce((total, tank) => {
@@ -39,10 +42,12 @@ export default function Dashboard() {
 
     const currentOutstandingCredit = (settings.creditHistory || []).reduce((acc, tx) => (tx.type === 'given' ? acc + tx.amount : acc - tx.amount), 0);
 
-    const totalBankBalance = (settings.bankAccounts || []).reduce((total, account) => {
-        const accountBalance = (settings.bankLedger || []).filter(tx => tx.accountId === account.id).reduce((acc, tx) => (tx.type === 'credit' ? acc + tx.amount : acc - tx.amount), account.initialBalance);
-        return total + accountBalance;
-    }, 0);
+    const calculatedAccountBalances = (settings.bankAccounts || []).map(account => {
+        const balance = (settings.bankLedger || []).filter(tx => tx.accountId === account.id).reduce((acc, tx) => (tx.type === 'credit' ? acc + tx.amount : acc - tx.amount), account.initialBalance);
+        return { id: account.id, name: account.name, balance };
+    });
+
+    const totalBankBalance = calculatedAccountBalances.reduce((sum, acc) => sum + acc.balance, 0);
     
     const overdraftAccount: BankAccount | null = (settings.bankAccounts || []).find(acc => acc.isOverdraft) || (settings.bankAccounts || [])[0] || null;
 
@@ -56,7 +61,7 @@ export default function Dashboard() {
     const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
     const recentPurchases = (settings.purchases || []).slice(0, 5);
 
-    return { totalStockValue, currentOutstandingCredit, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases };
+    return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases };
   }, [settings]);
 
   if (!settings) return null;
@@ -73,7 +78,33 @@ export default function Dashboard() {
       <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} />
-            <StatCard title="Total Bank Balance" value={formatCurrency(totalBankBalance)} icon={Landmark} />
+            
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Bank Balance</CardTitle>
+                    <Landmark className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold font-headline">
+                        {selectedAccountId === 'all'
+                            ? formatCurrency(totalBankBalance)
+                            : formatCurrency(accountBalances.find(acc => acc.id === selectedAccountId)?.balance ?? 0)
+                        }
+                    </div>
+                     <Select onValueChange={setSelectedAccountId} defaultValue="all">
+                        <SelectTrigger className="h-8 text-xs mt-1 w-full">
+                            <SelectValue placeholder="Select Account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Accounts</SelectItem>
+                            {accountBalances.map(acc => (
+                                <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </CardContent>
+            </Card>
+
             <StatCard title="Outstanding Credit" value={formatCurrency(currentOutstandingCredit)} icon={ReceiptText} />
             <StatCard title="Remaining Limit" description={`vs ${overdraftAccount?.name || 'OD Account'}`} value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-destructive' : 'text-green-600'}/>
         </div>
