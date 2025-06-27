@@ -86,10 +86,16 @@ export default function DailyReportPage() {
   const watchedOnlinePayments = form.watch('onlinePayments');
   const watchedLubeSaleAmount = form.watch('lubeSaleAmount');
 
+  // By stringifying the watched values, we ensure the useEffect hook reliably triggers on any data change.
+  const watchedMeterReadingsString = JSON.stringify(watchedMeterReadings);
+
   useEffect(() => {
     if (!settings) return;
 
-    watchedMeterReadings.forEach((reading, index) => {
+    // We parse the stringified value back into an object for use in our calculations.
+    const currentReadings = JSON.parse(watchedMeterReadingsString);
+
+    currentReadings.forEach((reading: any, index: number) => {
       const fuel = settings.fuels.find(f => f.id === reading.fuelId);
       if (!fuel) return;
       
@@ -98,11 +104,16 @@ export default function DailyReportPage() {
       const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
       const saleAmount = saleLitres * sellingPrice;
 
-      form.setValue(`meterReadings.${index}.saleLitres`, saleLitres, { shouldValidate: true });
-      form.setValue(`meterReadings.${index}.saleAmount`, saleAmount);
+      // Only update if the value has changed to prevent infinite loops
+      if (form.getValues(`meterReadings.${index}.saleLitres`) !== saleLitres) {
+        form.setValue(`meterReadings.${index}.saleLitres`, saleLitres, { shouldValidate: true });
+      }
+      if (form.getValues(`meterReadings.${index}.saleAmount`) !== saleAmount) {
+        form.setValue(`meterReadings.${index}.saleAmount`, saleAmount);
+      }
     });
 
-  }, [watchedMeterReadings, watchedDate, settings, form]);
+  }, [watchedMeterReadingsString, watchedDate, settings, form]);
 
   const totalFuelSales = watchedMeterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
   const totalSales = totalFuelSales + (watchedLubeSaleAmount || 0);
@@ -188,8 +199,8 @@ export default function DailyReportPage() {
                                 />
                                 <FormField control={form.control} name={`meterReadings.${index}.closing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.testing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
-                                <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly className="text-right bg-muted" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
-                                <FormField control={form.control} name={`meterReadings.${index}.saleAmount`} render={({ field }) => <FormItem><FormControl><Input readOnly className="text-right bg-muted" value={formatCurrency(field.value)} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.saleAmount`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted" value={formatCurrency(field.value)} /></FormControl></FormItem>} />
                             </div>
                           ))}
                         </AccordionContent>
