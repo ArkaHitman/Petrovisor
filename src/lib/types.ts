@@ -191,7 +191,7 @@ export interface AnalyzeDsrOutput {
 
 export interface Settings {
   pumpName: string;
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'slate' | 'stone' | 'violet';
   bankAccounts: BankAccount[];
   managerInitialBalance?: number;
   debtRecovered?: number;

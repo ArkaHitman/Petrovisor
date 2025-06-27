@@ -1,7 +1,6 @@
 'use client';
 
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import ThemeToggle from '../theme-toggle';
 import { Button } from '../ui/button';
 import { Settings } from 'lucide-react';
 import Link from 'next/link';
@@ -13,7 +12,6 @@ export default function Header() {
         <SidebarTrigger className="md:hidden" />
       </div>
       <div className="flex items-center gap-4">
-        <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/settings">
             <Settings className="h-5 w-5" />

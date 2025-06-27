@@ -51,7 +51,7 @@ const bankAccountSchema = z.object({
 
 const settingsFormSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
-  theme: z.enum(['light', 'dark']),
+  theme: z.enum(['light', 'dark', 'slate', 'stone', 'violet']),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
   managerInitialBalance: z.coerce.number().optional(),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
@@ -103,9 +103,12 @@ export default function SettingsPage() {
 
   const watchedTheme = watch('theme');
   useEffect(() => {
+    const themeClasses = ['dark', 'slate', 'stone', 'violet'];
     if (watchedTheme) {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(watchedTheme);
+        document.documentElement.classList.remove(...themeClasses);
+        if (watchedTheme !== 'light') {
+            document.documentElement.classList.add(watchedTheme);
+        }
     }
   }, [watchedTheme]);
 
@@ -216,11 +219,14 @@ export default function SettingsPage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="theme">Theme</Label>
-                         <Select value={watchedTheme} onValueChange={(value: 'light' | 'dark') => setValue('theme', value)}>
+                         <Select value={watchedTheme} onValueChange={(value) => setValue('theme', value as any)}>
                             <SelectTrigger id="theme"><SelectValue placeholder="Select theme" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="light">Light Theme</SelectItem>
-                                <SelectItem value="dark">Dark Theme</SelectItem>
+                                <SelectItem value="light">Light</SelectItem>
+                                <SelectItem value="dark">Dark</SelectItem>
+                                <SelectItem value="stone">Stone</SelectItem>
+                                <SelectItem value="slate">Slate</SelectItem>
+                                <SelectItem value="violet">Violet</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
