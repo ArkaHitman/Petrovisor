@@ -15,10 +15,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { HandCoins, Landmark, ArrowLeftRight } from 'lucide-react';
+import { HandCoins, Landmark, ArrowLeftRight, Trash2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { format, parseISO } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const giveCreditSchema = z.object({
     amount: z.coerce.number().positive("Amount must be positive"),
@@ -30,7 +31,7 @@ const receiveRepaymentSchema = z.object({
 });
 
 export default function CreditPage() {
-    const { settings, addCreditGiven, addCreditRepayment } = useAppState();
+    const { settings, addCreditGiven, addCreditRepayment, deleteCreditEntry } = useAppState();
     const { toast } = useToast();
 
     const bankAccounts = settings?.bankAccounts || [];
@@ -121,6 +122,20 @@ export default function CreditPage() {
                                     <p className="font-medium">{tx.type === 'given' ? 'Credit Given' : `Repayment to ${tx.repaymentDestination === 'cash' ? 'Cash' : bankAccounts.find(a => a.id === tx.repaymentDestination)?.name}`}</p>
                                     <p className="text-sm text-muted-foreground">{formatCurrency(tx.amount)} on {format(parseISO(tx.date), 'dd MMM yyyy')}</p>
                                  </div>
+                                 {tx.source === 'manual' && (
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader><AlertDialogTitle>Delete Entry?</AlertDialogTitle><AlertDialogDescription>This will delete the credit entry and any associated bank/cash transactions. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => deleteCreditEntry(tx.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                     </AlertDialog>
+                                 )}
                                </div>
                             ))}
                            </div>

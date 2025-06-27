@@ -1,3 +1,4 @@
+
 export interface DipChartEntry {
   dip: number; // Dip reading in cm
   volume: number; // Corresponding volume in Litres
@@ -223,6 +224,7 @@ export interface AppStateContextType extends AppState {
   // Credit Register
   addCreditGiven: (amount: number) => void;
   addCreditRepayment: (amount: number, destination: 'cash' | string) => void;
+  deleteCreditEntry: (entryId: string) => void;
 
   // Bank Ledger
   addBankTransaction: (transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => void;

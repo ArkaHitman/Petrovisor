@@ -12,14 +12,57 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
-import type { Fuel, FuelPriceEntry, Settings, Tank, BankAccount } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
-import { PlusCircle, Trash2, Banknote } from 'lucide-react';
+import type { Fuel, NozzlesPerFuel, Settings, Tank } from '@/lib/types';
+import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
 import { Switch } from '@/components/ui/switch';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+const fuelSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Fuel name is required.'),
+  price: z.coerce.number().min(0, 'Price must be positive.'),
+  cost: z.coerce.number().min(0, 'Cost must be positive.'),
+  nozzleCount: z.coerce.number().int().min(0).default(0),
+});
+
+const tankSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Tank name is required.'),
+  fuelId: z.string().min(1, 'Please select a fuel type.'),
+  capacity: z.coerce.number().min(1, 'Capacity must be greater than 0.'),
+  initialStock: z.coerce.number().min(0, 'Initial stock cannot be negative.'),
+  dipChartType: z.enum(['16kl', '21kl', 'none']).optional().transform(val => val === 'none' ? undefined : val),
+});
+
+const bankAccountSchema = z.object({
+    id: z.string(),
+    name: z.string().min(1, 'Bank name is required.'),
+    accountNumber: z.string().optional(),
+    initialBalance: z.coerce.number().default(0),
+    sanctionedAmount: z.coerce.number().optional(),
+    isOverdraft: z.boolean().default(false),
+});
+
+const settingsFormSchema = z.object({
+  pumpName: z.string().min(1, 'Pump name is required.'),
+  theme: z.enum(['light', 'dark']),
+  bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
+  managerInitialBalance: z.coerce.number().optional(),
+  fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
+  tanks: z.array(tankSchema),
+}).refine(data => data.fuels.reduce((acc, fuel) => acc + fuel.nozzleCount, 0) > 0, {
+    message: "You must have at least one nozzle in total across all fuel types.",
+    path: ["fuels"],
+}).refine(data => data.bankAccounts.filter(acc => acc.isOverdraft).length <= 1, {
+    message: "Only one bank account can be marked as the overdraft account.",
+    path: ["bankAccounts"],
+});
+
+type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -28,17 +71,30 @@ export default function SettingsPage() {
   
   const [isClient, setIsClient] = useState(false);
   
-  const formMethods = useForm<Settings>({
-      values: settings || undefined,
+  const formMethods = useForm<SettingsFormValues>({
+      resolver: zodResolver(settingsFormSchema),
   });
 
-  const { control, register, handleSubmit, watch, setValue, reset } = formMethods;
+  const { control, register, handleSubmit, watch, setValue, reset, getValues } = formMethods;
 
   const { fields: bankFields, append: appendBank, remove: removeBank } = useFieldArray({ control, name: "bankAccounts" });
-
+  const { fields: fuelFields, append: appendFuel, remove: removeFuel } = useFieldArray({ control, name: "fuels" });
+  const { fields: tankFields, append: appendTank, remove: removeTank } = useFieldArray({ control, name: "tanks" });
+  
+  const watchedFuels = watch('fuels');
+  
   useEffect(() => {
     if (settings) {
-      reset(settings);
+      const formValues: SettingsFormValues = {
+        ...settings,
+        fuels: settings.fuels.map(fuel => ({
+          ...fuel,
+          nozzleCount: settings.nozzlesPerFuel[fuel.id] || 0
+        })),
+        tanks: settings.tanks || [],
+        managerInitialBalance: settings.managerInitialBalance || 0,
+      };
+      reset(formValues);
     }
     setIsClient(true);
   }, [settings, reset]);
@@ -48,26 +104,31 @@ export default function SettingsPage() {
     if (watchedTheme) {
       document.documentElement.classList.remove('light', 'dark');
       document.documentElement.classList.add(watchedTheme);
-      return () => {
-         if (settings?.theme) {
-            document.documentElement.classList.remove('light', 'dark');
-            document.documentElement.classList.add(settings.theme);
-        }
-      }
     }
-  }, [watchedTheme, settings?.theme]);
+  }, [watchedTheme]);
 
+  const handleSave = (data: SettingsFormValues) => {
+    if (!settings) return;
 
-  const handleSave = (data: Settings) => {
-    if (!data.pumpName) {
-        toast({ title: "Validation Error", description: "Petrol Pump Name is required.", variant: 'destructive' });
-        return;
-    }
-    if (data.bankAccounts.filter(acc => acc.isOverdraft).length > 1) {
-        toast({ title: "Validation Error", description: "Only one account can be the overdraft account.", variant: "destructive" });
-        return;
-    }
-    setSettings(data);
+    const nozzlesPerFuel: NozzlesPerFuel = {};
+    const finalFuels: Fuel[] = data.fuels.map(fuelWithNozzles => {
+        nozzlesPerFuel[fuelWithNozzles.id] = fuelWithNozzles.nozzleCount;
+        const { nozzleCount, ...fuel } = fuelWithNozzles;
+        return fuel;
+    });
+
+    const finalSettings: Settings = {
+      ...settings,
+      pumpName: data.pumpName,
+      theme: data.theme,
+      bankAccounts: data.bankAccounts,
+      managerInitialBalance: data.managerInitialBalance,
+      fuels: finalFuels,
+      tanks: data.tanks,
+      nozzlesPerFuel,
+    };
+    
+    setSettings(finalSettings);
     toast({ title: "Settings Saved", description: "Your changes have been saved successfully." });
     router.push('/');
   };
@@ -142,6 +203,10 @@ export default function SettingsPage() {
                             </SelectContent>
                         </Select>
                     </div>
+                     <div className="space-y-2">
+                        <Label>Initial Manager Balance</Label>
+                        <Input type="number" {...register('managerInitialBalance')} />
+                    </div>
                 </CardContent>
             </Card>
 
@@ -189,6 +254,88 @@ export default function SettingsPage() {
                          </Card>
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={() => appendBank({id: crypto.randomUUID(), name: '', accountNumber: '', initialBalance: 0, isOverdraft: false })}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><FuelIcon/> Fuel Types & Pricing</CardTitle>
+                    <CardDescription>Manage the fuels you sell, their pricing, and associated nozzle counts.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {fuelFields.map((field, index) => (
+                        <Card key={field.id} className="p-4 bg-muted/50 relative">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Fuel Name</Label>
+                                    <Input {...register(`fuels.${index}.name`)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Selling Price</Label>
+                                    <Input type="number" step="0.01" {...register(`fuels.${index}.price`)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Cost Price</Label>
+                                    <Input type="number" step="0.01" {...register(`fuels.${index}.cost`)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Nozzle Count</Label>
+                                    <Input type="number" {...register(`fuels.${index}.nozzleCount`, { valueAsNumber: true })} />
+                                </div>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </Card>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle className="h-4 w-4 mr-2"/>Add Fuel</Button>
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><Database/> Storage Tanks</CardTitle>
+                    <CardDescription>Configure your underground storage tanks.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {tankFields.map((field, index) => (
+                        <Card key={field.id} className="p-4 bg-muted/50 relative">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Tank Name</Label>
+                                    <Input {...register(`tanks.${index}.name`)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Fuel Type</Label>
+                                    <Select onValueChange={(value) => setValue(`tanks.${index}.fuelId`, value)} value={watch(`tanks.${index}.fuelId`)}>
+                                        <SelectTrigger><SelectValue placeholder="Select fuel" /></SelectTrigger>
+                                        <SelectContent>
+                                            {(watchedFuels || []).map(fuel => <SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>DIP Chart Type</Label>
+                                    <Select onValueChange={(value) => setValue(`tanks.${index}.dipChartType`, value === 'none' ? undefined : value as '16kl' | '21kl')} value={watch(`tanks.${index}.dipChartType`) || 'none'}>
+                                        <SelectTrigger><SelectValue placeholder="Select chart" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            <SelectItem value="16kl">16KL</SelectItem>
+                                            <SelectItem value="21kl">21KL</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Tank Capacity (L)</Label>
+                                    <Input type="number" {...register(`tanks.${index}.capacity`, { valueAsNumber: true })} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Current Stock (L)</Label>
+                                    <Input type="number" {...register(`tanks.${index}.initialStock`, { valueAsNumber: true })} />
+                                </div>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </Card>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendTank({id: crypto.randomUUID(), name: '', fuelId: watchedFuels?.[0]?.id || '', capacity: 10000, initialStock: 0, dipChartType: undefined })}><PlusCircle className="h-4 w-4 mr-2"/>Add Tank</Button>
                 </CardContent>
             </Card>
 

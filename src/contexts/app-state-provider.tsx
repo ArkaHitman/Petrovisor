@@ -152,6 +152,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         amount,
         repaymentDestination: destination,
         createdAt: now,
+        source: 'manual',
       };
       newSettings.creditHistory = [...(newSettings.creditHistory || []), newCreditEntry].sort((a,b) => b.date.localeCompare(a.date));
 
@@ -165,6 +166,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           type: 'credit',
           amount,
           source: 'credit_repayment',
+          sourceId: newCreditEntry.id,
         };
         newSettings.bankLedger = [...(newSettings.bankLedger || []), newBankTx].sort((a, b) => b.date.localeCompare(a.date));
       } else {
@@ -174,8 +176,32 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
            date,
            description: 'Credit Repayment Received in Cash',
            amount,
+           sourceId: newCreditEntry.id,
          }
          newSettings.miscCollections = [...(newSettings.miscCollections || []), newMiscCollection].sort((a, b) => b.date.localeCompare(a.date));
+      }
+      
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const deleteCreditEntry = useCallback((entryId: string) => {
+    setAppState(prev => {
+      if (!prev.settings?.creditHistory) return prev;
+
+      const entryToDelete = prev.settings.creditHistory.find(e => e.id === entryId);
+      if (!entryToDelete) return prev;
+
+      const newSettings = { ...prev.settings };
+
+      newSettings.creditHistory = newSettings.creditHistory.filter(e => e.id !== entryId);
+
+      if (entryToDelete.type === 'repaid') {
+        if (entryToDelete.repaymentDestination === 'cash') {
+          newSettings.miscCollections = (newSettings.miscCollections || []).filter(c => c.sourceId !== entryId);
+        } else {
+          newSettings.bankLedger = (newSettings.bankLedger || []).filter(tx => tx.sourceId !== entryId);
+        }
       }
       
       return { ...prev, settings: newSettings };
@@ -454,6 +480,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteManagerTransaction,
     addCreditGiven,
     addCreditRepayment,
+    deleteCreditEntry,
     addBankTransaction,
     deleteBankTransaction,
     clearManualBankTransactions,
@@ -474,6 +501,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteManagerTransaction,
     addCreditGiven,
     addCreditRepayment,
+    deleteCreditEntry,
     addBankTransaction,
     deleteBankTransaction,
     clearManualBankTransactions,
