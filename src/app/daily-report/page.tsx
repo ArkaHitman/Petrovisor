@@ -36,6 +36,8 @@ const dailyReportSchema = z.object({
   meterReadings: z.array(meterReadingSchema),
   creditSales: z.coerce.number().min(0).default(0),
   onlinePayments: z.coerce.number().min(0).default(0),
+  lubeSaleName: z.string().optional(),
+  lubeSaleAmount: z.coerce.number().min(0).default(0),
 });
 
 type DailyReportFormValues = z.infer<typeof dailyReportSchema>;
@@ -68,6 +70,8 @@ export default function DailyReportPage() {
       ) || [],
       creditSales: 0,
       onlinePayments: 0,
+      lubeSaleName: '',
+      lubeSaleAmount: 0,
     }
   });
 
@@ -80,6 +84,7 @@ export default function DailyReportPage() {
   const watchedDate = form.watch('date');
   const watchedCreditSales = form.watch('creditSales');
   const watchedOnlinePayments = form.watch('onlinePayments');
+  const watchedLubeSaleAmount = form.watch('lubeSaleAmount');
 
   useEffect(() => {
     if (!settings) return;
@@ -99,7 +104,8 @@ export default function DailyReportPage() {
 
   }, [watchedMeterReadings, watchedDate, settings, form]);
 
-  const totalSales = watchedMeterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
+  const totalFuelSales = watchedMeterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
+  const totalSales = totalFuelSales + (watchedLubeSaleAmount || 0);
   const cashInHand = totalSales - watchedCreditSales - watchedOnlinePayments;
 
   const onSubmit = (data: DailyReportFormValues) => {
@@ -194,8 +200,10 @@ export default function DailyReportPage() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Financials</CardTitle><CardDescription>Enter credit sales and total online payments for the day.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Financials</CardTitle><CardDescription>Enter other sales and payments for the day.</CardDescription></CardHeader>
               <CardContent className="grid md:grid-cols-2 gap-6">
+                <FormField control={form.control} name="lubeSaleName" render={({ field }) => <FormItem><FormLabel>Lube Sale Name (Optional)</FormLabel><FormControl><Input placeholder="e.g., Castrol GTX" {...field} /></FormControl><FormMessage /></FormItem>} />
+                <FormField control={form.control} name="lubeSaleAmount" render={({ field }) => <FormItem><FormLabel>Lube Sale Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                 <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                 <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments (PhonePe, etc.)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
               </CardContent>

@@ -139,6 +139,8 @@ export interface DailyReport {
   totalSales: number;
   creditSales: number;
   onlinePayments: number;
+  lubeSaleName?: string;
+  lubeSaleAmount?: number;
   cashInHand: number;
   createdAt: string;
   updatedAt: string;
