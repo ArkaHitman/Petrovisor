@@ -9,9 +9,19 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import * as React from "react"
 
 export function Toaster() {
   const { toasts } = useToast()
+  const [isClient, setIsClient] = React.useState(false)
+
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return null
+  }
 
   return (
     <ToastProvider>
