@@ -10,11 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Droplets, Fuel, Database, Trash2, PlusCircle, Landmark } from 'lucide-react';
+import { Droplets, Fuel, Database, Trash2, PlusCircle, Building } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Settings, NozzlesPerFuel, Fuel as FuelType, BankAccount } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from './ui/switch';
 
 const fuelSchema = z.object({
@@ -114,145 +113,150 @@ export default function SetupWizard() {
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 p-4 animate-fadeInScaleUp">
-      <Card className="w-full max-w-4xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"><Droplets className="h-8 w-8 text-primary" /></div>
-          <CardTitle className="font-headline text-2xl">Welcome to PetroVisor</CardTitle>
-          <CardDescription>Let's get your station set up in a few steps.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              
-              <FormField control={form.control} name="pumpName" render={({ field }) => (
-                <FormItem><FormLabel>Petrol Pump Name</FormLabel><FormControl><Input placeholder="e.g., Star Fuels" {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
+    <div className="min-h-screen w-full bg-muted/40 p-4 md:p-8 animate-fadeInScaleUp">
+      <div className="max-w-5xl mx-auto">
+        <header className="text-center mb-10">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Droplets className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="font-headline text-3xl md:text-4xl font-bold">Welcome to PetroVisor</h1>
+          <p className="text-muted-foreground mt-2">Let's get your station set up in a few steps. You can change these settings later.</p>
+        </header>
 
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Landmark size={20}/>Bank Accounts</h3>
-                <p className="text-sm text-muted-foreground mb-4">Define all your business bank accounts. You must have at least one.</p>
-                {bankFields.map((field, index) => (
-                  <Card key={field.id} className="p-3 mb-2 relative">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name={`bankAccounts.${index}.name`} render={({ field }) => (
-                            <FormItem><FormLabel>Bank/Account Name</FormLabel><FormControl><Input placeholder="e.g., SBI Overdraft" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={form.control} name={`bankAccounts.${index}.accountNumber`} render={({ field }) => (
-                            <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="Optional" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={form.control} name={`bankAccounts.${index}.initialBalance`} render={({ field }) => (
-                            <FormItem><FormLabel>Current Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={form.control} name={`bankAccounts.${index}.sanctionedAmount`} render={({ field }) => (
-                            <FormItem><FormLabel>Sanctioned Amount</FormLabel><FormControl><Input type="number" placeholder="For OD accounts" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                    </div>
-                     <div className="flex items-center space-x-2 mt-4">
-                        <FormField control={form.control} name={`bankAccounts.${index}.isOverdraft`} render={({ field }) => (
-                            <FormItem className="flex items-center space-x-2">
-                                <FormControl><Switch checked={field.value} onCheckedChange={(checked) => {
-                                    field.onChange(checked);
-                                    if (checked) {
-                                        form.getValues('bankAccounts').forEach((_, i) => {
-                                            if (i !== index) form.setValue(`bankAccounts.${i}.isOverdraft`, false);
-                                        });
-                                    }
-                                }} /></FormControl>
-                                <FormLabel>Is Overdraft Account?</FormLabel>
-                            </FormItem>
-                        )}/>
-                     </div>
-                     {bankFields.length > 1 && <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1" onClick={() => removeBank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
-                  </Card>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendBank({ id: crypto.randomUUID(), name: '', accountNumber: '', initialBalance: 0, isOverdraft: false, sanctionedAmount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Bank Account</Button>
-                {form.formState.errors.bankAccounts && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.bankAccounts?.message}</p>}
-              </div>
-
-               <Separator />
-               <div>
-                  <h3 className="text-lg font-medium font-headline">Manager Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                     <FormField control={form.control} name="managerInitialBalance" render={({ field }) => (
-                      <FormItem><FormLabel>Initial Manager Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-3"><Building size={24} /> General & Financial Setup</CardTitle>
+                <CardDescription>Start with your station's name and its primary financial accounts.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                   <FormField control={form.control} name="pumpName" render={({ field }) => (
+                    <FormItem><FormLabel>Petrol Pump Name</FormLabel><FormControl><Input placeholder="e.g., Star Fuels" {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  </div>
-               </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Fuel size={20}/> Fuel Types & Nozzles</h3>
-                <p className="text-sm text-muted-foreground mb-4">Define the fuels you sell, their prices, costs, and nozzle counts.</p>
-                {fuelFields.map((field, index) => (
-                  <Card key={field.id} className="p-3 mb-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                      <div className="sm:col-span-3"><FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
-                      <div className="sm:col-span-3"><FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (<FormItem><FormLabel>Selling Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
-                      <div className="sm:col-span-3"><FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (<FormItem><FormLabel>Cost Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
-                      <div className="sm:col-span-2"><FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (<FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
-                      <div className="sm:col-span-1"><Button type="button" variant="ghost" size="icon" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
+                   <FormField control={form.control} name="managerInitialBalance" render={({ field }) => (
+                    <FormItem><FormLabel>Initial Manager Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <Separator/>
+                
+                <div>
+                    <h4 className="text-md font-medium mb-2">Bank Accounts</h4>
+                    <div className="space-y-4">
+                        {bankFields.map((field, index) => (
+                        <div key={field.id} className="border rounded-lg p-4 relative space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name={`bankAccounts.${index}.name`} render={({ field }) => (
+                                    <FormItem><FormLabel>Bank/Account Name</FormLabel><FormControl><Input placeholder="e.g., SBI Overdraft" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name={`bankAccounts.${index}.accountNumber`} render={({ field }) => (
+                                    <FormItem><FormLabel>Account Number (Optional)</FormLabel><FormControl><Input placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name={`bankAccounts.${index}.initialBalance`} render={({ field }) => (
+                                    <FormItem><FormLabel>Current Balance</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name={`bankAccounts.${index}.sanctionedAmount`} render={({ field }) => (
+                                    <FormItem><FormLabel>Sanctioned Amount (for OD)</FormLabel><FormControl><Input type="number" placeholder="Enter if overdraft account" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                            <FormField control={form.control} name={`bankAccounts.${index}.isOverdraft`} render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl><Switch checked={field.value} onCheckedChange={(checked) => {
+                                        field.onChange(checked);
+                                        if (checked) {
+                                            form.getValues('bankAccounts').forEach((_, i) => {
+                                                if (i !== index) form.setValue(`bankAccounts.${i}.isOverdraft`, false);
+                                            });
+                                        }
+                                    }} /></FormControl>
+                                    <FormLabel className="font-normal">Set as primary Overdraft account</FormLabel>
+                                </FormItem>
+                            )}/>
+                            {bankFields.length > 1 && <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => removeBank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                        </div>
+                        ))}
                     </div>
-                  </Card>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Fuel</Button>
-                {form.formState.errors.fuels && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.fuels?.message}</p>}
-              </div>
+                     <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => appendBank({ id: crypto.randomUUID(), name: '', accountNumber: '', initialBalance: 0, isOverdraft: false, sanctionedAmount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Another Account</Button>
+                     {form.formState.errors.bankAccounts && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.bankAccounts?.message || form.formState.errors.bankAccounts.root?.message}</p>}
+                </div>
+              </CardContent>
+            </Card>
 
-              <Separator />
-              
-               <div>
-                <h3 className="text-lg font-medium font-headline flex items-center gap-2"><Database size={20}/> Storage Tanks</h3>
-                <p className="text-sm text-muted-foreground mb-4">Configure your underground storage tanks.</p>
-                {tankFields.map((field, index) => (
-                  <Card key={field.id} className="p-3 mb-2">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
-                      <div className="md:col-span-2"><FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)}/></div>
-                      <div className="md:col-span-1">
-                        <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Fuel</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                                    <SelectContent>{watchedFuels.map((fuel) => (<SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>))}</SelectContent>
-                                </Select><FormMessage />
-                            </FormItem>
-                        )}/>
-                      </div>
-                      <div className="md:col-span-1">
-                       <FormField control={form.control} name={`tanks.${index}.dipChartType`} render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>DIP Chart</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value || 'none'}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                     <SelectItem value="none">None</SelectItem><SelectItem value="16kl">16KL</SelectItem><SelectItem value="21kl">21KL</SelectItem>
-                                  </SelectContent>
-                              </Select><FormMessage />
-                          </FormItem>
-                       )}/>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-3"><Fuel size={24}/> Fuel & Nozzle Setup</CardTitle>
+                    <CardDescription>Define the fuels you sell, their prices, costs, and nozzle counts.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {fuelFields.map((field, index) => (
+                    <div key={field.id} className="border rounded-lg p-4 relative">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <FormField control={form.control} name={`fuels.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Fuel Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name={`fuels.${index}.price`} render={({ field }) => (<FormItem><FormLabel>Selling Price/L</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name={`fuels.${index}.cost`} render={({ field }) => (<FormItem><FormLabel>Cost Price/L</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name={`fuels.${index}.nozzleCount`} render={({ field }) => (<FormItem><FormLabel>Nozzles</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
+                        {fuelFields.length > 1 && <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => removeFuel(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                     </div>
-                    <div className="md:col-span-1"><FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => (<FormItem><FormLabel>Capacity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/></div>
-                    <div className="md:col-span-1"><FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => (<FormItem><FormLabel>Stock</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/></div>
-                      <div className="flex justify-end w-full md:col-span-6"><Button type="button" variant="ghost" size="icon" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendFuel({ id: crypto.randomUUID(), name: '', price: 0, cost: 0, nozzleCount: 0 })}><PlusCircle size={16} className="mr-2"/> Add Another Fuel</Button>
+                    {form.formState.errors.fuels && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.fuels?.root?.message || form.formState.errors.fuels?.message}</p>}
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-3"><Database size={24}/> Storage Tank Setup</CardTitle>
+                    <CardDescription>Configure your underground storage tanks and their initial stock levels.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {tankFields.map((field, index) => (
+                    <div key={field.id} className="border rounded-lg p-4 relative">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="col-span-2 md:col-span-1"><FormField control={form.control} name={`tanks.${index}.name`} render={({ field }) => (<FormItem><FormLabel>Tank Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)}/></div>
+                            <div className="col-span-2 md:col-span-1">
+                                <FormField control={form.control} name={`tanks.${index}.fuelId`} render={({ field }) => (
+                                    <FormItem><FormLabel>Fuel</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                            <SelectContent>{watchedFuels.map((fuel) => (<SelectItem key={fuel.id} value={fuel.id}>{fuel.name}</SelectItem>))}</SelectContent>
+                                        </Select><FormMessage />
+                                    </FormItem>
+                                )}/>
+                            </div>
+                             <div className="col-span-2 md:col-span-1">
+                                <FormField control={form.control} name={`tanks.${index}.capacity`} render={({ field }) => (<FormItem><FormLabel>Capacity (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            </div>
+                            <div className="col-span-2 md:col-span-1">
+                                <FormField control={form.control} name={`tanks.${index}.initialStock`} render={({ field }) => (<FormItem><FormLabel>Current Stock (L)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            </div>
+                            <div className="col-span-2 md:col-span-1">
+                                <FormField control={form.control} name={`tanks.${index}.dipChartType`} render={({ field }) => (
+                                <FormItem><FormLabel>DIP Chart</FormLabel>
+                                    <Select onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} value={field.value || 'none'}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem><SelectItem value="16kl">16KL</SelectItem><SelectItem value="21kl">21KL</SelectItem>
+                                        </SelectContent>
+                                    </Select><FormMessage />
+                                </FormItem>
+                                )}/>
+                            </div>
+                        </div>
+                        {tankFields.length > 1 && <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => removeTank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                     </div>
-                  </Card>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', capacity: 10000, initialStock: 0, dipChartType: 'none' })}>
-                    <PlusCircle size={16} className="mr-2"/> Add Tank
-                </Button>
-              </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendTank({ id: crypto.randomUUID(), name: '', fuelId: watchedFuels.length > 0 ? watchedFuels[0].id : '', capacity: 10000, initialStock: 0, dipChartType: undefined })}>
+                        <PlusCircle size={16} className="mr-2"/> Add Another Tank
+                    </Button>
+                </CardContent>
+            </Card>
 
-              <Separator />
-
-              <Button type="submit" className="w-full bg-accent hover:bg-accent/90">Finish Setup</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            <Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90 text-lg">Complete Setup & Launch App</Button>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }
