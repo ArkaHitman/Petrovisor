@@ -201,20 +201,48 @@ export default function DailyReportPage() {
             </Card>
 
             <Card className="sticky bottom-4 shadow-2xl">
-              <CardHeader><CardTitle>Daily Summary</CardTitle></CardHeader>
-              <CardContent className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-lg">
-                  <p>Total Sales: <span className="font-bold font-headline">{formatCurrency(totalSales)}</span></p>
-                  <p>Less Credit: <span className="font-bold font-headline text-destructive">{formatCurrency(creditSales)}</span></p>
-                  <p>Less Online: <span className="font-bold font-headline text-destructive">{formatCurrency(onlinePayments)}</span></p>
-                </div>
-                 <div className="bg-primary text-primary-foreground p-4 rounded-lg text-center">
-                    <p className="text-base font-medium">Cash in Hand</p>
-                    <p className="text-2xl font-bold font-headline">{formatCurrency(cashInHand)}</p>
-                </div>
-              </CardContent>
-              <Separator />
-               <CardContent className="pt-4"><Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90">Submit Daily Report</Button></CardContent>
+                <CardHeader>
+                    <CardTitle>Daily Summary Preview</CardTitle>
+                    <CardDescription>Review the calculated totals before submitting.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2 text-sm p-4 border rounded-lg bg-muted/50">
+                        <div className="flex justify-between">
+                            <span>Total Fuel Sales</span>
+                            <span className="font-medium">{formatCurrency(totalFuelSales)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Total Lube Sales</span>
+                            <span className="font-medium">{formatCurrency(lubeSaleAmount || 0)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between font-bold text-base">
+                            <span>Gross Total Sales</span>
+                            <span>{formatCurrency(totalSales)}</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm p-4 border rounded-lg bg-muted/50">
+                         <div className="flex justify-between">
+                            <span>Less: Credit Sales</span>
+                            <span className="font-medium text-destructive">-{formatCurrency(creditSales)}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span>Less: Online Payments</span>
+                            <span className="font-medium text-destructive">-{formatCurrency(onlinePayments)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between items-center font-bold text-lg text-primary">
+                            <span>Net Cash to Collect</span>
+                            <span className="font-headline text-2xl">{formatCurrency(cashInHand)}</span>
+                        </div>
+                    </div>
+                </CardContent>
+                <CardContent className="pt-0">
+                    <Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90">
+                        Submit Daily Report
+                    </Button>
+                </CardContent>
             </Card>
           </form>
         </Form>
