@@ -70,38 +70,66 @@ export default function AddReportPage() {
     });
 
     const { fields: fuelSalesFields } = useFieldArray({ control: form.control, name: "fuelSales" });
-    const watchedForm = form.watch();
+    const watchedFormString = JSON.stringify(form.watch());
 
     useEffect(() => {
         if (!settings) return;
-        const { fuelSales, endDate } = watchedForm;
-        fuelSales.forEach((fuelSale, fuelIndex) => {
+
+        const currentValues = JSON.parse(watchedFormString);
+        const { fuelSales, endDate } = currentValues;
+
+        fuelSales.forEach((fuelSale: any, fuelIndex: number) => {
             const fuel = settings.fuels.find(f => f.id === fuelSale.fuelId);
             if (!fuel) return;
+
             const { sellingPrice, costPrice } = getFuelPricesForDate(fuel.id, endDate, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-            form.setValue(`fuelSales.${fuelIndex}.pricePerLitre`, sellingPrice);
-            form.setValue(`fuelSales.${fuelIndex}.costPerLitre`, costPrice);
+            
+            if (form.getValues(`fuelSales.${fuelIndex}.pricePerLitre`) !== sellingPrice) {
+                form.setValue(`fuelSales.${fuelIndex}.pricePerLitre`, sellingPrice);
+            }
+            if (form.getValues(`fuelSales.${fuelIndex}.costPerLitre`) !== costPrice) {
+                form.setValue(`fuelSales.${fuelIndex}.costPerLitre`, costPrice);
+            }
+            
             let fuelTotalLitres = 0, fuelTotalSales = 0, fuelTotalProfit = 0;
-            fuelSale.readings.forEach((reading, readingIndex) => {
+
+            fuelSale.readings.forEach((reading: any, readingIndex: number) => {
                 const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
                 const saleAmount = saleLitres * sellingPrice;
                 const estProfit = saleLitres * (sellingPrice - costPrice);
-                form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleLitres`, saleLitres, { shouldValidate: true });
-                form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleAmount`, saleAmount);
-                form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.estProfit`, estProfit);
-                fuelTotalLitres += saleLitres; fuelTotalSales += saleAmount; fuelTotalProfit += estProfit;
+                
+                if (form.getValues(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleLitres`) !== saleLitres) {
+                    form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleLitres`, saleLitres, { shouldValidate: true });
+                }
+                if (form.getValues(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleAmount`) !== saleAmount) {
+                    form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.saleAmount`, saleAmount);
+                }
+                if (form.getValues(`fuelSales.${fuelIndex}.readings.${readingIndex}.estProfit`) !== estProfit) {
+                    form.setValue(`fuelSales.${fuelIndex}.readings.${readingIndex}.estProfit`, estProfit);
+                }
+                
+                fuelTotalLitres += saleLitres; 
+                fuelTotalSales += saleAmount; 
+                fuelTotalProfit += estProfit;
             });
-            form.setValue(`fuelSales.${fuelIndex}.totalLitres`, fuelTotalLitres);
-            form.setValue(`fuelSales.${fuelIndex}.totalSales`, fuelTotalSales);
-            form.setValue(`fuelSales.${fuelIndex}.estProfit`, fuelTotalProfit);
-        });
-    }, [watchedForm, settings, form]);
 
-    const { fuelSales, bankDeposits, creditSales, lubricantSales } = watchedForm;
-    const fuelTotalSales = fuelSales.reduce((acc, fs) => acc + fs.totalSales, 0);
+            if (form.getValues(`fuelSales.${fuelIndex}.totalLitres`) !== fuelTotalLitres) {
+                form.setValue(`fuelSales.${fuelIndex}.totalLitres`, fuelTotalLitres);
+            }
+            if (form.getValues(`fuelSales.${fuelIndex}.totalSales`) !== fuelTotalSales) {
+                form.setValue(`fuelSales.${fuelIndex}.totalSales`, fuelTotalSales);
+            }
+            if (form.getValues(`fuelSales.${fuelIndex}.estProfit`) !== fuelTotalProfit) {
+                form.setValue(`fuelSales.${fuelIndex}.estProfit`, fuelTotalProfit);
+            }
+        });
+    }, [watchedFormString, settings, form]);
+
+    const { fuelSales, bankDeposits, creditSales, lubricantSales } = JSON.parse(watchedFormString);
+    const fuelTotalSales = fuelSales.reduce((acc: number, fs: any) => acc + fs.totalSales, 0);
     const overallTotalSales = fuelTotalSales + (lubricantSales || 0);
-    const overallTotalProfit = fuelSales.reduce((acc, fs) => acc + fs.estProfit, 0);
-    const overallLitresSold = fuelSales.reduce((acc, fs) => acc + fs.totalLitres, 0);
+    const overallTotalProfit = fuelSales.reduce((acc: number, fs: any) => acc + fs.estProfit, 0);
+    const overallLitresSold = fuelSales.reduce((acc: number, fs: any) => acc + fs.totalLitres, 0);
     const netCash = overallTotalSales - bankDeposits - creditSales;
 
     const onSubmit = (data: z.infer<typeof monthlyReportSchema>) => {
