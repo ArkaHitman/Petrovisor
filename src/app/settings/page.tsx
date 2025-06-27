@@ -13,9 +13,9 @@ import { Separator } from '@/components/ui/separator';
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Fuel, NozzlesPerFuel, Settings, Tank } from '@/lib/types';
-import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database } from 'lucide-react';
+import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
 import { Switch } from '@/components/ui/switch';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -72,6 +72,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const formMethods = useForm<SettingsFormValues>({
       resolver: zodResolver(settingsFormSchema),
@@ -139,6 +140,10 @@ export default function SettingsPage() {
   };
 
   const handleExportData = () => {
+    if (!settings) {
+      toast({ title: "Error", description: "No data to export.", variant: "destructive" });
+      return;
+    }
     const dataStr = JSON.stringify(settings, null, 2);
     const dataBlob = new Blob([dataStr], {type: "application/json"});
     const url = URL.createObjectURL(dataBlob);
@@ -150,6 +155,45 @@ export default function SettingsPage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast({ title: "Data Exported", description: "Your data has been downloaded." });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error("File could not be read.");
+        }
+        const importedData: Settings = JSON.parse(text);
+
+        if (importedData.pumpName && importedData.bankAccounts && importedData.fuels && importedData.tanks) {
+          setSettings(importedData);
+          toast({ title: "Import Successful", description: "Your data has been restored." });
+          router.push('/');
+        } else {
+          throw new Error("Invalid or corrupted data file.");
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({ title: "Import Failed", description: errorMessage, variant: "destructive" });
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.onerror = () => {
+        toast({ title: "Import Failed", description: "Failed to read file.", variant: "destructive" });
+    };
+    reader.readAsText(file);
   };
   
     const handleDownloadLog = () => {
@@ -367,14 +411,30 @@ export default function SettingsPage() {
             </Card>
 
             <Card>
-                <CardHeader><CardTitle className="font-headline">Data Management</CardTitle></CardHeader>
+                <CardHeader>
+                    <CardTitle className="font-headline">Data Management</CardTitle>
+                    <CardDescription>Backup your current data to a file, or restore from a previous backup.</CardDescription>
+                </CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
-                     <Button type="button" variant="outline" onClick={handleExportData}>Export All Data</Button>
-                    <Button type="button" variant="outline" onClick={handleDownloadLog}>Download Log Report</Button>
+                     <input type="file" ref={fileInputRef} onChange={handleImportData} className="hidden" accept=".json" />
+                     <Button type="button" variant="outline" onClick={handleImportClick}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import Data
+                     </Button>
+                     <Button type="button" variant="outline" onClick={handleExportData}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Data
+                     </Button>
+                    <Button type="button" variant="outline" onClick={handleDownloadLog}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Download Log Report
+                    </Button>
                     <AlertDialog>
-                        <AlertDialogTrigger asChild><Button type="button" variant="destructive">Factory Reset</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild>
+                           <Button type="button" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Factory Reset</Button>
+                        </AlertDialogTrigger>
                         <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete all application data.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete all application data and cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleFactoryReset}>Continue</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -390,3 +450,5 @@ export default function SettingsPage() {
     </AppLayout>
   );
 }
+
+    
