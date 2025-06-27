@@ -59,13 +59,17 @@ export default function DownloadReportPage() {
     
     const totalBankBalance = accountBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
     const overdraftAccount = settings.bankAccounts.find(acc => acc.isOverdraft) || settings.bankAccounts[0];
+    const overdraftAccountBalance = accountBalances.find(acc => acc.id === overdraftAccount?.id)?.currentBalance || 0;
 
     const netManagerBalance = (settings.managerLedger || []).reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
 
-    const recentPurchases = (settings.purchases || []).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
     const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
-    const remainingLimit = netWorth - sanctionedAmount;
+
+    // The "Remaining Limit" is a feature of the overdraft account.
+    // It's calculated based on assets the bank considers: stock, receivables, and the balance in THE OD ACCOUNT.
+    const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
+    const remainingLimit = netWorthForLimit - sanctionedAmount;
     
     return { totalStockValue, currentOutstandingCredit, accountBalances, netManagerBalance, recentPurchases, netWorth, sanctionedAmount, remainingLimit };
   }, [settings]);
@@ -103,8 +107,20 @@ export default function DownloadReportPage() {
         const includedBalances = financialData.accountBalances.filter(acc => selectedAccountIds[acc.id]);
         const totalIncludedBankBalance = includedBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
 
+        // This is the "True Net Worth" based on selected accounts
         const netWorthWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + totalIncludedBankBalance + financialData.netManagerBalance;
-        const remainingLimitWithSelectedAccounts = netWorthWithSelectedAccounts - financialData.sanctionedAmount;
+
+        // --- Start of new logic for Remaining Limit ---
+        const overdraftAccount = settings.bankAccounts.find(acc => acc.isOverdraft) || settings.bankAccounts[0];
+        // Only include the OD balance in limit calculation IF the OD account itself is selected for the report
+        const overdraftBalanceForLimitCalc = selectedAccountIds[overdraftAccount.id] 
+            ? (financialData.accountBalances.find(acc => acc.id === overdraftAccount.id)?.currentBalance || 0)
+            : 0;
+
+        const netWorthForLimitWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + overdraftBalanceForLimitCalc + financialData.netManagerBalance;
+        const remainingLimitWithSelectedAccounts = netWorthForLimitWithSelectedAccounts - financialData.sanctionedAmount;
+        // --- End of new logic ---
+
 
         const financialBody = [
             [{ content: 'Sanctioned Amount', styles: { fontStyle: 'bold' } }, { content: formatNum(financialData.sanctionedAmount), styles: { halign: 'right' } }],
@@ -112,8 +128,8 @@ export default function DownloadReportPage() {
             ['Credit Outstanding', { content: formatNum(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
             ...includedBalances.map(acc => [ `Bank: ${acc.name}`, { content: formatNum(acc.currentBalance), styles: { halign: 'right' } } ]),
             ['Net Manager Balance', { content: formatNum(financialData.netManagerBalance), styles: { halign: 'right', textColor: financialData.netManagerBalance >= 0 ? undefined : negativeColor } }],
-            [{ content: 'Net Worth', styles: { fontStyle: 'bold', fillColor: lightGrey } }, { content: formatNum(netWorthWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } }],
-            [{ content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: remainingLimitWithSelectedAccounts >= 0 ? negativeColor : positiveColor } }, { content: formatNum(remainingLimitWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', textColor: remainingLimitWithSelectedAccounts >= 0 ? negativeColor : positiveColor } }],
+            [{ content: 'Net Worth (Selected Accounts)', styles: { fontStyle: 'bold', fillColor: lightGrey } }, { content: formatNum(netWorthWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } }],
+            [{ content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: remainingLimitWithSelectedAccounts >= 0 ? positiveColor : negativeColor } }, { content: formatNum(remainingLimitWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', textColor: remainingLimitWithSelectedAccounts >= 0 ? positiveColor : negativeColor } }],
         ];
 
         autoTable(doc, { startY: lastY, head: [['Financial Position', 'Amount (INR)']], body: financialBody, theme: 'grid', headStyles: { fillColor: primaryColor, textColor: whiteColor, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' } } });
@@ -121,18 +137,18 @@ export default function DownloadReportPage() {
     }
 
     if (reportOptions.fuelStock) {
-        autoTable(doc, {
-          startY: lastY,
-          head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost) (INR)']],
-          body: settings.tanks.map(tank => {
-            const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-            if (!fuel) return ['Unknown', { content: '0 L' }, { content: '0.00' }];
-            const { costPrice } = getFuelPricesForDate(tank.fuelId, formatDate(today, 'yyyy-MM-dd'), settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-            return [fuel.name, { content: `${tank.initialStock.toLocaleString()} L`, styles: { halign: 'right' } }, { content: formatNum(tank.initialStock * costPrice), styles: { halign: 'right' } }];
-          }),
-          theme: 'striped', headStyles: { fillColor: primaryColor, textColor: whiteColor, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
-        });
-        lastY = (doc as any).lastAutoTable.finalY + 10;
+      autoTable(doc, {
+        startY: lastY,
+        head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost) (INR)']],
+        body: settings.tanks.map(tank => {
+          const fuel = settings.fuels.find(f => f.id === tank.fuelId);
+          if (!fuel) return ['Unknown', { content: '0 L' }, { content: '0.00' }];
+          const { costPrice } = getFuelPricesForDate(tank.fuelId, formatDate(today, 'yyyy-MM-dd'), settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
+          return [fuel.name, { content: `${tank.initialStock.toLocaleString()} L`, styles: { halign: 'right' } }, { content: formatNum(tank.initialStock * costPrice), styles: { halign: 'right' } }];
+        }),
+        theme: 'striped', headStyles: { fillColor: primaryColor, textColor: whiteColor, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+      });
+      lastY = (doc as any).lastAutoTable.finalY + 10;
     }
     
     if (reportOptions.recentPurchases && financialData.recentPurchases.length > 0) {
@@ -176,7 +192,7 @@ export default function DownloadReportPage() {
                      {reportOptions.financialPosition && (
                         <div className="pl-6 pt-2 pb-2 border-l-2 ml-2 space-y-2">
                             <Label className="font-semibold text-xs uppercase">Include Accounts</Label>
-                            {settings?.bankAccounts.map(account => (
+                            {(settings?.bankAccounts || []).map(account => (
                                 <div key={account.id} className="flex items-center space-x-3">
                                     <Checkbox
                                         id={`account-check-${account.id}`}

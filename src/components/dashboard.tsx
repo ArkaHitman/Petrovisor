@@ -50,13 +50,18 @@ export default function Dashboard() {
     const totalBankBalance = calculatedAccountBalances.reduce((sum, acc) => sum + acc.balance, 0);
     
     const overdraftAccount: BankAccount | null = (settings.bankAccounts || []).find(acc => acc.isOverdraft) || (settings.bankAccounts || [])[0] || null;
+    const overdraftAccountBalance = calculatedAccountBalances.find(acc => acc.id === overdraftAccount?.id)?.balance || 0;
 
     const netManagerBalance = (settings.managerLedger || []).reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
     
+    // The "True Net Worth" of the business uses ALL bank balances
     const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance;
     
+    // The "Remaining Limit" is a feature of the overdraft account.
+    // The bank typically calculates drawing power based on assets like stock, receivables, and the balance in THE OD ACCOUNT.
+    const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
-    const remainingLimit = netWorth - sanctionedAmount;
+    const remainingLimit = netWorthForLimit - sanctionedAmount;
     
     const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
     const recentPurchases = (settings.purchases || []).slice(0, 5);
@@ -71,7 +76,7 @@ export default function Dashboard() {
   };
   
   const managerBalanceStatus = netManagerBalance > 0 ? "Manager Owes You" : netManagerBalance < 0 ? "You Owe Manager" : "Settled";
-  const managerBalanceColor = netManagerBalance > 0 ? "text-green-600" : netManagerBalance < 0 ? "text-destructive" : "text-muted-foreground";
+  const managerBalanceColor = netManagerBalance > 0 ? "text-primary" : netManagerBalance < 0 ? "text-destructive" : "text-muted-foreground";
 
   return (
     <>
@@ -106,7 +111,7 @@ export default function Dashboard() {
             </Card>
 
             <StatCard title="Outstanding Credit" value={formatCurrency(currentOutstandingCredit)} icon={ReceiptText} />
-            <StatCard title="Remaining Limit" description={`vs ${overdraftAccount?.name || 'OD Account'}`} value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-destructive' : 'text-green-600'}/>
+            <StatCard title="Remaining Limit" description={`vs ${overdraftAccount?.name || 'OD Account'}`} value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}/>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
