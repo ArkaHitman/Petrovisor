@@ -11,10 +11,11 @@ import { Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function DownloadReportPage() {
   const { settings } = useAppState();
@@ -25,6 +26,17 @@ export default function DownloadReportPage() {
     fuelStock: true,
     recentPurchases: true,
   });
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (settings?.bankAccounts) {
+      const initialSelection = settings.bankAccounts.reduce((acc, account) => {
+        acc[account.id] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+      setSelectedAccountIds(initialSelection);
+    }
+  }, [settings?.bankAccounts]);
 
 
   const financialData = useMemo(() => {
@@ -88,15 +100,22 @@ export default function DownloadReportPage() {
     }
 
     if (reportOptions.financialPosition) {
+        const includedBalances = financialData.accountBalances.filter(acc => selectedAccountIds[acc.id]);
+        const totalIncludedBankBalance = includedBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
+
+        const netWorthWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + totalIncludedBankBalance + financialData.netManagerBalance;
+        const remainingLimitWithSelectedAccounts = netWorthWithSelectedAccounts - financialData.sanctionedAmount;
+
         const financialBody = [
             [{ content: 'Sanctioned Amount', styles: { fontStyle: 'bold' } }, { content: formatNum(financialData.sanctionedAmount), styles: { halign: 'right' } }],
             ['Total Stock Value (Cost)', { content: formatNum(financialData.totalStockValue), styles: { halign: 'right' } }],
             ['Credit Outstanding', { content: formatNum(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
-            ...financialData.accountBalances.map(acc => [ `Bank: ${acc.name}`, { content: formatNum(acc.currentBalance), styles: { halign: 'right' } } ]),
+            ...includedBalances.map(acc => [ `Bank: ${acc.name}`, { content: formatNum(acc.currentBalance), styles: { halign: 'right' } } ]),
             ['Net Manager Balance', { content: formatNum(financialData.netManagerBalance), styles: { halign: 'right', textColor: financialData.netManagerBalance >= 0 ? undefined : negativeColor } }],
-            [{ content: 'Net Worth', styles: { fontStyle: 'bold', fillColor: lightGrey } }, { content: formatNum(financialData.netWorth), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } }],
-            [{ content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: financialData.remainingLimit >= 0 ? negativeColor : positiveColor } }, { content: formatNum(financialData.remainingLimit), styles: { fontStyle: 'bold', halign: 'right', textColor: financialData.remainingLimit >= 0 ? negativeColor : positiveColor } }],
+            [{ content: 'Net Worth', styles: { fontStyle: 'bold', fillColor: lightGrey } }, { content: formatNum(netWorthWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } }],
+            [{ content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: remainingLimitWithSelectedAccounts >= 0 ? negativeColor : positiveColor } }, { content: formatNum(remainingLimitWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', textColor: remainingLimitWithSelectedAccounts >= 0 ? negativeColor : positiveColor } }],
         ];
+
         autoTable(doc, { startY: lastY, head: [['Financial Position', 'Amount (INR)']], body: financialBody, theme: 'grid', headStyles: { fillColor: primaryColor, textColor: whiteColor, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' } } });
         lastY = (doc as any).lastAutoTable.finalY + 10;
     }
@@ -154,6 +173,28 @@ export default function DownloadReportPage() {
                         </Label>
                         <Switch id="financial-switch" checked={reportOptions.financialPosition} onCheckedChange={(val) => setReportOptions(p => ({ ...p, financialPosition: val }))} />
                     </div>
+                     {reportOptions.financialPosition && (
+                        <div className="pl-6 pt-2 pb-2 border-l-2 ml-2 space-y-2">
+                            <Label className="font-semibold text-xs uppercase">Include Accounts</Label>
+                            {settings?.bankAccounts.map(account => (
+                                <div key={account.id} className="flex items-center space-x-3">
+                                    <Checkbox
+                                        id={`account-check-${account.id}`}
+                                        checked={selectedAccountIds[account.id] ?? false}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedAccountIds(prev => ({ ...prev, [account.id]: !!checked }));
+                                        }}
+                                    />
+                                    <label
+                                        htmlFor={`account-check-${account.id}`}
+                                        className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                        {account.name}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex items-center justify-between">
                         <Label htmlFor="stock-switch" className="flex flex-col space-y-1">
                             <span>Fuel Stock Details</span>
