@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { Droplets, Fuel, Database, Trash2, PlusCircle, Building, Check } from 'lucide-react';
+import { Droplets, Fuel, Database, Trash2, PlusCircle, Building, Check, Upload } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Settings, NozzlesPerFuel, Fuel as FuelType, BankAccount } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -86,6 +86,7 @@ export default function SetupWizard() {
   const { finishSetup } = useAppState();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<z.infer<typeof setupSchema>>({
     resolver: zodResolver(setupSchema),
@@ -103,6 +104,44 @@ export default function SetupWizard() {
   const { fields: bankFields, append: appendBank, remove: removeBank } = useFieldArray({ control: form.control, name: "bankAccounts" });
   
   const watchedFuels = form.watch('fuels');
+  
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error("File could not be read.");
+        }
+        const importedData: Settings = JSON.parse(text);
+
+        if (importedData.pumpName && importedData.bankAccounts && importedData.fuels && importedData.tanks) {
+          finishSetup(importedData);
+          toast({ title: "Import Successful", description: "Your data has been restored." });
+        } else {
+          throw new Error("Invalid or corrupted data file.");
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({ title: "Import Failed", description: errorMessage, variant: "destructive" });
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.onerror = () => {
+        toast({ title: "Import Failed", description: "Failed to read file.", variant: "destructive" });
+    };
+    reader.readAsText(file);
+  };
 
   const onSubmit = (data: z.infer<typeof setupSchema>) => {
     const nozzlesPerFuel: NozzlesPerFuel = {};
@@ -157,6 +196,7 @@ export default function SetupWizard() {
 
   return (
     <div className="min-h-screen w-full bg-muted/40 p-4 md:p-8 animate-fadeInScaleUp">
+      <input type="file" ref={fileInputRef} onChange={handleImportData} className="hidden" accept=".json" />
       <div className="max-w-5xl mx-auto">
         <header className="text-center mb-10">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -164,6 +204,12 @@ export default function SetupWizard() {
           </div>
           <h1 className="font-headline text-3xl md:text-4xl font-bold">Welcome to PetroVisor</h1>
           <p className="text-muted-foreground mt-2">Let's get your station set up. You can change these settings later.</p>
+           <div className="mt-6">
+                <Button type="button" variant="outline" onClick={handleImportClick}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Or Import from Backup
+                </Button>
+            </div>
         </header>
 
          <Card>

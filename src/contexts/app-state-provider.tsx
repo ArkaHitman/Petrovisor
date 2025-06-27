@@ -22,15 +22,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [setAppState]);
   
   const finishSetup = useCallback((settings: Settings) => {
-    const fullSettings = {
+    const fullSettings: Settings = {
       ...settings,
-      managerLedger: [],
-      bankLedger: [],
-      creditHistory: [],
-      miscCollections: [],
-      monthlyReports: [],
-      dailyReports: [],
-      purchases: [],
+      theme: settings.theme || 'light', // Ensure theme exists
+      fuelPriceHistory: settings.fuelPriceHistory || [],
+      nozzlesPerFuel: settings.nozzlesPerFuel || {},
+      managerLedger: settings.managerLedger || [],
+      bankLedger: settings.bankLedger || [],
+      creditHistory: settings.creditHistory || [],
+      miscCollections: settings.miscCollections || [],
+      monthlyReports: settings.monthlyReports || [],
+      dailyReports: settings.dailyReports || [],
+      purchases: settings.purchases || [],
     };
     setAppState(prevState => ({
       ...prevState,
