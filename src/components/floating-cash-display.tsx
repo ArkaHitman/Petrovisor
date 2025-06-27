@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAppState } from "@/contexts/app-state-provider";
@@ -10,15 +11,12 @@ export default function FloatingCashDisplay() {
   const totalCash = useMemo(() => {
     if (!settings) return 0;
     
-    // Total cash from miscellaneous collections (includes cash credit repayments)
+    // The miscCollections ledger serves as the single source of truth for all physical cash inflows.
+    // This includes cash from daily sales, direct miscellaneous collections, and cash-based credit repayments.
     const collectionsTotal = settings.miscCollections?.reduce((sum, c) => sum + c.amount, 0) || 0;
     
-    // Total cash generated from all monthly reports
-    const totalNetCashFromSales = settings.monthlyReports?.reduce((sum, r) => sum + r.netCash, 0) || 0;
-
-    // This represents the cumulative cash available from all sources tracked.
     // NOTE: This does not account for cash expenses, as that feature doesn't exist yet.
-    return collectionsTotal + totalNetCashFromSales;
+    return collectionsTotal;
   }, [settings]);
 
   return (

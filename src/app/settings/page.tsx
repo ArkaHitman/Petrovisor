@@ -20,6 +20,8 @@ import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
 import { Switch } from '@/components/ui/switch';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { formatCurrency } from '@/lib/utils';
+import { parseISO } from 'date-fns';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -150,15 +152,32 @@ export default function SettingsPage() {
     const handleDownloadLog = () => {
         if (!settings) return;
         let logEntries: { date: string; category: string; description: string; amount: string; }[] = [];
+        
         settings.bankLedger?.forEach(tx => logEntries.push({
             date: tx.date, category: 'Bank Ledger',
             description: `${tx.description} (${settings.bankAccounts.find(a => a.id === tx.accountId)?.name || 'N/A'})`,
             amount: tx.type === 'credit' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
         }));
+        
         settings.managerLedger?.forEach(tx => logEntries.push({ date: tx.date, category: 'Manager Ledger', description: tx.description, amount: tx.type === 'payment_from_manager' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})` }));
+        
         settings.miscCollections?.forEach(c => logEntries.push({ date: c.date, category: 'Misc Collection', description: c.description, amount: formatCurrency(c.amount) }));
+        
         settings.purchases?.forEach(p => logEntries.push({ date: p.date, category: 'Fuel Purchase', description: `Purchased ${p.quantity}L of ${settings.fuels.find(f=>f.id===p.fuelId)?.name || 'fuel'}`, amount: `(${formatCurrency(p.amount)})` }));
-        settings.creditHistory?.forEach(c => logEntries.push({ date: c.date, category: 'Credit Register', description: c.type === 'given' ? 'Credit extended' : `Repayment via ${c.repaymentDestination}`, amount: formatCurrency(c.amount) }));
+        
+        settings.creditHistory?.forEach(c => {
+            let desc = 'Credit extended';
+            if (c.type === 'repaid') {
+                if (c.repaymentDestination === 'cash') {
+                    desc = 'Repayment via Cash';
+                } else {
+                    const bankAccount = settings.bankAccounts.find(a => a.id === c.repaymentDestination);
+                    desc = `Repayment to ${bankAccount?.name || 'Bank'}`;
+                }
+            }
+            logEntries.push({ date: c.date, category: 'Credit Register', description: desc, amount: formatCurrency(c.amount) })
+        });
+
         logEntries.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const headers = ['Date', 'Category', 'Description', 'Amount (INR)'];
         const csvRows = [headers.join(','), ...logEntries.map(row => [row.date, `"${row.category}"`, `"${row.description.replace(/"/g, '""')}"`, `"${row.amount}"`].join(','))];
@@ -168,8 +187,10 @@ export default function SettingsPage() {
         const link = document.createElement("a");
         link.setAttribute("href", url);
         link.setAttribute("download", `petrovisor_log_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
   const handleFactoryReset = () => {
