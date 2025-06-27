@@ -54,20 +54,23 @@ export default function Dashboard() {
 
     const netManagerBalance = (settings.managerLedger || []).reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
     
-    // The "True Net Worth" of the business uses ALL bank balances
     const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance;
     
-    // The "Remaining Limit" is a feature of the overdraft account.
-    // The bank typically calculates drawing power based on assets like stock, receivables, and the balance in THE OD ACCOUNT.
     const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
     const remainingLimit = netWorthForLimit - sanctionedAmount;
     
     const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
-    const recentPurchases = (settings.purchases || []).slice(0, 5);
+
+    const allRecentPurchases = (settings.purchases || []);
+    const filteredPurchases = selectedAccountId === 'all'
+        ? allRecentPurchases
+        : allRecentPurchases.filter(p => p.accountId === selectedAccountId);
+    const recentPurchases = filteredPurchases.slice(0, 5);
+
 
     return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases };
-  }, [settings]);
+  }, [settings, selectedAccountId]);
 
   if (!settings) return null;
   
@@ -153,8 +156,29 @@ export default function Dashboard() {
                 <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="font-headline">Recent Purchases</CardTitle><ShoppingCart className="w-6 h-6 text-muted-foreground"/></CardHeader>
                 <CardContent>
                     {recentPurchases.length > 0 ? (
-                        <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Fuel</TableHead><TableHead className="text-right">Qty</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>{recentPurchases.map(p => { const fuel = settings.fuels.find(f => f.id === p.fuelId); return (<TableRow key={p.id}><TableCell>{formatDate(parseISO(p.date), 'dd MMM')}</TableCell><TableCell className="font-medium">{fuel?.name || 'N/A'}</TableCell><TableCell className="text-right">{p.quantity.toLocaleString()}L</TableCell><TableCell className="text-right font-semibold">{formatCurrency(p.amount)}</TableCell></TableRow>);})}</TableBody>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Fuel</TableHead>
+                                    <TableHead>Account</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {recentPurchases.map(p => { 
+                                    const fuel = settings.fuels.find(f => f.id === p.fuelId);
+                                    const account = settings.bankAccounts.find(a => a.id === p.accountId);
+                                    return (
+                                        <TableRow key={p.id}>
+                                            <TableCell>{formatDate(parseISO(p.date), 'dd MMM')}</TableCell>
+                                            <TableCell className="font-medium">{fuel?.name || 'N/A'}</TableCell>
+                                            <TableCell><Badge variant="secondary">{account?.name || 'N/A'}</Badge></TableCell>
+                                            <TableCell className="text-right font-semibold">{formatCurrency(p.amount)}</TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
                         </Table>
                     ) : <div className="flex items-center justify-center h-24 text-muted-foreground"><p>No purchase data available.</p></div>}
                 </CardContent>
