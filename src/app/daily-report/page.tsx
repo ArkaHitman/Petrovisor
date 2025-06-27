@@ -56,7 +56,7 @@ export default function DailyReportPage() {
     resolver: zodResolver(dailyReportSchema),
     defaultValues: {
       date: latestDailyReport ? format(addDays(parseISO(latestDailyReport.date), 1), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-      meterReadings: settings?.fuels.flatMap(fuel =>
+      meterReadings: settings?.fuels?.flatMap(fuel =>
         Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
           const nozzleId = i + 1;
           const latestReading = latestDailyReport?.meterReadings.find(r => r.fuelId === fuel.id && r.nozzleId === nozzleId);
@@ -73,7 +73,7 @@ export default function DailyReportPage() {
       ) || [],
       creditSales: 0,
       onlinePayments: 0,
-      onlinePaymentsAccountId: settings?.bankAccounts.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts[0]?.id || '',
+      onlinePaymentsAccountId: settings?.bankAccounts?.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts?.[0]?.id || '',
       lubeSaleName: '',
       lubeSaleAmount: 0,
     }
