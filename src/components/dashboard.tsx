@@ -54,8 +54,10 @@ export default function Dashboard() {
 
     const netManagerBalance = (settings.managerLedger || []).reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
     
-    const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance;
+    // Per user request: Net Worth = Bank Balance + Credit + Tank Stock
+    const netWorth = totalBankBalance + currentOutstandingCredit + totalStockValue;
     
+    // Assets backing the OD = Stock + Receivables + OD Balance + Manager Balance
     const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
     const remainingLimit = netWorthForLimit - sanctionedAmount;
@@ -81,11 +83,13 @@ export default function Dashboard() {
   const managerBalanceStatus = netManagerBalance > 0 ? "Manager Owes You" : netManagerBalance < 0 ? "You Owe Manager" : "Settled";
   const managerBalanceColor = netManagerBalance > 0 ? "text-primary" : netManagerBalance < 0 ? "text-destructive" : "text-muted-foreground";
 
+  const showRemainingLimitCard = overdraftAccount && (selectedAccountId === 'all' || selectedAccountId === overdraftAccount.id);
+
   return (
     <>
       <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} />
+            <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} description="Bank Balance + Credit + Stock Value"/>
             
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -114,7 +118,16 @@ export default function Dashboard() {
             </Card>
 
             <StatCard title="Outstanding Credit" value={formatCurrency(currentOutstandingCredit)} icon={ReceiptText} />
-            <StatCard title="Remaining Limit" description={`vs ${overdraftAccount?.name || 'OD Account'}`} value={formatCurrency(remainingLimit)} icon={ShieldCheck} valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}/>
+            
+            {showRemainingLimitCard && (
+                <StatCard 
+                    title="Remaining Limit" 
+                    description={`vs ${overdraftAccount?.name || 'OD Account'}`} 
+                    value={formatCurrency(remainingLimit)} 
+                    icon={ShieldCheck} 
+                    valueClassName={remainingLimit >= 0 ? 'text-green-600' : 'text-destructive'}
+                />
+            )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
