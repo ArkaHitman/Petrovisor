@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { FileUp, Loader2, Bot, AlertTriangle, Spline, Trash2, PlusCircle } from 'lucide-react';
 import React, { useState } from 'react';
-import { analyzeFunds, type FundAnalysisOutput } from '@/ai/flows/fund-analysis-flow';
+import { analyzeFunds } from '@/ai/flows/fund-analysis-flow';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+
+type FundAnalysisOutput = Awaited<ReturnType<typeof analyzeFunds>>;
 
 const analysisFormSchema = z.object({
     yourInitialCapital: z.coerce.number().positive("Your capital must be a positive number."),

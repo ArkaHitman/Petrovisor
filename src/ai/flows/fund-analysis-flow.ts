@@ -19,7 +19,7 @@ const FundAnalysisInputSchema = z.object({
   yourInitialCapital: z.number().describe("The initial capital amount invested by the owner."),
   managerInitialCapital: z.number().describe("The initial capital amount invested by the manager."),
 });
-export type FundAnalysisInput = z.infer<typeof FundAnalysisInputSchema>;
+type FundAnalysisInput = z.infer<typeof FundAnalysisInputSchema>;
 
 
 const MonthlyAnalysisSchema = z.object({
@@ -57,7 +57,7 @@ const FundAnalysisOutputSchema = z.object({
   finalSummary: FinalSummarySchema.describe("A final summary of the overall financial position."),
   categorizedTransactions: CategorizedTransactionsSchema.describe("A detailed breakdown of categorized debit transactions."),
 });
-export type FundAnalysisOutput = z.infer<typeof FundAnalysisOutputSchema>;
+type FundAnalysisOutput = z.infer<typeof FundAnalysisOutputSchema>;
 
 
 export async function analyzeFunds(input: FundAnalysisInput): Promise<FundAnalysisOutput> {
