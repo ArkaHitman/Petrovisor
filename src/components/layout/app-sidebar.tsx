@@ -30,6 +30,7 @@ import {
   Ruler,
   FileScan,
   Spline,
+  ClipboardPenLine,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -38,6 +39,7 @@ const overviewMenuItems = [
 ];
 
 const operationsMenuItems = [
+  { href: '/daily-report', label: 'Daily Entry', icon: ClipboardPenLine },
   { href: '/reports', label: 'Monthly Reports', icon: FileText },
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
   { href: '/tanks', label: 'Live Tank Status', icon: Database },

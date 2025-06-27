@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, FuelSale, MeterReading } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, FuelSale, MeterReading, DailyReport } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -29,6 +29,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       creditHistory: [],
       miscCollections: [],
       monthlyReports: [],
+      dailyReports: [],
       purchases: [],
     };
     setAppState(prevState => ({
@@ -120,6 +121,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         type: 'given',
         amount,
         createdAt: new Date().toISOString(),
+        source: 'manual',
       };
       const newSettings: Settings = {
         ...prev.settings,
@@ -174,7 +176,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
   
-  const addMiscCollection = useCallback((collection: Omit<MiscCollection, 'id' | 'createdAt'>) => {
+  const addMiscCollection = useCallback((collection: Omit<MiscCollection, 'id' | 'createdAt' | 'sourceId'>) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
         const newCollection: MiscCollection = { 
@@ -266,6 +268,67 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         bankLedger: (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== reportId),
       };
       return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+  
+  const addDailyReport = useCallback((report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => {
+    setAppState(prev => {
+        if (!prev.settings) return prev;
+
+        const now = new Date().toISOString();
+        const newSettings = JSON.parse(JSON.stringify(prev.settings));
+        
+        const newReport: DailyReport = { 
+            ...report, 
+            id: crypto.randomUUID(),
+            createdAt: now, 
+            updatedAt: now 
+        };
+
+        // 1. Add report to list
+        newSettings.dailyReports = [...(newSettings.dailyReports || []), newReport].sort((a,b) => b.date.localeCompare(a.date));
+
+        // 2. Update financials
+        const sourceId = newReport.id;
+        if (newReport.creditSales > 0) {
+            newSettings.creditHistory.push({
+            id: crypto.randomUUID(), date: newReport.date, type: 'given', amount: newReport.creditSales, createdAt: now, source: 'daily_report', sourceId
+            });
+        }
+        if (newReport.onlinePayments > 0) {
+            newSettings.bankLedger.push({
+            id: crypto.randomUUID(), date: newReport.date, description: 'Online Payments from Daily Sales', type: 'credit', amount: newReport.onlinePayments, source: 'daily_report', sourceId, createdAt: now
+            });
+        }
+        if (newReport.cashInHand > 0) {
+            newSettings.miscCollections.push({
+            id: crypto.randomUUID(), date: newReport.date, description: 'Cash from Daily Sales', amount: newReport.cashInHand, createdAt: now, sourceId
+            });
+        }
+        
+        // 3. Update Tank Stock
+        const litresSoldByFuel: { [fuelId: string]: number } = {};
+        newReport.meterReadings.forEach(reading => {
+            litresSoldByFuel[reading.fuelId] = (litresSoldByFuel[reading.fuelId] || 0) + reading.saleLitres;
+        });
+        newSettings.tanks = newSettings.tanks.map((tank: any) => {
+            const soldAmount = litresSoldByFuel[tank.fuelId];
+            if (soldAmount) {
+                const newStock = tank.initialStock - soldAmount;
+                // Update the stock and remove the sold amount from our map
+                // This correctly handles multiple tanks for the same fuel type by only deducting once.
+                litresSoldByFuel[tank.fuelId] = 0; 
+                return { ...tank, initialStock: newStock };
+            }
+            return tank;
+        });
+
+        // 4. Sort ledgers
+        newSettings.creditHistory.sort((a: any, b: any) => b.date.localeCompare(a.date));
+        newSettings.bankLedger.sort((a: any, b: any) => b.date.localeCompare(a.date));
+        newSettings.miscCollections.sort((a: any, b: any) => b.date.localeCompare(a.date));
+
+        return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
 
@@ -480,6 +543,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
+    addDailyReport,
     addFuelPurchase,
     deleteFuelPurchase,
     processDsrData,
@@ -499,6 +563,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
+    addDailyReport,
     addFuelPurchase,
     deleteFuelPurchase,
     processDsrData,

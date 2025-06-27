@@ -51,7 +51,7 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'daily_report';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }
@@ -63,6 +63,8 @@ export interface CreditHistoryEntry {
   amount: number;
   repaymentDestination?: 'cash' | 'bank';
   createdAt: string;
+  source?: 'daily_report' | 'manual';
+  sourceId?: string;
 }
 
 export interface MiscCollection {
@@ -71,6 +73,7 @@ export interface MiscCollection {
     description: string;
     amount: number;
     createdAt: string;
+    sourceId?: string;
 }
 
 export interface FuelPurchase {
@@ -119,6 +122,29 @@ export interface MonthlyReport {
   updatedAt: string;
 }
 
+export interface DailyMeterReading {
+  nozzleId: number;
+  fuelId: string;
+  opening: number;
+  closing: number;
+  testing: number;
+  saleLitres: number;
+  saleAmount: number;
+}
+
+export interface DailyReport {
+  id: string;
+  date: string; // YYYY-MM-DD
+  meterReadings: DailyMeterReading[];
+  totalSales: number;
+  creditSales: number;
+  onlinePayments: number;
+  cashInHand: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
 // Types for DSR AI Flow
 export interface AnalyzeDsrInput {
   dsrDataUri: string;
@@ -160,6 +186,7 @@ export interface Settings {
   nozzlesPerFuel: NozzlesPerFuel;
   fuelPriceHistory: FuelPriceEntry[];
   monthlyReports: MonthlyReport[];
+  dailyReports: DailyReport[];
   purchases: FuelPurchase[];
 
   // New ledgers and histories
@@ -200,6 +227,9 @@ export interface AppStateContextType extends AppState {
   // Monthly Reports
   addOrUpdateMonthlyReport: (report: Omit<MonthlyReport, 'createdAt' | 'updatedAt'>) => void;
   deleteMonthlyReport: (reportId: string) => void;
+
+  // Daily Reports
+  addDailyReport: (report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => void;
 
   // Fuel Purchases
   addFuelPurchase: (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => void;
