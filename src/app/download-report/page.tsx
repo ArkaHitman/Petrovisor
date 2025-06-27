@@ -66,10 +66,10 @@ export default function DownloadReportPage() {
     const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
 
-    // The "Remaining Limit" is a feature of the overdraft account.
-    // It's calculated based on assets the bank considers: stock, receivables, and the balance in THE OD ACCOUNT.
     const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
     const remainingLimit = netWorthForLimit - sanctionedAmount;
+    
+    const recentPurchases = (settings.purchases || []).slice(0, 5);
     
     return { totalStockValue, currentOutstandingCredit, accountBalances, netManagerBalance, recentPurchases, netWorth, sanctionedAmount, remainingLimit };
   }, [settings]);
