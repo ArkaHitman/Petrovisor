@@ -43,7 +43,7 @@ export default function AddReportPage() {
 
     const existingReport = reportId ? settings?.monthlyReports.find(r => r.id === reportId) : undefined;
     const latestReport = !reportId && settings?.monthlyReports?.[0];
-    const defaultAccountId = settings?.bankAccounts.find(a => a.isOverdraft)?.id || settings?.bankAccounts[0]?.id || '';
+    const defaultAccountId = settings?.bankAccounts?.find(a => a.isOverdraft)?.id || settings?.bankAccounts?.[0]?.id || '';
 
     const form = useForm<z.infer<typeof monthlyReportSchema>>({
         resolver: zodResolver(monthlyReportSchema),
@@ -129,7 +129,7 @@ export default function AddReportPage() {
                                         <FormItem><FormLabel>To Account</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger></FormControl>
-                                                <SelectContent>{settings.bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                                                <SelectContent>{(settings.bankAccounts || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
                                             </Select><FormMessage />
                                         </FormItem>
                                     )} />
@@ -142,7 +142,7 @@ export default function AddReportPage() {
                         <Card>
                              <CardHeader><CardTitle className="font-headline">Meter Readings</CardTitle><CardDescription>Enter opening/closing meter readings for each nozzle. {latestReport && !reportId && 'Opening meters pre-filled.'}</CardDescription></CardHeader>
                              <CardContent>
-                                <Accordion type="multiple" defaultValue={settings.fuels.map(f => f.id)}>
+                                <Accordion type="multiple" defaultValue={(settings.fuels || []).map(f => f.id)}>
                                     {fuelSalesFields.map((field, index) => {
                                         const fuel = settings.fuels.find(f => f.id === field.fuelId);
                                         return (
