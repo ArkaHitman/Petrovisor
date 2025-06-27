@@ -142,7 +142,9 @@ export default function DailyReportPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Meter Readings</CardTitle>
-                <CardDescription>Enter closing meter and testing values. Opening meters are pre-filled.</CardDescription>
+                <CardDescription>
+                  For your first report, please enter the initial opening meter readings. For all subsequent reports, they will be automatically filled from the previous day's closing value.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                  <Accordion type="multiple" defaultValue={settings.fuels.map(f => f.id)} className="w-full">
@@ -161,7 +163,23 @@ export default function DailyReportPage() {
                           {readings.map(({ field, index }) => (
                             <div key={field.id} className="grid grid-cols-[repeat(6,1fr)] gap-4 items-start px-2">
                                 <FormLabel className="pt-2">Nozzle {field.nozzleId}</FormLabel>
-                                <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly className="bg-muted" {...field} /></FormControl><FormMessage/></FormItem>} />
+                                <FormField 
+                                  control={form.control} 
+                                  name={`meterReadings.${index}.opening`} 
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          readOnly={!!latestDailyReport} 
+                                          className={!!latestDailyReport ? "bg-muted" : ""}
+                                          {...field} 
+                                        />
+                                      </FormControl>
+                                      <FormMessage/>
+                                    </FormItem>
+                                  )} 
+                                />
                                 <FormField control={form.control} name={`meterReadings.${index}.closing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.testing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly className="text-right bg-muted" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
