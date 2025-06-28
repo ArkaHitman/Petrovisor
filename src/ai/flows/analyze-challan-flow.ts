@@ -62,10 +62,18 @@ The document is a challan for a fuel delivery from a major oil marketing company
 - **vatAmount**: Find a specific line item for VAT (Value Added Tax) and extract its value. If it's not present, leave it empty.
 - **totalAmount**: Extract the final, grand total amount of the invoice. This is the most important figure.
 
-**CRITICAL INSTRUCTION on Number Formatting**: Indian challans use a period (.) as a decimal separator and commas (,) for grouping. A number like "10.000" means exactly ten. A number like "4.000" means exactly four. You must correctly interpret these numbers *before* performing any conversions.
-- **Example 1**: If the challan shows "Quantity: 10.000 KL", you must interpret this as 10 (ten) Kilolitres. Your final output for the \`quantity\` field must be **10000** (litres).
-- **Example 2**: If the challan shows "Rate: 1,05,450.00 per KL", you must interpret this as 105450. Your final output for the \`rate\` field must be **105.45** (per litre).
-- **DO NOT** mistake a period for a thousands separator. It is a decimal separator.
+**CRITICAL INSTRUCTION on Number Formatting**:
+Indian challans have a specific number format where a period (.) is a decimal separator. A number like \`10.000\` on the challan means **TEN**, not ten thousand. The digits after the period are fractions.
+
+You MUST follow this thinking process for every number:
+1.  **Read the number text** from the document. For example, for quantity, you might read \`10.000 KL\`. For rate, you might read \`1,05,450.00 per KL\`.
+2.  **Interpret the true value**. For \`10.000\`, the value is exactly \`10\`. For \`1,05,450.00\`, the value is \`105450\`.
+3.  **Perform the required conversion** using the *interpreted true value*.
+    - Quantity in Litres = \`10\` * 1000 = \`10000\`.
+    - Rate per Litre = \`105450\` / 1000 = \`105.45\`.
+4.  **Provide the final, converted number** in your JSON output.
+    - The \`quantity\` field should be \`10000\`.
+    - The \`rate\` field should be \`105.45\`.
 
 Return the extracted information precisely in the specified JSON format.
 
