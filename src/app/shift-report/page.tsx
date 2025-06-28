@@ -1,4 +1,3 @@
-
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -19,6 +18,8 @@ import * as z from 'zod';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import Link from 'next/link';
 
 const meterReadingSchema = z.object({
   fuelId: z.string(),
@@ -33,33 +34,38 @@ const meterReadingSchema = z.object({
   path: ["closing"],
 });
 
-const dailyReportSchema = z.object({
+const shiftReportSchema = z.object({
   date: z.string().min(1, "Date is required"),
+  employeeId: z.string().min(1, "Please select an employee."),
+  shiftType: z.enum(['day', 'night']),
   meterReadings: z.array(meterReadingSchema),
   creditSales: z.coerce.number().min(0).default(0),
+  creditCustomerId: z.string().optional(),
   onlinePayments: z.coerce.number().min(0).default(0),
   onlinePaymentsAccountId: z.string().min(1, 'Please select an account for online payments.'),
   lubeSaleName: z.string().optional(),
   lubeSaleAmount: z.coerce.number().min(0).default(0),
 });
 
-type DailyReportFormValues = z.infer<typeof dailyReportSchema>;
+type ShiftReportFormValues = z.infer<typeof shiftReportSchema>;
 
-export default function DailyReportPage() {
-  const { settings, addDailyReport } = useAppState();
+export default function ShiftReportPage() {
+  const { settings, addShiftReport } = useAppState();
   const router = useRouter();
   const { toast } = useToast();
 
-  const latestDailyReport = settings?.dailyReports?.[0];
+  const latestShiftReport = settings?.shiftReports?.[0];
 
-  const form = useForm<DailyReportFormValues>({
-    resolver: zodResolver(dailyReportSchema),
+  const form = useForm<ShiftReportFormValues>({
+    resolver: zodResolver(shiftReportSchema),
     defaultValues: {
-      date: latestDailyReport ? format(addDays(parseISO(latestDailyReport.date), 1), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      date: latestShiftReport ? format(addDays(parseISO(latestShiftReport.date), 1), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      employeeId: '',
+      shiftType: 'day',
       meterReadings: settings?.fuels?.flatMap(fuel =>
         Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
           const nozzleId = i + 1;
-          const latestReading = latestDailyReport?.meterReadings.find(r => r.fuelId === fuel.id && r.nozzleId === nozzleId);
+          const latestReading = latestShiftReport?.meterReadings.find(r => r.fuelId === fuel.id && r.nozzleId === nozzleId);
           return {
             fuelId: fuel.id,
             nozzleId: nozzleId,
@@ -72,6 +78,7 @@ export default function DailyReportPage() {
         })
       ) || [],
       creditSales: 0,
+      creditCustomerId: '',
       onlinePayments: 0,
       onlinePaymentsAccountId: settings?.bankAccounts?.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts?.[0]?.id || '',
       lubeSaleName: '',
@@ -116,13 +123,13 @@ export default function DailyReportPage() {
   const totalSales = totalFuelSales + (lubeSaleAmount || 0);
   const cashInHand = totalSales - creditSales - onlinePayments;
 
-  const onSubmit = (data: DailyReportFormValues) => {
-    addDailyReport({
+  const onSubmit = (data: ShiftReportFormValues) => {
+    addShiftReport({
       ...data,
       totalSales,
       cashInHand,
     });
-    toast({ title: 'Success', description: 'Daily report saved and ledgers updated.' });
+    toast({ title: 'Success', description: 'Shift report saved and ledgers updated.' });
     router.push('/');
   };
   
@@ -135,19 +142,33 @@ export default function DailyReportPage() {
   
   return (
     <AppLayout>
-      <PageHeader title="Daily Report Entry" description="Enter daily sales data to automatically update stock and ledgers." />
+      <PageHeader title="Shift Report Entry" description="Enter shift sales data to automatically update stock and ledgers." />
       <div className="p-4 md:p-8">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Card>
-              <CardHeader><CardTitle>Report Date</CardTitle></CardHeader>
-              <CardContent>
+              <CardHeader><CardTitle>Shift Information</CardTitle></CardHeader>
+              <CardContent className="grid md:grid-cols-3 gap-6">
                 <FormField control={form.control} name="date" render={({ field }) => (
-                  <FormItem className="max-w-xs">
-                    <FormLabel>Select the date for this report</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="employeeId" render={({ field }) => (
+                    <FormItem><FormLabel>Employee</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger></FormControl>
+                            <SelectContent>{(settings.employees || []).length > 0 ? settings.employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>) : <div className="p-4 text-sm text-center">No employees. <Link href="/employees" className="text-primary underline">Add one</Link>.</div>}</SelectContent>
+                        </Select><FormMessage />
+                    </FormItem>
+                )} />
+                 <FormField control={form.control} name="shiftType" render={({ field }) => (
+                    <FormItem><FormLabel>Shift</FormLabel>
+                        <FormControl>
+                            <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2">
+                                <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="day" /></FormControl><FormLabel className="font-normal">Day</FormLabel></FormItem>
+                                <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="night" /></FormControl><FormLabel className="font-normal">Night</FormLabel></FormItem>
+                            </RadioGroup>
+                        </FormControl><FormMessage />
+                    </FormItem>
                 )} />
               </CardContent>
             </Card>
@@ -166,11 +187,11 @@ export default function DailyReportPage() {
                           {readings.map(({ field, index }) => (
                             <div key={field.id} className="grid grid-cols-[repeat(6,1fr)] gap-4 items-start px-2">
                                 <FormLabel className="pt-2">Nozzle {field.nozzleId}</FormLabel>
-                                <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly={!!latestDailyReport} className={!!latestDailyReport ? "bg-muted" : ""} {...field} /></FormControl><FormMessage/></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly={!!latestShiftReport} className={!!latestShiftReport ? "bg-muted/50" : ""} {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.closing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.testing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
-                                <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
-                                <FormField control={form.control} name={`meterReadings.${index}.saleAmount`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted" value={formatCurrency(field.value)} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted/50" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.saleAmount`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted/50" value={formatCurrency(field.value)} /></FormControl></FormItem>} />
                             </div>
                           ))}
                         </AccordionContent>
@@ -185,7 +206,17 @@ export default function DailyReportPage() {
               <CardContent className="grid md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="lubeSaleName" render={({ field }) => <FormItem><FormLabel>Lube Sale Name (Optional)</FormLabel><FormControl><Input placeholder="e.g., Castrol GTX" {...field} /></FormControl><FormMessage /></FormItem>} />
                 <FormField control={form.control} name="lubeSaleAmount" render={({ field }) => <FormItem><FormLabel>Lube Sale Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name="creditCustomerId" render={({ field }) => (
+                        <FormItem><FormLabel>Credit To</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
+                                <SelectContent>{(settings.customers || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                            </Select><FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name="onlinePaymentsAccountId" render={({ field }) => (
@@ -200,7 +231,7 @@ export default function DailyReportPage() {
               </CardContent>
             </Card>
 
-            <Card className="sticky bottom-4 shadow-2xl">
+            <Card className="sticky bottom-4 shadow-2xl bg-card/80 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle>Daily Summary Preview</CardTitle>
                     <CardDescription>Review the calculated totals before submitting.</CardDescription>
@@ -239,8 +270,8 @@ export default function DailyReportPage() {
                     </div>
                 </CardContent>
                 <CardContent className="pt-0">
-                    <Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90">
-                        Submit Daily Report
+                    <Button type="submit" size="lg" className="w-full">
+                        Submit Shift Report
                     </Button>
                 </CardContent>
             </Card>

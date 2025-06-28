@@ -1,4 +1,3 @@
-
 'use client';
 
 import { usePathname } from 'next/navigation';
@@ -24,14 +23,15 @@ import {
   CircleHelp,
   Droplets,
   Briefcase,
-  HandCoins,
-  ReceiptText,
-  Banknote,
+  Users,
+  User,
   Download,
   Ruler,
   FileScan,
   Spline,
   ClipboardPenLine,
+  GitCommitHorizontal,
+  UsersRound,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -40,26 +40,32 @@ const overviewMenuItems = [
 ];
 
 const operationsMenuItems = [
-  { href: '/daily-report', label: 'Daily Entry', icon: ClipboardPenLine },
-  { href: '/reports', label: 'Monthly Reports', icon: FileText },
+  { href: '/shift-report', label: 'Shift Report', icon: ClipboardPenLine },
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
-  { href: '/tanks', label: 'Live Tank Status', icon: Database },
+  { href: '/tanks', label: 'Tank Status', icon: Database },
+  { href: '/stock-variation', label: 'Stock Variation', icon: GitCommitHorizontal },
   { href: '/dip-entry', label: 'DIP Entry', icon: Ruler },
-  { href: '/dsr', label: 'DSR Analysis', icon: FileScan },
 ];
 
 const financialsMenuItems = [
   { href: '/bank', label: 'Bank Ledger', icon: Landmark },
+  { href: '/credit', label: 'Credit Customers', icon: Users },
   { href: '/manager-ledger', label: 'Manager Ledger', icon: Briefcase },
-  { href: '/credit', label: 'Overall Credit', icon: ReceiptText },
-  { href: '/misc-collection', label: 'Misc Collection', icon: HandCoins },
-  { href: '/misc-payments', label: 'Misc Payments', icon: Banknote },
-  { href: '/fund-analysis', label: 'Fund Analysis', icon: Spline },
+  { href: '/misc-collection', label: 'Misc Collection', icon: UsersRound },
+  { href: '/misc-payments', label: 'Misc Payments', icon: UsersRound },
 ];
 
 const dataMenuItems = [
+  { href: '/dsr', label: 'AI DSR Analysis', icon: FileScan },
+  { href: '/fund-analysis', label: 'AI Fund Analysis', icon: Spline },
+  { href: '/reports', label: 'Monthly Reports', icon: FileText },
   { href: '/download-report', label: 'Download Report', icon: Download },
 ];
+
+const managementMenuItems = [
+    { href: '/employees', label: 'Employees', icon: User },
+    { href: '/customers', label: 'Customers', icon: Users },
+]
 
 
 const NavMenu = ({ items }: { items: { href: string; label: string; icon: React.ElementType }[] }) => {
@@ -110,9 +116,14 @@ const AppSidebar = () => {
           <SidebarGroupLabel>Financials</SidebarGroupLabel>
           <NavMenu items={financialsMenuItems} />
         </div>
+         <SidebarSeparator />
+        <div>
+          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <NavMenu items={managementMenuItems} />
+        </div>
         <SidebarSeparator />
         <div>
-          <SidebarGroupLabel>Data & Reports</SidebarGroupLabel>
+          <SidebarGroupLabel>Data & AI</SidebarGroupLabel>
           <NavMenu items={dataMenuItems} />
         </div>
       </SidebarContent>

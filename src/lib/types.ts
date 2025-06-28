@@ -1,5 +1,3 @@
-
-
 export interface DipChartEntry {
   dip: number; // Dip reading in cm
   volume: number; // Corresponding volume in Litres
@@ -47,6 +45,22 @@ export interface Nozzle {
 
 export type NozzlesPerFuel = Record<string, number>; // Map of fuel ID to nozzle count
 
+export interface Employee {
+  id: string;
+  name: string;
+  contactNumber?: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  contactNumber?: string;
+  address?: string;
+  createdAt: string;
+}
+
 export interface ManagerTransaction {
   id: string;
   date: string;
@@ -63,19 +77,20 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'daily_report';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }
 
 export interface CreditHistoryEntry {
   id: string;
+  customerId: string;
   date: string;
   type: 'given' | 'repaid';
   amount: number;
   repaymentDestination?: 'cash' | string; // Can be 'cash' or a bank account ID
   createdAt: string;
-  source?: 'daily_report' | 'manual';
+  source?: 'shift_report' | 'manual';
   sourceId?: string;
 }
 
@@ -136,7 +151,7 @@ export interface MonthlyReport {
   updatedAt: string;
 }
 
-export interface DailyMeterReading {
+export interface ShiftMeterReading {
   nozzleId: number;
   fuelId: string;
   opening: number;
@@ -146,12 +161,15 @@ export interface DailyMeterReading {
   saleAmount: number;
 }
 
-export interface DailyReport {
+export interface ShiftReport {
   id: string;
   date: string; // YYYY-MM-DD
-  meterReadings: DailyMeterReading[];
+  employeeId: string;
+  shiftType: 'day' | 'night';
+  meterReadings: ShiftMeterReading[];
   totalSales: number;
   creditSales: number;
+  creditCustomerId?: string; // Optional: if all credit sales go to one customer
   onlinePayments: number;
   onlinePaymentsAccountId: string;
   lubeSaleName?: string;
@@ -193,6 +211,8 @@ export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark' | 'slate' | 'stone' | 'violet';
   bankAccounts: BankAccount[];
+  employees: Employee[];
+  customers: Customer[];
   managerInitialBalance?: number;
   debtRecovered?: number;
   fuels: Fuel[];
@@ -200,7 +220,7 @@ export interface Settings {
   nozzlesPerFuel: NozzlesPerFuel;
   fuelPriceHistory: FuelPriceEntry[];
   monthlyReports: MonthlyReport[];
-  dailyReports: DailyReport[];
+  shiftReports: ShiftReport[];
   purchases: FuelPurchase[];
   managerLedger: ManagerTransaction[];
   bankLedger: BankTransaction[];
@@ -218,13 +238,23 @@ export interface AppStateContextType extends AppState {
   finishSetup: (settings: Settings) => void;
   resetApp: () => void;
 
+  // Employee Management
+  addEmployee: (employee: Omit<Employee, 'id' | 'createdAt'>) => void;
+  updateEmployee: (employee: Employee) => void;
+  deleteEmployee: (employeeId: string) => void;
+
+  // Customer Management
+  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt'>) => void;
+  updateCustomer: (customer: Customer) => void;
+  deleteCustomer: (customerId: string) => void;
+
   // Manager Ledger
   addManagerTransaction: (transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => void;
   deleteManagerTransaction: (transactionId: string) => void;
 
   // Credit Register
-  addCreditGiven: (amount: number, date: string) => void;
-  addCreditRepayment: (amount: number, destination: 'cash' | string, date: string) => void;
+  addCreditGiven: (amount: number, date: string, customerId: string) => void;
+  addCreditRepayment: (amount: number, destination: 'cash' | string, date: string, customerId: string) => void;
   deleteCreditEntry: (entryId: string) => void;
 
   // Bank Ledger
@@ -240,8 +270,8 @@ export interface AppStateContextType extends AppState {
   addOrUpdateMonthlyReport: (report: Omit<MonthlyReport, 'createdAt' | 'updatedAt'>) => void;
   deleteMonthlyReport: (reportId: string) => void;
 
-  // Daily Reports
-  addDailyReport: (report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  // Shift Reports
+  addShiftReport: (report: Omit<ShiftReport, 'id' | 'createdAt' | 'updatedAt'>) => void;
 
   // Fuel Purchases
   addFuelPurchase: (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => void;

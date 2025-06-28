@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, DailyReport, BankAccount } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -24,7 +23,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const finishSetup = useCallback((settings: Settings) => {
     const fullSettings: Settings = {
       ...settings,
-      theme: settings.theme || 'light', // Ensure theme exists
+      theme: settings.theme || 'slate',
+      employees: settings.employees || [],
+      customers: settings.customers || [],
       fuelPriceHistory: settings.fuelPriceHistory || [],
       nozzlesPerFuel: settings.nozzlesPerFuel || {},
       managerLedger: settings.managerLedger || [],
@@ -32,7 +33,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       creditHistory: settings.creditHistory || [],
       miscCollections: settings.miscCollections || [],
       monthlyReports: settings.monthlyReports || [],
-      dailyReports: settings.dailyReports || [],
+      shiftReports: settings.shiftReports || [],
       purchases: settings.purchases || [],
     };
     setAppState(prevState => ({
@@ -53,6 +54,59 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!settings) return undefined;
       return settings.bankAccounts.find(acc => acc.isOverdraft) || settings.bankAccounts[0];
   }, []);
+
+  // Employee Management
+  const addEmployee = useCallback((employee: Omit<Employee, 'id' | 'createdAt'>) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newEmployee: Employee = { ...employee, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+      const newSettings = { ...prev.settings, employees: [...prev.settings.employees, newEmployee] };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const updateEmployee = useCallback((employee: Employee) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newSettings = { ...prev.settings, employees: prev.settings.employees.map(e => e.id === employee.id ? employee : e) };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const deleteEmployee = useCallback((employeeId: string) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newSettings = { ...prev.settings, employees: prev.settings.employees.filter(e => e.id !== employeeId) };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  // Customer Management
+  const addCustomer = useCallback((customer: Omit<Customer, 'id' | 'createdAt'>) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newCustomer: Customer = { ...customer, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+      const newSettings = { ...prev.settings, customers: [...prev.settings.customers, newCustomer] };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const updateCustomer = useCallback((customer: Customer) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newSettings = { ...prev.settings, customers: prev.settings.customers.map(c => c.id === customer.id ? customer : c) };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const deleteCustomer = useCallback((customerId: string) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newSettings = { ...prev.settings, customers: prev.settings.customers.filter(c => c.id !== customerId) };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
 
   const addManagerTransaction = useCallback((transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {
@@ -120,12 +174,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
-  const addCreditGiven = useCallback((amount: number, date: string) => {
+  const addCreditGiven = useCallback((amount: number, date: string, customerId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       const newEntry: CreditHistoryEntry = {
         id: crypto.randomUUID(),
         date: date,
+        customerId,
         type: 'given',
         amount,
         createdAt: new Date().toISOString(),
@@ -139,7 +194,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
-  const addCreditRepayment = useCallback((amount: number, destination: 'cash' | string, date: string) => {
+  const addCreditRepayment = useCallback((amount: number, destination: 'cash' | string, date: string, customerId: string) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
       
@@ -150,6 +205,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const newCreditEntry: CreditHistoryEntry = {
         id: crypto.randomUUID(),
         date,
+        customerId,
         type: 'repaid',
         amount,
         repaymentDestination: destination,
@@ -164,7 +220,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           accountId: destination,
           createdAt: now,
           date,
-          description: 'Credit Repayment',
+          description: `Credit Repayment from ${newSettings.customers.find(c => c.id === customerId)?.name || 'Customer'}`,
           type: 'credit',
           amount,
           source: 'credit_repayment',
@@ -176,7 +232,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
            id: crypto.randomUUID(),
            createdAt: now,
            date,
-           description: 'Credit Repayment Received in Cash',
+           description: `Credit Repayment (Cash) from ${newSettings.customers.find(c => c.id === customerId)?.name || 'Customer'}`,
            amount,
            sourceId: newCreditEntry.id,
          }
@@ -290,31 +346,31 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
   
-  const addDailyReport = useCallback((report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addShiftReport = useCallback((report: Omit<ShiftReport, 'id' | 'createdAt' | 'updatedAt'>) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
 
         const now = new Date().toISOString();
         const newSettings = JSON.parse(JSON.stringify(prev.settings));
         
-        const newReport: DailyReport = { ...report, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
+        const newReport: ShiftReport = { ...report, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
 
-        newSettings.dailyReports = [...(newSettings.dailyReports || []), newReport].sort((a:any,b:any) => b.date.localeCompare(a.date));
+        newSettings.shiftReports = [...(newSettings.shiftReports || []), newReport].sort((a:any,b:any) => b.date.localeCompare(a.date));
 
         const sourceId = newReport.id;
-        if (newReport.creditSales > 0) {
+        if (newReport.creditSales > 0 && newReport.creditCustomerId) {
             newSettings.creditHistory.push({
-            id: crypto.randomUUID(), date: newReport.date, type: 'given', amount: newReport.creditSales, createdAt: now, source: 'daily_report', sourceId
+            id: crypto.randomUUID(), customerId: newReport.creditCustomerId, date: newReport.date, type: 'given', amount: newReport.creditSales, createdAt: now, source: 'shift_report', sourceId
             });
         }
         if (newReport.onlinePayments > 0 && newReport.onlinePaymentsAccountId) {
             newSettings.bankLedger.push({
-            id: crypto.randomUUID(), accountId: newReport.onlinePaymentsAccountId, date: newReport.date, description: 'Online Payments from Daily Sales', type: 'credit', amount: newReport.onlinePayments, source: 'daily_report', sourceId, createdAt: now
+            id: crypto.randomUUID(), accountId: newReport.onlinePaymentsAccountId, date: newReport.date, description: `Online Payments from Shift`, type: 'credit', amount: newReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now
             });
         }
         if (newReport.cashInHand > 0) {
             newSettings.miscCollections.push({
-            id: crypto.randomUUID(), date: newReport.date, description: 'Cash from Daily Sales', amount: newReport.cashInHand, createdAt: now, sourceId
+            id: crypto.randomUUID(), date: newReport.date, description: `Cash from Shift`, amount: newReport.cashInHand, createdAt: now, sourceId
             });
         }
         
@@ -403,9 +459,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const newSettings = JSON.parse(JSON.stringify(prev.settings));
 
         if (data.creditSales > 0) {
-            newSettings.creditHistory.push({
-                id: crypto.randomUUID(), date: data.reportDate, type: 'given', amount: data.creditSales, createdAt: now,
-            });
+            const defaultCustomer = newSettings.customers.find((c: Customer) => c.name.toLowerCase() === 'default credit') || newSettings.customers[0];
+            if(defaultCustomer) {
+                 newSettings.creditHistory.push({
+                    id: crypto.randomUUID(), date: data.reportDate, type: 'given', amount: data.creditSales, createdAt: now, customerId: defaultCustomer.id
+                });
+            }
         }
 
         const overdraftAccount = getOverdraftAccount(newSettings);
@@ -432,7 +491,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             }
         });
         
-        // DSR to Monthly Report conversion logic...
         let totalProfit = 0; let totalLitres = 0;
         const fuelSalesForReport = newSettings.fuels.map((fuel: any) => {
             const aiReadingsForFuel = data.fuelSales.filter(fs => fs.fuelName.toLowerCase() === fuel.name.toLowerCase());
@@ -478,6 +536,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSettings,
     finishSetup,
     resetApp,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
     addManagerTransaction,
     deleteManagerTransaction,
     addCreditGiven,
@@ -490,7 +554,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
-    addDailyReport,
+    addShiftReport,
     addFuelPurchase,
     deleteFuelPurchase,
     processDsrData,
@@ -499,6 +563,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSettings,
     finishSetup,
     resetApp,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
     addManagerTransaction,
     deleteManagerTransaction,
     addCreditGiven,
@@ -511,7 +581,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
-    addDailyReport,
+    addShiftReport,
     addFuelPurchase,
     deleteFuelPurchase,
     processDsrData,

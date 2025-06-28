@@ -1,4 +1,3 @@
-
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -9,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Fuel, NozzlesPerFuel, Settings, Tank } from '@/lib/types';
@@ -21,7 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { formatCurrency } from '@/lib/utils';
-import { parseISO } from 'date-fns';
+import { parseISO, format } from 'date-fns';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -78,7 +76,7 @@ export default function SettingsPage() {
       resolver: zodResolver(settingsFormSchema),
   });
 
-  const { control, register, handleSubmit, watch, setValue, reset, getValues } = formMethods;
+  const { control, register, handleSubmit, watch, setValue, reset } = formMethods;
 
   const { fields: bankFields, append: appendBank, remove: removeBank } = useFieldArray({ control, name: "bankAccounts" });
   const { fields: fuelFields, append: appendFuel, remove: removeFuel } = useFieldArray({ control, name: "fuels" });
@@ -107,9 +105,7 @@ export default function SettingsPage() {
     const themeClasses = ['dark', 'slate', 'stone', 'violet'];
     if (watchedTheme) {
         document.documentElement.classList.remove(...themeClasses);
-        if (watchedTheme !== 'light') {
-            document.documentElement.classList.add(watchedTheme);
-        }
+        document.documentElement.classList.add(watchedTheme);
     }
   }, [watchedTheme]);
 
@@ -196,38 +192,44 @@ export default function SettingsPage() {
     reader.readAsText(file);
   };
   
-    const handleDownloadLog = () => {
+  const handleDownloadLog = () => {
         if (!settings) return;
         let logEntries: { date: string; category: string; description: string; amount: string; }[] = [];
         
         settings.bankLedger?.forEach(tx => logEntries.push({
-            date: tx.date, category: 'Bank Ledger',
+            date: format(parseISO(tx.date), 'yyyy-MM-dd'), category: 'Bank Ledger',
             description: `${tx.description} (${settings.bankAccounts.find(a => a.id === tx.accountId)?.name || 'N/A'})`,
             amount: tx.type === 'credit' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
         }));
         
-        settings.managerLedger?.forEach(tx => logEntries.push({ date: tx.date, category: 'Manager Ledger', description: tx.description, amount: tx.type === 'payment_from_manager' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})` }));
+        settings.managerLedger?.forEach(tx => logEntries.push({ date: format(parseISO(tx.date), 'yyyy-MM-dd'), category: 'Manager Ledger', description: tx.description, amount: tx.type === 'payment_from_manager' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})` }));
         
-        settings.miscCollections?.forEach(c => logEntries.push({ date: c.date, category: 'Misc Collection', description: c.description, amount: formatCurrency(c.amount) }));
+        settings.miscCollections?.forEach(c => logEntries.push({ date: format(parseISO(c.date), 'yyyy-MM-dd'), category: 'Misc Collection', description: c.description, amount: formatCurrency(c.amount) }));
         
-        settings.purchases?.forEach(p => logEntries.push({ date: p.date, category: 'Fuel Purchase', description: `Purchased ${p.quantity}L of ${settings.fuels.find(f=>f.id===p.fuelId)?.name || 'fuel'}`, amount: `(${formatCurrency(p.amount)})` }));
+        settings.purchases?.forEach(p => logEntries.push({ date: format(parseISO(p.date), 'yyyy-MM-dd'), category: 'Fuel Purchase', description: `Purchased ${p.quantity}L of ${settings.fuels.find(f=>f.id===p.fuelId)?.name || 'fuel'}`, amount: `(${formatCurrency(p.amount)})` }));
         
         settings.creditHistory?.forEach(c => {
-            let desc = 'Credit extended';
+            const customerName = settings.customers.find(cust => cust.id === c.customerId)?.name || 'Unknown Customer';
+            let desc = `Credit to ${customerName}`;
             if (c.type === 'repaid') {
                 if (c.repaymentDestination === 'cash') {
-                    desc = 'Repayment via Cash';
+                    desc = `Repayment (Cash) from ${customerName}`;
                 } else {
                     const bankAccount = settings.bankAccounts.find(a => a.id === c.repaymentDestination);
-                    desc = `Repayment to ${bankAccount?.name || 'Bank'}`;
+                    desc = `Repayment (Bank) from ${customerName} to ${bankAccount?.name || 'Bank'}`;
                 }
             }
-            logEntries.push({ date: c.date, category: 'Credit Register', description: desc, amount: formatCurrency(c.amount) })
+            logEntries.push({ date: format(parseISO(c.date), 'yyyy-MM-dd'), category: 'Credit Register', description: desc, amount: c.type === 'given' ? `(${formatCurrency(c.amount)})` : formatCurrency(c.amount) })
+        });
+        
+        settings.shiftReports?.forEach(sr => {
+            const employeeName = settings.employees.find(e => e.id === sr.employeeId)?.name || 'Unknown';
+            logEntries.push({ date: format(parseISO(sr.date), 'yyyy-MM-dd'), category: 'Shift Sale', description: `Total collection from ${employeeName} (${sr.shiftType} shift)`, amount: formatCurrency(sr.totalSales)})
         });
 
         logEntries.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const headers = ['Date', 'Category', 'Description', 'Amount (INR)'];
-        const csvRows = [headers.join(','), ...logEntries.map(row => [row.date, `"${row.category}"`, `"${row.description.replace(/"/g, '""')}"`, `"${row.amount}"`].join(','))];
+        const csvRows = [headers.join(','), ...logEntries.map(row => [row.date, `"${row.category}"`, `"${row.description.replace(/"/g, '""')}"`, `"${row.amount.replace(/"/g, '""')}"`].join(','))];
         const csvContent = csvRows.join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -443,12 +445,10 @@ export default function SettingsPage() {
 
             <div className="flex justify-end gap-4 sticky bottom-4 bg-background py-4">
                 <Button variant="outline" type="button" onClick={() => router.back()}>Cancel</Button>
-                <Button type="submit" className="bg-accent hover:bg-accent/90">Save Changes</Button>
+                <Button type="submit" size="lg">Save Changes</Button>
             </div>
         </form>
         </FormProvider>
     </AppLayout>
   );
 }
-
-    

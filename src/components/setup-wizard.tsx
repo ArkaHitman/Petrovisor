@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef } from 'react';
@@ -12,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Droplets, Fuel, Database, Trash2, PlusCircle, Building, Check, Upload } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import type { Settings, NozzlesPerFuel, Fuel as FuelType, BankAccount } from '@/lib/types';
+import type { Settings, NozzlesPerFuel, Fuel as FuelType } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from './ui/switch';
 import { cn } from '@/lib/utils';
@@ -154,7 +153,9 @@ export default function SetupWizard() {
     const settings: Settings = {
       ...data,
       fuels: finalFuels,
-      theme: 'light',
+      theme: 'slate',
+      employees: [],
+      customers: [{id: 'default-credit', name: 'Default Credit Customer', createdAt: new Date().toISOString()}],
       fuelPriceHistory: [],
       nozzlesPerFuel,
       managerLedger: [],
@@ -162,7 +163,7 @@ export default function SetupWizard() {
       creditHistory: [],
       miscCollections: [],
       monthlyReports: [],
-      dailyReports: [],
+      shiftReports: [],
       purchases: [],
     };
     finishSetup(settings);
@@ -381,7 +382,7 @@ export default function SetupWizard() {
                                 </Button>
                             )}
                             {step === 3 && (
-                                <Button type="submit" size="lg" className="bg-accent hover:bg-accent/90">
+                                <Button type="submit" size="lg">
                                     Complete Setup & Launch App
                                 </Button>
                             )}
