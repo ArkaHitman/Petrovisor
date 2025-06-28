@@ -62,7 +62,10 @@ The document is a challan for a fuel delivery from a major oil marketing company
 - **vatAmount**: Find a specific line item for VAT (Value Added Tax) and extract its value. If it's not present, leave it empty.
 - **totalAmount**: Extract the final, grand total amount of the invoice. This is the most important figure.
 
-**IMPORTANT - Number Formatting**: Pay close attention to numbers. A number like "10.000" on an Indian challan almost always means "10" (ten), not "ten thousand". The period is a decimal separator. For example, if you see "10.000 KL", you must interpret it as 10 Kilolitres and convert it to 10000 Litres for the 'quantity' field. Do not mistake the decimal point for a thousands separator.
+**CRITICAL INSTRUCTION on Number Formatting**: Indian challans use a period (.) as a decimal separator and commas (,) for grouping. A number like "10.000" means exactly ten. A number like "4.000" means exactly four. You must correctly interpret these numbers *before* performing any conversions.
+- **Example 1**: If the challan shows "Quantity: 10.000 KL", you must interpret this as 10 (ten) Kilolitres. Your final output for the \`quantity\` field must be **10000** (litres).
+- **Example 2**: If the challan shows "Rate: 1,05,450.00 per KL", you must interpret this as 105450. Your final output for the \`rate\` field must be **105.45** (per litre).
+- **DO NOT** mistake a period for a thousands separator. It is a decimal separator.
 
 Return the extracted information precisely in the specified JSON format.
 
