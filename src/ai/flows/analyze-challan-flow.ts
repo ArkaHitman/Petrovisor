@@ -21,8 +21,8 @@ export type AnalyzeChallanInput = z.infer<typeof AnalyzeChallanInputSchema>;
 
 const ChallanItemSchema = z.object({
     fuelName: z.string().describe("The name of the fuel delivered, e.g., 'MS' for Petrol, 'HSD' for Diesel."),
-    quantity: z.coerce.number().describe("The quantity of the fuel delivered in litres."),
-    rate: z.coerce.number().describe("The rate per litre of the fuel."),
+    quantity: z.coerce.number().describe("The quantity of the fuel delivered, converted to litres. For example, if the challan says 5 KL, this value should be 5000."),
+    rate: z.coerce.number().describe("The rate per litre of the fuel. If the challan provides a rate per KL, you must calculate and return the per-litre rate."),
     amount: z.coerce.number().describe("The total amount for this fuel item (quantity * rate)."),
 });
 
@@ -56,7 +56,9 @@ The document is a challan for a fuel delivery from a major oil marketing company
 - **vehicleNumber**: Find the truck or vehicle registration number (e.g., OD01AB1234).
 - **items**: This is a list of fuels delivered. For each item:
   - Identify the fuel type. 'MS' stands for Motor Spirit (Petrol), 'HSD' stands for High-Speed Diesel. Standardize the name.
-  - Extract the quantity in litres, the rate per litre, and the total amount for that line item. The rate should be the final, all-inclusive price per litre.
+  - **Quantity Conversion**: The challan may list quantity in Kilolitres (KL). You MUST convert it to Litres (1 KL = 1000 L). The \`quantity\` field in your output must be in Litres.
+  - **Rate Conversion**: The challan may list the rate per KL. You MUST calculate the rate per Litre (Rate per Litre = Rate per KL / 1000). The \`rate\` field in your output must be the final, all-inclusive price per Litre.
+  - Extract the total amount for that line item.
 - **subTotal**: Find the subtotal, which is the sum of all item amounts before tax. If not explicitly listed, calculate it by summing the 'amount' of all items.
 - **vatAmount**: Find a specific line item for VAT (Value Added Tax) and extract its value. If it's not present, leave it empty.
 - **totalAmount**: Extract the final, grand total amount of the invoice. This is the most important figure.
