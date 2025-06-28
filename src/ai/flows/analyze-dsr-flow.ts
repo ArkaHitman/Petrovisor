@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for analyzing Monthly Sales Reports.
@@ -14,7 +15,7 @@ const AnalyzeDsrInputSchema = z.object({
   dsrDataUri: z
     .string()
     .describe(
-      "A PDF of a Monthly Sales Report, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A PDF or CSV of a Monthly Sales Report, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
 export type AnalyzeDsrInput = z.infer<typeof AnalyzeDsrInputSchema>;
@@ -50,26 +51,27 @@ const prompt = ai.definePrompt({
   name: 'analyzeDsrPrompt',
   input: {schema: AnalyzeDsrInputSchema},
   output: {schema: AnalyzeDsrOutputSchema},
-  prompt: `You are an expert financial analyst for an Indian petrol station. Your task is to analyze the provided Monthly Sales Report PDF with extreme accuracy and extract key financial data.
+  prompt: `You are an expert financial analyst for an Indian petrol station. Your task is to analyze the provided Monthly Sales Report and extract key financial data.
 
-The report covers a full month of operations. You must populate all fields in the output JSON.
+The input can be one of two formats:
+1. A standard PDF of a Monthly Sales Report.
+2. A structured CSV file with specific sections: [REPORT_INFO], [FUEL_SALES], and [BANK_DEPOSITS].
 
+**Analysis Instructions:**
+
+If the input is a **structured CSV**:
+- **[REPORT_INFO]**: Parse the key-value pairs. Find 'Report End Date (YYYY-MM-DD)' for the \`reportDate\` field. Extract \`lubricantSales\`, \`creditSales\`, \`phonepeSales\`, and \`cashInHand\` from their respective keys.
+- **[FUEL_SALES]**: Read each row in this section and create an entry in the \`fuelSales\` output array.
+- **[BANK_DEPOSITS]**: Read each row in this section and create an entry in the \`bankDeposits\` output array.
+
+If the input is a **PDF**:
 - **reportDate**: This is a monthly report. Find the **end date** of the reporting period and format it as YYYY-MM-DD.
-
-- **fuelSales**: This is the most critical section. Find the table with meter readings for every fuel nozzle.
-  - You must extract the opening reading for the **start of the month** and the closing reading for the **end of the month** for EACH nozzle.
-  - Identify the fuel type (e.g., 'Petrol', 'Diesel'), its price per litre, the nozzle number, and the total 'testing' volume for the month.
-  - Ensure you capture data for **all nozzles** listed in the report.
-
-- **lubricantSales**: Look for a specific section or line item detailing "Lube Sales" or "Lubricant Sales". Extract the total sales amount for the month. If not mentioned, return 0.
-
-- **creditSales**: Find the total amount of sales made on credit (udhaar) for the entire month.
-
-- **phonepeSales**: Locate the total amount of money collected specifically via PhonePe. This is a distinct value.
-
-- **bankDeposits**: Find all other cash collections and deposits into banks. This includes cash deposits, card swipes, Google Pay, etc., but **DO NOT include PhonePe sales here**. Create an entry for each distinct deposit.
-
-- **cashInHand**: Find the final figure for "Cash In Hand", "Net Cash", or "Cash Collection". This represents the physical cash remaining after all sales and deposits.
+- **fuelSales**: Find the table with meter readings for every fuel nozzle. You must extract the opening reading for the **start of the month** and the closing reading for the **end of the month** for EACH nozzle.
+- **lubricantSales**: Look for a specific section or line item detailing "Lube Sales" or "Lubricant Sales". Extract the total sales amount for the month.
+- **creditSales**: Find the total amount of sales made on credit (udhaar).
+- **phonepeSales**: Locate the total amount of money collected specifically via PhonePe.
+- **bankDeposits**: Find all other cash collections and deposits into banks. This includes cash deposits, card swipes, Google Pay, etc., but **DO NOT include PhonePe sales here**.
+- **cashInHand**: Find the final figure for "Cash In Hand", "Net Cash", or "Cash Collection".
 
 Return the extracted information precisely in the specified JSON format. Be meticulous.
 

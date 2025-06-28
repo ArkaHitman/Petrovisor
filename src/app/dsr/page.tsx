@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { FileUp, Loader2, Bot, CheckCircle, AlertTriangle } from 'lucide-react';
+import { FileUp, Loader2, Bot, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 import React, { useState } from 'react';
 import { analyzeDsr, type AnalyzeDsrOutput } from '@/ai/flows/analyze-dsr-flow';
 import { useAppState } from '@/contexts/app-state-provider';
@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
 export default function DsrPage() {
-    const { processDsrData } = useAppState();
+    const { settings, processDsrData } = useAppState();
     const { toast } = useToast();
     const [file, setFile] = useState<File | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -30,6 +30,50 @@ export default function DsrPage() {
             setError(null);
             setAnalysisResult(null);
         }
+    };
+
+    const handleExportFormat = () => {
+        if (!settings) {
+            toast({ title: 'Error', description: 'Settings not loaded yet.', variant: 'destructive' });
+            return;
+        }
+
+        const today = format(new Date(), 'yyyy-MM-dd');
+
+        let csvContent = `[REPORT_INFO]\n`;
+        csvContent += `Key,Value\n`;
+        csvContent += `Report End Date (YYYY-MM-DD),${today}\n`;
+        csvContent += `Lubricant Sales,0\n`;
+        csvContent += `Credit Sales,0\n`;
+        csvContent += `PhonePe Sales,0\n`;
+        csvContent += `Cash In Hand,0\n\n`;
+
+        csvContent += `[FUEL_SALES]\n`;
+        csvContent += `Fuel Name,Price Per Litre,Nozzle ID,Opening Reading,Closing Reading,Testing (Litres)\n`;
+        settings.fuels.forEach(fuel => {
+            const nozzleCount = settings.nozzlesPerFuel[fuel.id] || 0;
+            for (let i = 1; i <= nozzleCount; i++) {
+                csvContent += `${fuel.name},${fuel.price},${i},0,0,0\n`;
+            }
+        });
+        csvContent += `\n`;
+
+        csvContent += `[BANK_DEPOSITS]\n`;
+        csvContent += `Description,Amount,Destination Account\n`;
+        csvContent += `Cash Deposit,0,${settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || ''}\n`;
+        csvContent += `Card Swipes,0,${settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || ''}\n`;
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'DSR_Format.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({ title: "Format Exported", description: "DSR_Format.csv has been downloaded." });
     };
 
     const handleAnalyze = async () => {
@@ -49,6 +93,12 @@ export default function DsrPage() {
                 const dsrDataUri = e.target?.result as string;
                 if (!dsrDataUri) {
                     setError("Could not read the file.");
+                    setIsAnalyzing(false);
+                    return;
+                }
+                
+                if (!file.type.includes('pdf') && !file.name.endsWith('.csv')) {
+                    setError("Please upload a PDF or CSV file.");
                     setIsAnalyzing(false);
                     return;
                 }
@@ -90,14 +140,18 @@ export default function DsrPage() {
     <AppLayout>
       <PageHeader
         title="Monthly Report Analysis"
-        description="Upload a Monthly Sales Report PDF to automatically create your monthly summary."
-      />
+        description="Upload a Report PDF or a filled CSV to automatically create your monthly summary."
+      >
+        <Button onClick={handleExportFormat} variant="outline">
+            <FileText className="mr-2 h-4 w-4" />
+            Export DSR Format
+        </Button>
+      </PageHeader>
       <div className="p-4 md:p-8 grid gap-8 md:grid-cols-2">
-        {/* Upload Card */}
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline">1. Upload Report</CardTitle>
-                <CardDescription>Select the monthly sales report file from your device.</CardDescription>
+                <CardDescription>Select the report file (PDF or filled CSV) from your device.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <Label htmlFor="dsr-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
@@ -108,11 +162,11 @@ export default function DsrPage() {
                         ) : (
                             <>
                                 <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                <p className="text-xs text-muted-foreground">PDF file of your Monthly Sales Report</p>
+                                <p className="text-xs text-muted-foreground">PDF or CSV file of your Monthly Sales Report</p>
                             </>
                         )}
                     </div>
-                    <Input id="dsr-upload" type="file" className="hidden" onChange={handleFileChange} accept="application/pdf" />
+                    <Input id="dsr-upload" type="file" className="hidden" onChange={handleFileChange} accept="application/pdf,.csv" />
                 </Label>
                 {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
@@ -125,7 +179,6 @@ export default function DsrPage() {
                 </Button>
             </CardContent>
         </Card>
-        {/* Results Card */}
         <Card className={!isAnalyzing && !analysisResult ? 'bg-muted/50' : ''}>
              <CardHeader>
                 <CardTitle className="font-headline">2. Review & Confirm</CardTitle>
