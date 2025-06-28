@@ -153,7 +153,7 @@ export default function SetupWizard() {
     const settings: Settings = {
       ...data,
       fuels: finalFuels,
-      theme: 'slate',
+      theme: 'light',
       employees: [],
       customers: [{id: 'default-credit', name: 'Default Credit Customer', createdAt: new Date().toISOString()}],
       fuelPriceHistory: [],

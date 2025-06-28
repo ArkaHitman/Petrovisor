@@ -230,7 +230,7 @@ export interface AnalyzeDsrOutput {
 
 export interface Settings {
   pumpName: string;
-  theme: 'light' | 'dark' | 'slate' | 'stone' | 'violet';
+  theme: 'light' | 'dark';
   bankAccounts: BankAccount[];
   employees: Employee[];
   customers: Customer[];

@@ -49,7 +49,7 @@ const bankAccountSchema = z.object({
 
 const settingsFormSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
-  theme: z.enum(['light', 'dark', 'slate', 'stone', 'violet']),
+  theme: z.enum(['light', 'dark']),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
   managerInitialBalance: z.coerce.number().optional(),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
@@ -105,7 +105,9 @@ export default function SettingsPage() {
     const themeClasses = ['dark', 'slate', 'stone', 'violet'];
     if (watchedTheme) {
         document.documentElement.classList.remove(...themeClasses);
-        document.documentElement.classList.add(watchedTheme);
+        if (watchedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
     }
   }, [watchedTheme]);
 
@@ -270,9 +272,6 @@ export default function SettingsPage() {
                             <SelectContent>
                                 <SelectItem value="light">Light</SelectItem>
                                 <SelectItem value="dark">Dark</SelectItem>
-                                <SelectItem value="stone">Stone</SelectItem>
-                                <SelectItem value="slate">Slate</SelectItem>
-                                <SelectItem value="violet">Violet</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
