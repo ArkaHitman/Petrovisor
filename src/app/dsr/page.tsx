@@ -13,7 +13,7 @@ import React, { useState } from 'react';
 import { analyzeDsr, type AnalyzeDsrOutput } from '@/ai/flows/analyze-dsr-flow';
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
 export default function DsrPage() {
     const { settings, processDsrData } = useAppState();
@@ -37,94 +37,50 @@ export default function DsrPage() {
             toast({ title: 'Error', description: 'Settings not loaded yet.', variant: 'destructive' });
             return;
         }
-    
-        const today = format(new Date(), 'yyyy-MM-dd');
-    
-        // Helper to escape CSV fields
+
         const csvSafe = (field: any) => {
             const str = String(field ?? '');
-            if (str.includes(',')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
+            return str.includes(',') ? `"${str.replace(/"/g, '""')}"` : str;
         };
-        
-        let csvContent = `"[REPORT_INFO] - Fill out this section"\n`;
-        csvContent += `Key,Value\n`;
-        csvContent += `Report End Date (YYYY-MM-DD),${today}\n`;
-        csvContent += `Lubricant Sales,0\n`;
-        csvContent += `Credit Sales,0\n`;
-        csvContent += `PhonePe Sales,0\n`;
-        csvContent += `Cash In Hand,0\n\n`;
-    
-        csvContent += `"[FUEL_SALES] - Fill out this section"\n`;
-        csvContent += `Fuel Name,Price Per Litre,Nozzle ID,Opening Reading,Closing Reading,Testing (Litres)\n`;
+
+        const headers = ['Date'];
         settings.fuels.forEach(fuel => {
             const nozzleCount = settings.nozzlesPerFuel[fuel.id] || 0;
             for (let i = 1; i <= nozzleCount; i++) {
-                csvContent += [fuel.name, fuel.price, i, 0, 0, 0].map(csvSafe).join(',') + '\n';
+                headers.push(csvSafe(`Opening - ${fuel.name} Nozzle ${i}`));
+                headers.push(csvSafe(`Closing - ${fuel.name} Nozzle ${i}`));
             }
         });
-        csvContent += `\n`;
-        
-        csvContent += `"[BANK_DEPOSITS] - Fill out this section"\n`;
-        csvContent += `Description,Amount,Destination Account\n`;
-        csvContent += `Cash Deposit,0,"${csvSafe(settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || '')}"\n`;
-        csvContent += `Card Swipes,0,"${csvSafe(settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || '')}"\n\n`;
-    
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-        csvContent += `"[FUEL_PURCHASES] (Read-only data for the last 30 days)"\n`;
-        csvContent += `Date,Fuel,Quantity (L),Amount (INR),Invoice #\n`;
-        const recentPurchases = (settings.purchases || []).filter(p => parseISO(p.date) >= thirtyDaysAgo);
-        if (recentPurchases.length > 0) {
-            recentPurchases.forEach(p => {
-                const fuel = settings.fuels.find(f => f.id === p.fuelId);
-                csvContent += [ p.date, fuel?.name || 'N/A', p.quantity, p.amount, p.invoiceNumber || '' ].map(csvSafe).join(',') + '\n';
-            });
-        } else {
-            csvContent += `No recent purchases found in the last 30 days.,,,,\n`;
-        }
-        csvContent += `\n`;
-    
-        csvContent += `"[MISCELLANEOUS_PAYMENTS] (Read-only data for the last 30 days)"\n`;
-        csvContent += `Date,Description,Amount (INR),Account\n`;
-        const recentPayments = (settings.bankLedger || []).filter(tx => tx.source === 'misc_payment' && parseISO(tx.date) >= thirtyDaysAgo);
-        if (recentPayments.length > 0) {
-            recentPayments.forEach(tx => {
-                const account = settings.bankAccounts.find(a => a.id === tx.accountId);
-                csvContent += [ tx.date, tx.description, tx.amount, account?.name || 'N/A' ].map(csvSafe).join(',') + '\n';
-            });
-        } else {
-            csvContent += `No recent miscellaneous payments found in the last 30 days.,,,\n`;
-        }
-        csvContent += `\n`;
-    
-        csvContent += `"[MONTH_END_STOCK] (Read-only current data)"\n`;
-        csvContent += `Tank Name,Fuel,Current Stock (L)\n`;
-        settings.tanks.forEach(tank => {
-            const fuel = settings.fuels.find(f => f.id === tank.fuelId);
-            csvContent += [ tank.name, fuel?.name || 'N/A', tank.initialStock ].map(csvSafe).join(',') + '\n';
-        });
-        csvContent += `\n`;
+        headers.push('Lubricant', 'Credit', 'Phonepe', 'Cash');
 
-        csvContent += `"[FORMULAS_AND_CALCULATIONS]"\n`;
-        csvContent += `"Note:","To make calculations easier, you can use formulas in your spreadsheet program."\n`;
-        csvContent += `"Example - Total Litres Sold for Petrol:","In a new cell, type: =SUMIF(A:A,""Petrol"",F:F) (assuming Fuel Name is in column A and Sale Litres is in F)"\n`;
-        csvContent += `"Example - Total Cash in Hand:","=(Total Fuel Sales + Lube Sales) - (Credit Sales + PhonePe Sales + Bank Deposits)"\n`;
-    
+        const today = new Date();
+        const daysInMonth = eachDayOfInterval({
+            start: startOfMonth(today),
+            end: endOfMonth(today),
+        });
+
+        const rows = daysInMonth.map(day => {
+            const row = [format(day, 'dd.MM.yyyy')];
+            // Add empty placeholders for all other columns
+            for (let i = 1; i < headers.length; i++) {
+                row.push('');
+            }
+            return row.join(',');
+        });
+
+        let csvContent = headers.join(',') + '\n' + rows.join('\n');
+        
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', 'DSR_Format.csv');
+        link.setAttribute('download', 'DSR_Daily_Format.csv');
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
-        toast({ title: "Format Exported", description: "DSR_Format.csv has been downloaded." });
+        toast({ title: "Format Exported", description: "DSR_Daily_Format.csv has been downloaded." });
     };
 
     const handleAnalyze = async () => {
@@ -249,7 +205,7 @@ export default function DsrPage() {
                             <p className="font-semibold">Lube Sales: <span className="font-normal">{formatCurrency(analysisResult.lubricantSales)}</span></p>
                             <p className="font-semibold">Credit Sales: <span className="font-normal">{formatCurrency(analysisResult.creditSales)}</span></p>
                             <p className="font-semibold">PhonePe Sales: <span className="font-normal">{formatCurrency(analysisResult.phonepeSales)}</span></p>
-                            <p className="font-semibold">Other Bank Deposits: <span className="font-normal">{analysisResult.bankDeposits.length} transaction(s) totaling {formatCurrency(analysisResult.bankDeposits.reduce((acc, d) => acc + d.amount, 0))}</span></p>
+                            <p className="font-semibold">Total Cash Deposits: <span className="font-normal">{analysisResult.bankDeposits.length > 0 ? formatCurrency(analysisResult.bankDeposits.reduce((acc, d) => acc + d.amount, 0)) : formatCurrency(0)}</span></p>
                              <p className="font-semibold">Net Cash in Hand: <span className="font-normal">{formatCurrency(analysisResult.cashInHand)}</span></p>
                         </div>
                         <div className="flex items-center gap-2 p-3 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md">
