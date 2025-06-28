@@ -115,6 +115,26 @@ export interface FuelPurchase {
   createdAt: string;
 }
 
+export interface SupplierDelivery {
+  id: string;
+  date: string;
+  fuelName: 'MS' | 'HSD';
+  quantityKL: number;
+  ratePerKL: number; // This is the basic rate, exclusive of GST
+  basicAmount: number;
+  gstAmount: number;
+  totalInvoiceValue: number;
+  createdAt: string;
+}
+
+export interface SupplierPayment {
+  id: string;
+  date: string;
+  amount: number;
+  createdAt: string;
+}
+
+
 export interface MeterReading {
   nozzleId: number;
   opening: number;
@@ -226,12 +246,16 @@ export interface Settings {
   bankLedger: BankTransaction[];
   creditHistory: CreditHistoryEntry[];
   miscCollections: MiscCollection[];
+  supplierDeliveries: SupplierDelivery[];
+  supplierPayments: SupplierPayment[];
 }
 
 export interface AppState {
   settings: Settings | null;
   isSetupComplete: boolean;
 }
+
+export type AddSupplierDeliveryData = Omit<SupplierDelivery, 'id' | 'createdAt' | 'basicAmount' | 'gstAmount' | 'totalInvoiceValue'>;
 
 export interface AppStateContextType extends AppState {
   setSettings: (settings: Settings) => void;
@@ -276,6 +300,12 @@ export interface AppStateContextType extends AppState {
   // Fuel Purchases
   addFuelPurchase: (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => void;
   deleteFuelPurchase: (purchaseId: string) => void;
+
+  // Supplier Ledger
+  addSupplierDelivery: (delivery: AddSupplierDeliveryData) => void;
+  deleteSupplierDelivery: (deliveryId: string) => void;
+  addSupplierPayment: (payment: Omit<SupplierPayment, 'id' | 'createdAt'>) => void;
+  deleteSupplierPayment: (paymentId: string) => void;
   
   // DSR Processing
   processDsrData: (data: AnalyzeDsrOutput) => void;

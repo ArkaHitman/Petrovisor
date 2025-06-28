@@ -28,7 +28,8 @@ const purchaseConfirmationSchema = z.object({
   items: z.array(z.object({
     tankId: z.string().min(1, "Tank is required."),
     fuelName: z.string(),
-    quantity: z.number(),
+    quantity: z.number(), // Litres
+    rate: z.number(), // Per Litre, inclusive of tax
     amount: z.number(),
     date: z.string(),
     invoiceNumber: z.string(),
@@ -36,6 +37,8 @@ const purchaseConfirmationSchema = z.object({
 });
 
 type PurchaseConfirmationValues = z.infer<typeof purchaseConfirmationSchema>;
+
+const GST_RATE = 0.28;
 
 const ResultsDisplay = ({ result, onConfirm }: { result: AnalysisResult; onConfirm: (data: PurchaseConfirmationValues) => void; }) => {
     const { settings } = useAppState();
@@ -48,6 +51,7 @@ const ResultsDisplay = ({ result, onConfirm }: { result: AnalysisResult; onConfi
                 tankId: '',
                 fuelName: item.fuelName,
                 quantity: item.quantity,
+                rate: item.rate,
                 amount: item.amount,
                 date: result.date,
                 invoiceNumber: result.invoiceNumber,
@@ -175,7 +179,7 @@ const ResultsDisplay = ({ result, onConfirm }: { result: AnalysisResult; onConfi
 
 
 export default function ChallanAnalysisPage() {
-    const { addFuelPurchase, settings } = useAppState();
+    const { addFuelPurchase, addSupplierDelivery, settings } = useAppState();
     const { toast } = useToast();
     const router = useRouter();
     const [file, setFile] = useState<File | null>(null);
@@ -225,6 +229,7 @@ export default function ChallanAnalysisPage() {
                     throw new Error(`Could not find a matching fuel in settings for "${item.fuelName}"`);
                 }
                 
+                // Add to Fuel Purchases (for stock management, etc.)
                 addFuelPurchase({
                     date: item.date,
                     tankId: item.tankId,
@@ -234,9 +239,21 @@ export default function ChallanAnalysisPage() {
                     invoiceNumber: item.invoiceNumber,
                     fuelId: matchingFuel.id,
                 });
+
+                // Add to Supplier Ledger (for payables tracking)
+                const fuelNameForLedger = item.fuelName.toLowerCase().includes('petrol') ? 'MS' : 'HSD';
+                const basicRatePerLitre = item.rate / (1 + GST_RATE);
+                const basicRatePerKL = basicRatePerLitre * 1000;
+                
+                addSupplierDelivery({
+                    date: item.date,
+                    fuelName: fuelNameForLedger,
+                    quantityKL: item.quantity / 1000,
+                    ratePerKL: basicRatePerKL,
+                });
             });
             
-            toast({ title: "Success!", description: `Added ${data.items.length} purchase(s) from challan.` });
+            toast({ title: "Success!", description: `Added ${data.items.length} purchase(s) to all ledgers.` });
             router.push('/purchases');
         } catch (e) {
              const errorMessage = e instanceof Error ? e.message : "An unknown error occurred while saving.";

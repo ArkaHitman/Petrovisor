@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -12,6 +12,8 @@ const defaultState: AppState = {
   settings: null,
   isSetupComplete: false,
 };
+
+const GST_RATE = 0.28;
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useLocalStorage<AppState>('petrovisor-data', defaultState);
@@ -35,6 +37,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       monthlyReports: settings.monthlyReports || [],
       shiftReports: settings.shiftReports || [],
       purchases: settings.purchases || [],
+      supplierDeliveries: settings.supplierDeliveries || [],
+      supplierPayments: settings.supplierPayments || [],
     };
     setAppState(prevState => ({
       ...prevState,
@@ -451,6 +455,71 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
+  // Supplier Ledger
+  const addSupplierDelivery = useCallback((deliveryData: AddSupplierDeliveryData) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+
+      const basicAmount = deliveryData.quantityKL * deliveryData.ratePerKL;
+      const gstAmount = basicAmount * GST_RATE;
+      const totalInvoiceValue = basicAmount + gstAmount;
+
+      const newDelivery: SupplierDelivery = {
+        id: crypto.randomUUID(),
+        ...deliveryData,
+        basicAmount,
+        gstAmount,
+        totalInvoiceValue,
+        createdAt: new Date().toISOString(),
+      };
+      
+      const newSettings = {
+        ...prev.settings,
+        supplierDeliveries: [...(prev.settings.supplierDeliveries || []), newDelivery].sort((a,b) => b.date.localeCompare(a.date)),
+      };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const deleteSupplierDelivery = useCallback((deliveryId: string) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newSettings = {
+        ...prev.settings,
+        supplierDeliveries: (prev.settings.supplierDeliveries || []).filter(d => d.id !== deliveryId),
+      };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+  
+  const addSupplierPayment = useCallback((payment: Omit<SupplierPayment, 'id' | 'createdAt'>) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newPayment: SupplierPayment = {
+        id: crypto.randomUUID(),
+        ...payment,
+        createdAt: new Date().toISOString(),
+      };
+      const newSettings = {
+        ...prev.settings,
+        supplierPayments: [...(prev.settings.supplierPayments || []), newPayment].sort((a,b) => b.date.localeCompare(a.date)),
+      };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const deleteSupplierPayment = useCallback((paymentId: string) => {
+    setAppState(prev => {
+      if (!prev.settings) return prev;
+      const newSettings = {
+        ...prev.settings,
+        supplierPayments: (prev.settings.supplierPayments || []).filter(p => p.id !== paymentId),
+      };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+
   const processDsrData = useCallback((data: AnalyzeDsrOutput) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
@@ -557,6 +626,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addShiftReport,
     addFuelPurchase,
     deleteFuelPurchase,
+    addSupplierDelivery,
+    deleteSupplierDelivery,
+    addSupplierPayment,
+    deleteSupplierPayment,
     processDsrData,
   }), [
     appState,
@@ -584,6 +657,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addShiftReport,
     addFuelPurchase,
     deleteFuelPurchase,
+    addSupplierDelivery,
+    deleteSupplierDelivery,
+    addSupplierPayment,
+    deleteSupplierPayment,
     processDsrData,
   ]);
 
