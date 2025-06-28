@@ -43,15 +43,26 @@ export default function DsrPage() {
             return str.includes(',') ? `"${str.replace(/"/g, '""')}"` : str;
         };
 
-        const headers = ['Date'];
+        const openingHeaders: string[] = [];
+        const closingHeaders: string[] = [];
+
         settings.fuels.forEach(fuel => {
             const nozzleCount = settings.nozzlesPerFuel[fuel.id] || 0;
             for (let i = 1; i <= nozzleCount; i++) {
-                headers.push(csvSafe(`Opening - ${fuel.name} Nozzle ${i}`));
-                headers.push(csvSafe(`Closing - ${fuel.name} Nozzle ${i}`));
+                openingHeaders.push(csvSafe(`Opening - ${fuel.name} Nozzle ${i}`));
+                closingHeaders.push(csvSafe(`Closing - ${fuel.name} Nozzle ${i}`));
             }
         });
-        headers.push('Lubricant', 'Credit', 'Phonepe', 'Cash');
+
+        const headers = [
+            'Date',
+            ...openingHeaders,
+            ...closingHeaders,
+            'Lubricant',
+            'Credit',
+            'Phonepe',
+            'Cash'
+        ];
 
         const today = new Date();
         const daysInMonth = eachDayOfInterval({
