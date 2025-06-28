@@ -33,6 +33,7 @@ import {
   GitCommitHorizontal,
   UsersRound,
   ClipboardIcon,
+  Layers,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -52,6 +53,7 @@ const financialsMenuItems = [
   { href: '/bank', label: 'Bank Ledger', icon: Landmark },
   { href: '/credit', label: 'Credit Customers', icon: Users },
   { href: '/manager-ledger', label: 'Manager Ledger', icon: Briefcase },
+  { href: '/supplier-ledger', label: 'Supplier Ledger', icon: Layers },
   { href: '/misc-collection', label: 'Misc Collection', icon: UsersRound },
   { href: '/misc-payments', label: 'Misc Payments', icon: UsersRound },
 ];
