@@ -37,32 +37,83 @@ export default function DsrPage() {
             toast({ title: 'Error', description: 'Settings not loaded yet.', variant: 'destructive' });
             return;
         }
-
+    
         const today = format(new Date(), 'yyyy-MM-dd');
-
-        let csvContent = `[REPORT_INFO]\n`;
+    
+        // Helper to escape CSV fields
+        const csvSafe = (field: any) => {
+            const str = String(field ?? '');
+            if (str.includes(',')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+        
+        let csvContent = `"[REPORT_INFO] - Fill out this section"\n`;
         csvContent += `Key,Value\n`;
         csvContent += `Report End Date (YYYY-MM-DD),${today}\n`;
         csvContent += `Lubricant Sales,0\n`;
         csvContent += `Credit Sales,0\n`;
         csvContent += `PhonePe Sales,0\n`;
         csvContent += `Cash In Hand,0\n\n`;
-
-        csvContent += `[FUEL_SALES]\n`;
+    
+        csvContent += `"[FUEL_SALES] - Fill out this section"\n`;
         csvContent += `Fuel Name,Price Per Litre,Nozzle ID,Opening Reading,Closing Reading,Testing (Litres)\n`;
         settings.fuels.forEach(fuel => {
             const nozzleCount = settings.nozzlesPerFuel[fuel.id] || 0;
             for (let i = 1; i <= nozzleCount; i++) {
-                csvContent += `${fuel.name},${fuel.price},${i},0,0,0\n`;
+                csvContent += [fuel.name, fuel.price, i, 0, 0, 0].map(csvSafe).join(',') + '\n';
             }
         });
         csvContent += `\n`;
-
-        csvContent += `[BANK_DEPOSITS]\n`;
+        
+        csvContent += `"[BANK_DEPOSITS] - Fill out this section"\n`;
         csvContent += `Description,Amount,Destination Account\n`;
-        csvContent += `Cash Deposit,0,${settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || ''}\n`;
-        csvContent += `Card Swipes,0,${settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || ''}\n`;
+        csvContent += `Cash Deposit,0,"${csvSafe(settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || '')}"\n`;
+        csvContent += `Card Swipes,0,"${csvSafe(settings.bankAccounts.find(b => b.isOverdraft)?.name || settings.bankAccounts[0]?.name || '')}"\n\n`;
+    
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+        csvContent += `"[FUEL_PURCHASES] (Read-only data for the last 30 days)"\n`;
+        csvContent += `Date,Fuel,Quantity (L),Amount (INR),Invoice #\n`;
+        const recentPurchases = (settings.purchases || []).filter(p => parseISO(p.date) >= thirtyDaysAgo);
+        if (recentPurchases.length > 0) {
+            recentPurchases.forEach(p => {
+                const fuel = settings.fuels.find(f => f.id === p.fuelId);
+                csvContent += [ p.date, fuel?.name || 'N/A', p.quantity, p.amount, p.invoiceNumber || '' ].map(csvSafe).join(',') + '\n';
+            });
+        } else {
+            csvContent += `No recent purchases found in the last 30 days.,,,,\n`;
+        }
+        csvContent += `\n`;
+    
+        csvContent += `"[MISCELLANEOUS_PAYMENTS] (Read-only data for the last 30 days)"\n`;
+        csvContent += `Date,Description,Amount (INR),Account\n`;
+        const recentPayments = (settings.bankLedger || []).filter(tx => tx.source === 'misc_payment' && parseISO(tx.date) >= thirtyDaysAgo);
+        if (recentPayments.length > 0) {
+            recentPayments.forEach(tx => {
+                const account = settings.bankAccounts.find(a => a.id === tx.accountId);
+                csvContent += [ tx.date, tx.description, tx.amount, account?.name || 'N/A' ].map(csvSafe).join(',') + '\n';
+            });
+        } else {
+            csvContent += `No recent miscellaneous payments found in the last 30 days.,,,\n`;
+        }
+        csvContent += `\n`;
+    
+        csvContent += `"[MONTH_END_STOCK] (Read-only current data)"\n`;
+        csvContent += `Tank Name,Fuel,Current Stock (L)\n`;
+        settings.tanks.forEach(tank => {
+            const fuel = settings.fuels.find(f => f.id === tank.fuelId);
+            csvContent += [ tank.name, fuel?.name || 'N/A', tank.initialStock ].map(csvSafe).join(',') + '\n';
+        });
+        csvContent += `\n`;
 
+        csvContent += `"[FORMULAS_AND_CALCULATIONS]"\n`;
+        csvContent += `"Note:","To make calculations easier, you can use formulas in your spreadsheet program."\n`;
+        csvContent += `"Example - Total Litres Sold for Petrol:","In a new cell, type: =SUMIF(A:A,""Petrol"",F:F) (assuming Fuel Name is in column A and Sale Litres is in F)"\n`;
+        csvContent += `"Example - Total Cash in Hand:","=(Total Fuel Sales + Lube Sales) - (Credit Sales + PhonePe Sales + Bank Deposits)"\n`;
+    
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
