@@ -77,7 +77,7 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }
@@ -110,7 +110,7 @@ export interface FuelPurchase {
   fuelId: string;
   quantity: number; // in Litres
   amount: number; // total cost
-  accountId: string; // Account used for payment
+  accountId?: string; // Account used for payment
   invoiceNumber?: string;
   createdAt: string;
 }
@@ -131,6 +131,7 @@ export interface SupplierPayment {
   id: string;
   date: string;
   amount: number;
+  accountId: string;
   createdAt: string;
 }
 

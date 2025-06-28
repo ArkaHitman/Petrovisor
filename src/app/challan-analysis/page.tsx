@@ -17,19 +17,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 
 type AnalysisResult = AnalyzeChallanOutput;
 
 const purchaseConfirmationSchema = z.object({
-  accountId: z.string().min(1, "Payment account is required."),
   items: z.array(z.object({
     tankId: z.string().min(1, "Tank is required."),
     fuelName: z.string(),
-    quantity: z.number(), // Litres
-    rate: z.number(), // Per Litre, inclusive of tax
+    quantity: z.number(),
+    rate: z.number(),
     amount: z.number(),
     date: z.string(),
     invoiceNumber: z.string(),
@@ -46,7 +44,6 @@ const ResultsDisplay = ({ result, onConfirm }: { result: AnalysisResult; onConfi
     const form = useForm<PurchaseConfirmationValues>({
         resolver: zodResolver(purchaseConfirmationSchema),
         defaultValues: {
-            accountId: settings?.bankAccounts.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts[0]?.id || '',
             items: result.items.map(item => ({
                 tankId: '',
                 fuelName: item.fuelName,
@@ -145,33 +142,11 @@ const ResultsDisplay = ({ result, onConfirm }: { result: AnalysisResult; onConfi
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Payment Information</CardTitle>
-                        <CardDescription>Select the account used for this entire purchase.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <FormField
-                            control={form.control}
-                            name="accountId"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Payment From Account</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
-                                        <SelectContent>{settings?.bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </CardContent>
-                </Card>
                 <div className="flex items-center gap-2 p-3 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md">
                    <CheckCircle className="h-4 w-4"/>
-                   <p>Data looks good? Assign tanks and click below to add these purchases to your records.</p>
+                   <p>Data looks good? Assign tanks and click below to add this delivery to your ledgers.</p>
                 </div>
-                <Button type="submit" className="w-full">Confirm and Add Purchase(s)</Button>
+                <Button type="submit" className="w-full">Confirm and Add Delivery</Button>
             </form>
         </Form>
     );
@@ -233,7 +208,6 @@ export default function ChallanAnalysisPage() {
                 addFuelPurchase({
                     date: item.date,
                     tankId: item.tankId,
-                    accountId: data.accountId,
                     quantity: item.quantity,
                     amount: item.amount,
                     invoiceNumber: item.invoiceNumber,
@@ -253,8 +227,8 @@ export default function ChallanAnalysisPage() {
                 });
             });
             
-            toast({ title: "Success!", description: `Added ${data.items.length} purchase(s) to all ledgers.` });
-            router.push('/purchases');
+            toast({ title: "Success!", description: `Added ${data.items.length} delivery record(s). Please record the payment in the Supplier Ledger.` });
+            router.push('/supplier-ledger');
         } catch (e) {
              const errorMessage = e instanceof Error ? e.message : "An unknown error occurred while saving.";
              toast({ title: "Save Failed", description: errorMessage, variant: 'destructive' });

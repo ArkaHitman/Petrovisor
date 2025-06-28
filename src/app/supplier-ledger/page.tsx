@@ -29,6 +29,7 @@ const deliverySchema = z.object({
 const paymentSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   amount: z.coerce.number().positive('Amount must be positive'),
+  accountId: z.string().min(1, "Payment account is required."),
 });
 
 export default function SupplierLedgerPage() {
@@ -53,6 +54,7 @@ export default function SupplierLedgerPage() {
     defaultValues: {
       date: format(new Date(), 'yyyy-MM-dd'),
       amount: 0,
+      accountId: settings?.bankAccounts.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts[0]?.id || '',
     },
   });
 
@@ -64,8 +66,12 @@ export default function SupplierLedgerPage() {
 
   const handleAddPayment = (values: z.infer<typeof paymentSchema>) => {
     addSupplierPayment(values);
-    paymentForm.reset();
-    toast({ title: 'Success', description: 'Payment recorded.' });
+    paymentForm.reset({ 
+        date: format(new Date(), 'yyyy-MM-dd'), 
+        amount: 0, 
+        accountId: settings?.bankAccounts.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts[0]?.id || '' 
+    });
+    toast({ title: 'Success', description: 'Payment recorded and bank ledger updated.' });
   };
 
   const handleDeleteDelivery = (id: string) => {
@@ -118,7 +124,7 @@ export default function SupplierLedgerPage() {
 
           {/* Delivery Form */}
           <Card className="lg:col-span-2">
-            <CardHeader><CardTitle>1. Add Fuel Delivery</CardTitle></CardHeader>
+            <CardHeader><CardTitle>1. Add Fuel Delivery (Manual)</CardTitle></CardHeader>
             <CardContent>
               <Form {...deliveryForm}>
                 <form onSubmit={deliveryForm.handleSubmit(handleAddDelivery)} className="space-y-4">
@@ -148,6 +154,16 @@ export default function SupplierLedgerPage() {
               <Form {...paymentForm}>
                 <form onSubmit={paymentForm.handleSubmit(handleAddPayment)} className="space-y-4">
                   <FormField control={paymentForm.control} name="date" render={({ field }) => <FormItem><FormLabel>Payment Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>} />
+                   <FormField control={paymentForm.control} name="accountId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment From Account</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
+                          <SelectContent>{settings?.bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={paymentForm.control} name="amount" render={({ field }) => <FormItem><FormLabel>Amount Paid</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                   <Button type="submit">Add Payment</Button>
                 </form>
@@ -198,15 +214,19 @@ export default function SupplierLedgerPage() {
             <CardContent>
               {supplierPayments.length > 0 ? (
                 <Table>
-                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead className="text-right">Amount Paid</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Account</TableHead><TableHead className="text-right">Amount Paid</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {supplierPayments.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell>{format(parseISO(p.date), 'dd MMM yyyy')}</TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
-                        <TableCell><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeletePayment(p.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
-                      </TableRow>
-                    ))}
+                    {supplierPayments.map(p => {
+                      const account = settings?.bankAccounts.find(a => a.id === p.accountId);
+                      return (
+                        <TableRow key={p.id}>
+                            <TableCell>{format(parseISO(p.date), 'dd MMM yyyy')}</TableCell>
+                            <TableCell>{account?.name || 'N/A'}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
+                            <TableCell><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeletePayment(p.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               ) : <p className="text-muted-foreground text-center py-4">No payments recorded yet.</p>}

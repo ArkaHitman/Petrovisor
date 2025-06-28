@@ -414,23 +414,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
         return tank;
       });
-      
-      const fuel = prev.settings.fuels.find(f => f.id === purchase.fuelId);
-      const newBankTx: BankTransaction = {
-        id: crypto.randomUUID(),
-        accountId: purchase.accountId,
-        date: purchase.date,
-        description: `Fuel Purchase: ${purchase.quantity}L of ${fuel?.name || 'Unknown'}`,
-        type: 'debit',
-        amount: purchase.amount,
-        source: 'fuel_purchase',
-        sourceId: newPurchase.id,
-        createdAt: new Date().toISOString(),
-      };
 
-      const newBankLedger = [...(prev.settings.bankLedger || []), newBankTx].sort((a,b) => b.date.localeCompare(a.date));
-
-      const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks, bankLedger: newBankLedger };
+      const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks };
 
       return { ...prev, settings: newSettings };
     });
@@ -449,8 +434,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             }
             return tank;
         });
-        const newBankLedger = (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== purchaseId);
-        const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks, bankLedger: newBankLedger };
+        
+        const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks };
         return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
@@ -495,15 +480,31 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addSupplierPayment = useCallback((payment: Omit<SupplierPayment, 'id' | 'createdAt'>) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
+      
       const newPayment: SupplierPayment = {
         id: crypto.randomUUID(),
         ...payment,
         createdAt: new Date().toISOString(),
       };
+
+      const newBankDebit: BankTransaction = {
+        id: crypto.randomUUID(),
+        accountId: payment.accountId,
+        date: payment.date,
+        description: `Payment to supplier`,
+        type: 'debit',
+        amount: payment.amount,
+        source: 'supplier_payment',
+        sourceId: newPayment.id,
+        createdAt: newPayment.createdAt,
+      };
+
       const newSettings = {
         ...prev.settings,
         supplierPayments: [...(prev.settings.supplierPayments || []), newPayment].sort((a,b) => b.date.localeCompare(a.date)),
+        bankLedger: [...(prev.settings.bankLedger || []), newBankDebit].sort((a,b) => b.date.localeCompare(a.date)),
       };
+
       return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
@@ -514,6 +515,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const newSettings = {
         ...prev.settings,
         supplierPayments: (prev.settings.supplierPayments || []).filter(p => p.id !== paymentId),
+        bankLedger: (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== paymentId || tx.source !== 'supplier_payment'),
       };
       return { ...prev, settings: newSettings };
     });
@@ -574,7 +576,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                 return { nozzleId: r.nozzleId, opening: r.openingReading, closing: r.closingReading, testing: r.testing, saleLitres, saleAmount, estProfit };
             });
             
-            totalProfit += fuelTotalProfit; totalLitres += fuelTotalLitres;
+            totalProfit += fuelTotalProfit; totalLitres += totalLitres;
             const pricePerLitre = aiReadingsForFuel.length > 0 ? aiReadingsForFuel[0].pricePerLitre : 0;
             return { fuelId: fuel.id, readings: meterReadings, totalLitres: fuelTotalLitres, totalSales: fuelTotalSales, estProfit: fuelTotalProfit, pricePerLitre, costPerLitre: costPrice };
         });
