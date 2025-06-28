@@ -58,10 +58,11 @@ The document is a challan for a fuel delivery from a major oil marketing company
   - Identify the fuel type. 'MS' stands for Motor Spirit (Petrol), 'HSD' stands for High-Speed Diesel. Standardize the name.
   - **Quantity Conversion**: The challan may list quantity in Kilolitres (KL). You MUST convert it to Litres (1 KL = 1000 L). The \`quantity\` field in your output must be in Litres.
   - **Rate Conversion**: The challan may list the rate per KL. You MUST calculate the rate per Litre (Rate per Litre = Rate per KL / 1000). The \`rate\` field in your output must be the final, all-inclusive price per Litre.
-  - Extract the total amount for that line item.
 - **subTotal**: Find the subtotal, which is the sum of all item amounts before tax. If not explicitly listed, calculate it by summing the 'amount' of all items.
 - **vatAmount**: Find a specific line item for VAT (Value Added Tax) and extract its value. If it's not present, leave it empty.
 - **totalAmount**: Extract the final, grand total amount of the invoice. This is the most important figure.
+
+**IMPORTANT - Number Formatting**: Pay close attention to numbers. A number like "10.000" on an Indian challan almost always means "10" (ten), not "ten thousand". The period is a decimal separator. For example, if you see "10.000 KL", you must interpret it as 10 Kilolitres and convert it to 10000 Litres for the 'quantity' field. Do not mistake the decimal point for a thousands separator.
 
 Return the extracted information precisely in the specified JSON format.
 
