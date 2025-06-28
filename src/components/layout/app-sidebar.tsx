@@ -32,6 +32,7 @@ import {
   ClipboardPenLine,
   GitCommitHorizontal,
   UsersRound,
+  ClipboardIcon,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -56,6 +57,7 @@ const financialsMenuItems = [
 ];
 
 const dataMenuItems = [
+  { href: '/challan-analysis', label: 'AI Challan Analysis', icon: ClipboardIcon },
   { href: '/dsr', label: 'AI DSR Analysis', icon: FileScan },
   { href: '/fund-analysis', label: 'AI Fund Analysis', icon: Spline },
   { href: '/reports', label: 'Monthly Reports', icon: FileText },
