@@ -149,9 +149,10 @@ const AppSidebar = () => {
                 <SidebarMenuButton
                 asChild
                 variant="outline"
+                isActive={pathname === '/help'}
                 tooltip={{ children: 'Help & Support' }}
                 >
-                <Link href="#">
+                <Link href="/help">
                     <CircleHelp />
                     <span>Help & Support</span>
                 </Link>
