@@ -1,3 +1,4 @@
+
 'use client';
 import AppLayout from '@/components/layout/app-layout';
 import PageHeader from '@/components/page-header';
@@ -8,6 +9,7 @@ import { GitCommitHorizontal, Fuel } from 'lucide-react';
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 export default function StockVariationPage() {
   const { settings } = useAppState();
@@ -64,7 +66,7 @@ export default function StockVariationPage() {
             variation,
             variationValue,
         };
-    }).filter(Boolean);
+    }).filter((item): item is NonNullable<typeof item> => !!item);
 
   }, [settings]);
 
@@ -72,7 +74,7 @@ export default function StockVariationPage() {
     return (
       <AppLayout>
         <PageHeader title="Stock Variation" description="Compare book stock against physical stock readings." />
-        <div className="p-4 md:p-8"><Card><CardContent className="p-8 text-center text-muted-foreground">No tanks configured.</CardContent></Card></Card></div>
+        <div className="p-4 md:p-8"><Card><CardContent className="p-8 text-center text-muted-foreground">No tanks configured.</CardContent></Card></div>
       </AppLayout>
     );
   }
@@ -102,16 +104,16 @@ export default function StockVariationPage() {
                         </TableHeader>
                         <TableBody>
                             {stockData.map(item => (
-                                <TableRow key={item!.tankId}>
-                                    <TableCell className="font-medium">{item!.tankName}</TableCell>
-                                    <TableCell><Badge variant="secondary">{item!.fuelName}</Badge></TableCell>
-                                    <TableCell className="text-right">{item!.bookStock.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-semibold">{item!.physicalStock.toFixed(2)}</TableCell>
-                                    <TableCell className={cn("text-right font-bold", item!.variation > 0 ? "text-primary" : "text-destructive")}>
-                                        {item!.variation.toFixed(2)}
+                                <TableRow key={item.tankId}>
+                                    <TableCell className="font-medium">{item.tankName}</TableCell>
+                                    <TableCell><Badge variant="secondary">{item.fuelName}</Badge></TableCell>
+                                    <TableCell className="text-right">{item.bookStock.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{item.physicalStock.toFixed(2)}</TableCell>
+                                    <TableCell className={cn("text-right font-bold", item.variation > 0 ? "text-primary" : "text-destructive")}>
+                                        {item.variation.toFixed(2)}
                                     </TableCell>
-                                    <TableCell className={cn("text-right font-bold", item!.variationValue > 0 ? "text-primary" : "text-destructive")}>
-                                        {formatCurrency(item!.variationValue)}
+                                    <TableCell className={cn("text-right font-bold", item.variationValue > 0 ? "text-primary" : "text-destructive")}>
+                                        {formatCurrency(item.variationValue)}
                                     </TableCell>
                                 </TableRow>
                             ))}
