@@ -32,7 +32,9 @@ const AnalyzeChallanOutputSchema = z.object({
     supplierName: z.string().optional().describe("The name of the supplier, e.g., 'Indian Oil Corporation Ltd.'."),
     vehicleNumber: z.string().optional().describe("The registration number of the delivery truck."),
     items: z.array(ChallanItemSchema).describe("An array of all fuel items listed on the challan."),
-    totalAmount: z.coerce.number().describe("The final total amount of the challan."),
+    subTotal: z.coerce.number().optional().describe("The total amount of all items before any taxes or other charges. If not explicitly mentioned, this is the sum of all item amounts."),
+    vatAmount: z.coerce.number().optional().describe("The total Value Added Tax (VAT) amount charged on the challan. Extract this if it's a separate line item."),
+    totalAmount: z.coerce.number().describe("The final, grand total amount of the challan."),
 });
 export type AnalyzeChallanOutput = z.infer<typeof AnalyzeChallanOutputSchema>;
 
@@ -54,8 +56,10 @@ The document is a challan for a fuel delivery from a major oil marketing company
 - **vehicleNumber**: Find the truck or vehicle registration number (e.g., OD01AB1234).
 - **items**: This is a list of fuels delivered. For each item:
   - Identify the fuel type. 'MS' stands for Motor Spirit (Petrol), 'HSD' stands for High-Speed Diesel. Standardize the name.
-  - Extract the quantity in litres, the rate per litre, and the total amount for that line item.
-- **totalAmount**: Extract the final, grand total amount of the invoice.
+  - Extract the quantity in litres, the rate per litre, and the total amount for that line item. The rate should be the final, all-inclusive price per litre.
+- **subTotal**: Find the subtotal, which is the sum of all item amounts before tax. If not explicitly listed, calculate it by summing the 'amount' of all items.
+- **vatAmount**: Find a specific line item for VAT (Value Added Tax) and extract its value. If it's not present, leave it empty.
+- **totalAmount**: Extract the final, grand total amount of the invoice. This is the most important figure.
 
 Return the extracted information precisely in the specified JSON format.
 
@@ -72,6 +76,10 @@ const analyzeChallanFlow = ai.defineFlow(
     const {output} = await prompt(input);
     if (!output) {
       throw new Error("AI analysis failed to produce a valid output from the challan.");
+    }
+    // If subTotal is missing, calculate it from items
+    if (!output.subTotal && output.items.length > 0) {
+        output.subTotal = output.items.reduce((sum, item) => sum + item.amount, 0);
     }
     return output;
   }
