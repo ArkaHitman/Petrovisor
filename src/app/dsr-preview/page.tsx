@@ -1,4 +1,3 @@
-
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -71,7 +70,14 @@ export default function DsrPreviewPage() {
                 </TableHeader>
                 <TableBody>
                   {shiftReports.map(report => {
-                    const totalCreditSales = (report.creditSales || []).reduce((sum, sale) => sum + sale.amount, 0);
+                    let totalCreditSales = 0;
+                    // Handle backwards compatibility for old data structure where creditSales was a number
+                    if (Array.isArray(report.creditSales)) {
+                        totalCreditSales = (report.creditSales || []).reduce((sum, sale) => sum + sale.amount, 0);
+                    } else if (typeof (report as any).creditSales === 'number') {
+                        totalCreditSales = (report as any).creditSales;
+                    }
+
                     return (
                         <TableRow key={report.id}>
                         <TableCell className="font-medium">{format(parseISO(report.date), 'dd MMM yyyy')}</TableCell>
