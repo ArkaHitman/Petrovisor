@@ -53,7 +53,7 @@ export default function Dashboard() {
     const overdraftAccount: BankAccount | null = (settings.bankAccounts || []).find(acc => acc.isOverdraft) || (settings.bankAccounts || [])[0] || null;
     const overdraftAccountBalance = calculatedAccountBalances.find(acc => acc.id === overdraftAccount?.id)?.balance || 0;
 
-    const managerAccount = settings.chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
+    const managerAccount = settings.chartOfAccounts?.find(acc => acc.name === "Manager's Capital Account");
     let netManagerBalance = 0;
     let recentManagerTransactions: JournalEntry[] = [];
     if (managerAccount) {

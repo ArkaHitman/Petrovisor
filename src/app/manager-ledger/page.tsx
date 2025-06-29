@@ -131,7 +131,7 @@ export default function ManagerLedgerPage() {
     const bankAccounts = settings?.bankAccounts || [];
 
     const { managerTransactions, netBalance, managerAccount } = useMemo(() => {
-        if (!settings) return { managerTransactions: [], netBalance: 0, managerAccount: null };
+        if (!settings || !settings.chartOfAccounts) return { managerTransactions: [], netBalance: 0, managerAccount: null };
         const managerAccount = settings.chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
         if (!managerAccount) return { managerTransactions: [], netBalance: 0, managerAccount: null };
 
@@ -175,7 +175,7 @@ export default function ManagerLedgerPage() {
             return settings?.bankAccounts.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Bank';
         }
         if (otherLeg.accountType === 'chart_of_account') {
-            return settings?.chartOfAccounts.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Account';
+            return settings?.chartOfAccounts?.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Account';
         }
         return 'Cash';
     }
