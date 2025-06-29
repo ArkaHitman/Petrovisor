@@ -35,6 +35,7 @@ import {
   ClipboardIcon,
   Layers,
   BookMarked,
+  ClipboardList,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -44,6 +45,7 @@ const overviewMenuItems = [
 
 const operationsMenuItems = [
   { href: '/shift-report', label: 'Shift Report', icon: ClipboardPenLine },
+  { href: '/dsr-preview', label: 'DSR Preview', icon: ClipboardList },
   { href: '/purchases', label: 'Fuel Purchases', icon: Fuel },
   { href: '/tanks', label: 'Tank Status', icon: Database },
   { href: '/stock-variation', label: 'Stock Variation', icon: GitCommitHorizontal },
