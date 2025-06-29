@@ -42,41 +42,44 @@ export default function DsrPreviewPage() {
     }
 
     const doc = new jsPDF();
-    let lastY = 15;
-
-    doc.setFontSize(18);
-    doc.text("Shift Report History", doc.internal.pageSize.getWidth() / 2, lastY, { align: 'center' });
-    lastY += 8;
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generated on: ${format(new Date(), 'dd MMM yyyy, h:mm a')}`, doc.internal.pageSize.getWidth() / 2, lastY, { align: 'center' });
-    lastY += 12;
 
     shiftReports.forEach((report, reportIndex) => {
-      if (lastY > 250) {
-        doc.addPage();
-        lastY = 15;
-      }
-      
       if (reportIndex > 0) {
-        doc.setDrawColor(221, 221, 221);
-        doc.setLineWidth(0.3);
-        doc.line(14, lastY, doc.internal.pageSize.getWidth() - 14, lastY);
-        lastY += 10;
+        doc.addPage();
       }
+
+      let lastY = 15;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 14;
+
+      // --- LETTERHEAD ---
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+      doc.text(settings.pumpName || 'PetroVisor Station', pageWidth / 2, lastY + 5, { align: 'center' });
+      lastY += 20;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      // Example address, should be configurable in settings in a future update
+      doc.text('Dealer: Indian Oil Corporation Limited', pageWidth / 2, lastY, { align: 'center' });
+      lastY += 12;
+      doc.text('P.S. -Talsara, Dist. - Sundargarh, Odisha', pageWidth / 2, lastY, { align: 'center' });
+      lastY += 20;
+
+      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2);
+      doc.line(margin, lastY, pageWidth - margin, lastY);
+      lastY += 15;
+
+      // --- REPORT HEADER ---
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+      doc.text(`Shift Report`, margin, lastY);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      const reportDateStr = `Date: ${format(parseISO(report.date), 'dd MMMM yyyy')} (${report.shiftType.toUpperCase()})`;
+      doc.text(reportDateStr, pageWidth - margin, lastY, { align: 'right' });
+      lastY += 15;
 
       const employeeName = getEmployeeName(report.employeeId);
+      doc.text(`Employee: ${employeeName}`, margin, lastY);
+      lastY += 20;
 
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0,0,0);
-      doc.text(`Shift Report: ${format(parseISO(report.date), 'dd MMMM yyyy')} (${report.shiftType.toUpperCase()})`, 14, lastY);
-      lastY += 6;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Employee: ${employeeName}`, 14, lastY);
-      lastY += 8;
-
+      // --- FUEL SALES ---
       const readingsByFuel = new Map<string, typeof report.meterReadings>();
       report.meterReadings.forEach(reading => {
         if (!readingsByFuel.has(reading.fuelId)) {
@@ -90,14 +93,12 @@ export default function DsrPreviewPage() {
         if (!fuel) continue;
 
         const { sellingPrice } = getFuelPricesForDate(fuel.id, report.date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-        
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${fuel.name} Sales (Rate: ${formatCurrency(sellingPrice)})`, 14, lastY);
-        lastY += 1;
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+        doc.text(`${fuel.name} Sales (Rate: ${formatCurrency(sellingPrice)})`, margin, lastY);
         
         autoTable(doc, {
-          startY: lastY,
+          startY: lastY + 3,
           head: [['Nozzle', 'Opening', 'Closing', 'Testing', 'Sale (L)', 'Sale (₹)']],
           body: readings.map(r => [
             r.nozzleId.toString(),
@@ -110,6 +111,7 @@ export default function DsrPreviewPage() {
           theme: 'grid',
           headStyles: { fillColor: '#f4f4f5', textColor: '#141414', fontStyle: 'normal', fontSize: 9 },
           bodyStyles: { fontSize: 9 },
+          margin: { left: margin, right: margin },
           columnStyles: {
             0: { halign: 'center' },
             1: { halign: 'right' },
@@ -121,28 +123,31 @@ export default function DsrPreviewPage() {
         });
         lastY = (doc as any).lastAutoTable.finalY + 8;
       }
+      
+      // --- FINANCIAL SUMMARY ---
+      let totalFuelSales = report.totalSales - (report.lubeSaleAmount || 0);
 
       let totalCreditSales = 0;
-      let creditDetails = '';
+      let creditDetailsText = '';
       if (Array.isArray(report.creditSales) && report.creditSales.length > 0) {
         totalCreditSales = report.creditSales.reduce((sum, s) => sum + s.amount, 0);
-        creditDetails = report.creditSales.map(sale => {
+        creditDetailsText = report.creditSales.map(sale => {
             const customerName = settings.customers.find(c => c.id === sale.customerId)?.name || 'Unknown';
             return `  - ${customerName}: ${formatCurrency(sale.amount)}`;
         }).join('\n');
-      } else if (typeof report.creditSales === 'number' && report.creditSales > 0) {
-        totalCreditSales = report.creditSales;
-        creditDetails = '  - Legacy Entry';
+      } else if (typeof (report as any).creditSales === 'number' && (report as any).creditSales > 0) {
+        totalCreditSales = (report as any).creditSales;
+        creditDetailsText = '  - Legacy Entry';
       }
+      const creditRowContent = totalCreditSales > 0 ? `Credit Sales\n${creditDetailsText}` : 'Credit Sales';
 
-      const financialBody: any[] = [];
-      financialBody.push([
-        { content: 'Total Fuel Sales', styles: { fontStyle: 'bold' } },
-        { content: formatCurrency(report.totalSales - (report.lubeSaleAmount || 0)), styles: { halign: 'right' } }
-      ]);
-      
+      const financialBody: any[] = [
+        [{ content: 'Total Fuel Sales' }, { content: formatCurrency(totalFuelSales), styles: { halign: 'right' } }],
+      ];
+
       if (report.lubeSaleAmount && report.lubeSaleAmount > 0) {
-        financialBody.push([`Lube Sale (${report.lubeSaleName || 'N/A'})`, { content: formatCurrency(report.lubeSaleAmount), styles: { halign: 'right' } }]);
+        const lubeDetails = `Lube Sale (${report.lubeSaleName || 'N/A'})`;
+        financialBody.push([lubeDetails, { content: formatCurrency(report.lubeSaleAmount), styles: { halign: 'right' } }]);
       }
 
       financialBody.push([
@@ -150,11 +155,11 @@ export default function DsrPreviewPage() {
         { content: formatCurrency(report.totalSales), styles: { fontStyle: 'bold', halign: 'right', fillColor: '#f4f4f5' } }
       ]);
 
-      if (totalCreditSales > 0) {
-        financialBody.push([{ content: 'Credit Sales\n' + creditDetails, styles: { cellPadding: { top: 2, right: 2, bottom: 4, left: 2 } } }, { content: `(${formatCurrency(totalCreditSales)})`, styles: { halign: 'right', fontStyle: 'bold' } }]);
-      }
-
-      financialBody.push(['Online Payments', { content: `(${formatCurrency(report.onlinePayments)})`, styles: { halign: 'right', fontStyle: 'bold' } }]);
+      financialBody.push([
+          { content: creditRowContent },
+          { content: `(${formatCurrency(totalCreditSales)})`, styles: { halign: 'right' } }
+      ]);
+      financialBody.push(['Online Payments', { content: `(${formatCurrency(report.onlinePayments)})`, styles: { halign: 'right' } }]);
       
       financialBody.push([
         { content: 'Net Cash In Hand', styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } },
@@ -162,12 +167,23 @@ export default function DsrPreviewPage() {
       ]);
       
       autoTable(doc, {
-        startY: lastY,
+        startY: lastY + 5,
         head: [['Financial Summary', '']],
         body: financialBody,
         theme: 'grid',
         headStyles: { fillColor: '#3f3f46', textColor: '#ffffff' },
-        bodyStyles: { fontSize: 9 },
+        bodyStyles: { fontSize: 9, cellPadding: 3, valign: 'middle' },
+        margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          if (data.row.section === 'body') {
+            if (data.row.raw[1]?.styles?.halign) {
+              data.cell.styles.halign = data.row.raw[1].styles.halign;
+            }
+            if(data.row.raw[0]?.styles) {
+              Object.assign(data.cell.styles, data.row.raw[0].styles);
+            }
+          }
+        }
       });
       lastY = (doc as any).lastAutoTable.finalY + 15;
     });
@@ -183,7 +199,6 @@ export default function DsrPreviewPage() {
     doc.save(`PetroVisor_DSR_History_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     toast({ title: 'Success', description: 'PDF download initiated!' });
   };
-
 
   return (
     <AppLayout>
