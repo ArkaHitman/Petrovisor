@@ -121,9 +121,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
       };
+      
+      const bankTxType = transaction.type === 'payment_from_manager' ? 'credit' : 'debit';
+      const bankTxDescription = transaction.type === 'payment_from_manager'
+          ? `Payment from Manager: ${transaction.description}`
+          : `Payment to Manager: ${transaction.description}`;
+
+      const newBankTransaction: BankTransaction = {
+          id: crypto.randomUUID(),
+          accountId: transaction.accountId,
+          date: transaction.date,
+          description: bankTxDescription,
+          type: bankTxType,
+          amount: transaction.amount,
+          source: 'manager_payment',
+          sourceId: newTransaction.id,
+          createdAt: newTransaction.createdAt,
+      };
+
       const newSettings = {
         ...prev.settings,
         managerLedger: [...(prev.settings.managerLedger || []), newTransaction].sort((a,b) => b.date.localeCompare(a.date)),
+        bankLedger: [...(prev.settings.bankLedger || []), newBankTransaction].sort((a,b) => b.date.localeCompare(a.date)),
       };
       return { ...prev, settings: newSettings };
     });
@@ -135,6 +154,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const newSettings = {
         ...prev.settings,
         managerLedger: (prev.settings.managerLedger || []).filter(t => t.id !== transactionId),
+        bankLedger: (prev.settings.bankLedger || []).filter(bt => bt.sourceId !== transactionId || bt.source !== 'manager_payment'),
       };
       return { ...prev, settings: newSettings };
     });

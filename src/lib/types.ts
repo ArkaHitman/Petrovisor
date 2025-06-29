@@ -67,6 +67,7 @@ export interface ManagerTransaction {
   description: string;
   type: 'payment_to_manager' | 'payment_from_manager';
   amount: number;
+  accountId: string; // The ID of the bank account involved.
   createdAt: string;
 }
 
@@ -77,7 +78,7 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment' | 'manager_payment';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }

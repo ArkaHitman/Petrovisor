@@ -1,3 +1,4 @@
+
 'use client';
 import AppLayout from '@/components/layout/app-layout';
 import PageHeader from '@/components/page-header';
@@ -29,15 +30,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import type { BankAccount } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const transactionSchema = z.object({
     date: z.string().min(1, 'Date is required'),
     description: z.string().min(1, 'Description is required'),
     type: z.enum(['payment_to_manager', 'payment_from_manager']),
     amount: z.coerce.number().positive('Amount must be positive'),
+    accountId: z.string().min(1, 'Please select a bank account'),
 });
 
-function AddTransactionDialog({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void }) {
+function AddTransactionDialog({ open, setOpen, bankAccounts }: { open: boolean; setOpen: (open: boolean) => void, bankAccounts: BankAccount[] }) {
     const { addManagerTransaction } = useAppState();
     const { toast } = useToast();
 
@@ -48,8 +52,12 @@ function AddTransactionDialog({ open, setOpen }: { open: boolean; setOpen: (open
             description: '',
             type: 'payment_to_manager',
             amount: 0,
+            accountId: bankAccounts.find(acc => acc.isOverdraft)?.id || bankAccounts[0]?.id || '',
         }
     });
+    
+    const watchedType = form.watch('type');
+    const accountLabel = watchedType === 'payment_to_manager' ? 'Payment From Account' : 'Deposit To Account';
 
     const onSubmit = (values: z.infer<typeof transactionSchema>) => {
         addManagerTransaction(values);
@@ -93,6 +101,20 @@ function AddTransactionDialog({ open, setOpen }: { open: boolean; setOpen: (open
                                 <FormMessage />
                             </FormItem>
                         )} />
+                        <FormField control={form.control} name="accountId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{accountLabel}</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger><SelectValue placeholder="Select a bank account" /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                             <Button type="submit">Add Transaction</Button>
@@ -109,6 +131,7 @@ export default function ManagerLedgerPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
 
     const managerLedger = settings?.managerLedger || [];
+    const bankAccounts = settings?.bankAccounts || [];
     const initialBalance = settings?.managerInitialBalance || 0;
 
     const netBalance = useMemo(() => {
@@ -163,16 +186,20 @@ export default function ManagerLedgerPage() {
                                     <TableRow>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Description</TableHead>
+                                        <TableHead>Account</TableHead>
                                         <TableHead>Type</TableHead>
                                         <TableHead className="text-right">Amount</TableHead>
                                         <TableHead className="w-12"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {managerLedger.map(tx => (
+                                    {managerLedger.map(tx => {
+                                        const account = bankAccounts.find(acc => acc.id === tx.accountId);
+                                        return (
                                         <TableRow key={tx.id}>
                                             <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy')}</TableCell>
                                             <TableCell>{tx.description}</TableCell>
+                                            <TableCell><Badge variant="secondary">{account?.name || 'N/A'}</Badge></TableCell>
                                             <TableCell>
                                                 <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'destructive'} className="capitalize">
                                                     {tx.type.replace(/_/g, ' ')}
@@ -188,7 +215,7 @@ export default function ManagerLedgerPage() {
                                                     <AlertDialogHeader>
                                                       <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
                                                       <AlertDialogDescription>
-                                                        This will permanently delete the transaction. This action cannot be undone.
+                                                        This will permanently delete this transaction and its corresponding entry in the bank ledger. This action cannot be undone.
                                                       </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -199,14 +226,14 @@ export default function ManagerLedgerPage() {
                                                 </AlertDialog>
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                    )})}
                                 </TableBody>
                             </Table>
                         )}
                     </CardContent>
                 </Card>
             </div>
-            <AddTransactionDialog open={isAddDialogOpen} setOpen={setIsAddDialogOpen} />
+            <AddTransactionDialog open={isAddDialogOpen} setOpen={setIsAddDialogOpen} bankAccounts={bankAccounts} />
         </AppLayout>
     );
 }
