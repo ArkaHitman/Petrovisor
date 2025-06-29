@@ -97,7 +97,8 @@ function addJournalEntryLogic(settings: Settings, entry: Omit<JournalEntry, 'id'
 }
 
 const getOrAddManagerAccount = (settings: Settings): { updatedSettings: Settings; managerAccount: ChartOfAccount } => {
-    let managerAccount = settings.chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
+    const chartOfAccounts = settings.chartOfAccounts || [];
+    let managerAccount = chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
     if (managerAccount) {
         return { updatedSettings: settings, managerAccount };
     }
@@ -106,7 +107,7 @@ const getOrAddManagerAccount = (settings: Settings): { updatedSettings: Settings
         name: "Manager's Capital Account",
         type: 'Equity',
     };
-    const updatedChartOfAccounts = [...settings.chartOfAccounts, managerAccount];
+    const updatedChartOfAccounts = [...chartOfAccounts, managerAccount];
     const updatedSettings = { ...settings, chartOfAccounts: updatedChartOfAccounts };
     return { updatedSettings, managerAccount };
 };
