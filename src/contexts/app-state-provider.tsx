@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, ShiftReportCreditSale } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -41,6 +41,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [setAppState]);
   
   const finishSetup = useCallback((settings: Settings) => {
+    const managerAccount: ChartOfAccount = { id: crypto.randomUUID(), name: "Manager's Capital Account", type: 'Equity' };
+    const openingBalanceEquityAccount: ChartOfAccount = { id: crypto.randomUUID(), name: 'Opening Balance Equity', type: 'Equity' };
+
+    const initialJournalEntries: JournalEntry[] = [];
+    if (settings.managerInitialBalance && settings.managerInitialBalance > 0) {
+        initialJournalEntries.push({
+            id: crypto.randomUUID(),
+            date: format(new Date(), 'yyyy-MM-dd'),
+            description: "Initial investment from manager",
+            legs: [
+                { accountType: 'chart_of_account', accountId: openingBalanceEquityAccount.id, debit: settings.managerInitialBalance, credit: 0 },
+                { accountType: 'chart_of_account', accountId: managerAccount.id, credit: settings.managerInitialBalance, debit: 0 },
+            ],
+            createdAt: new Date().toISOString()
+        });
+    }
+
     const fullSettings: Settings = {
       ...settings,
       theme: 'light',
@@ -58,8 +75,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       purchases: settings.purchases || [],
       supplierDeliveries: settings.supplierDeliveries || [],
       supplierPayments: settings.supplierPayments || [],
-      chartOfAccounts: initialChartOfAccounts.map(acc => ({...acc, id: crypto.randomUUID()})),
-      journalEntries: [],
+      chartOfAccounts: [
+        ...initialChartOfAccounts.map(acc => ({...acc, id: crypto.randomUUID()})),
+        managerAccount,
+        openingBalanceEquityAccount
+      ],
+      managerAccountId: managerAccount.id,
+      journalEntries: initialJournalEntries,
     };
     setAppState(prevState => ({
       ...prevState,
@@ -133,53 +155,127 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [setAppState]);
 
 
+  // Journal Entries
+    const addJournalEntry = useCallback((entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+
+            const now = new Date().toISOString();
+            const newEntry: JournalEntry = { ...entry, id: crypto.randomUUID(), createdAt: now };
+
+            const newBankTransactions: BankTransaction[] = [];
+            const newCashTransactions: MiscCollection[] = [];
+
+            entry.legs.forEach(leg => {
+                if (leg.accountType === 'bank_account') {
+                    const bankAccount = prev.settings?.bankAccounts.find(ba => ba.id === leg.accountId);
+                    if (bankAccount) {
+                        const amount = leg.debit > 0 ? leg.debit : leg.credit;
+                        // For Bank Ledger UI: Debit to asset (bank account) = money in = 'credit' transaction
+                        const type = leg.debit > 0 ? 'credit' : 'debit';
+                        
+                        newBankTransactions.push({
+                            id: crypto.randomUUID(),
+                            accountId: bankAccount.id,
+                            date: entry.date,
+                            description: `Journal: ${entry.description}`,
+                            amount,
+                            type,
+                            source: 'journal_entry',
+                            sourceId: newEntry.id,
+                            createdAt: now,
+                        });
+                    }
+                } else if (leg.accountType === 'cash_account') {
+                    const amount = leg.debit > 0 ? leg.debit : leg.credit;
+                    // For Cash Account: Debit to asset (cash) = money in = 'inflow'
+                    const type = leg.debit > 0 ? 'inflow' : 'outflow';
+
+                    newCashTransactions.push({
+                        id: crypto.randomUUID(),
+                        date: entry.date,
+                        description: `Journal: ${entry.description}`,
+                        amount,
+                        type,
+                        source: 'journal_entry',
+                        sourceId: newEntry.id,
+                        createdAt: now,
+                    });
+                }
+            });
+
+            const newSettings = {
+                ...prev.settings,
+                journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
+                bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
+                miscCollections: [...(prev.settings.miscCollections || []), ...newCashTransactions].sort((a,b) => b.date.localeCompare(a.date)),
+            };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
+    const deleteJournalEntry = useCallback((entryId: string) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+            const newSettings = {
+                ...prev.settings,
+                journalEntries: (prev.settings.journalEntries || []).filter(je => je.id !== entryId),
+                bankLedger: (prev.settings.bankLedger || []).filter(bt => bt.source !== 'journal_entry' || bt.sourceId !== entryId),
+                miscCollections: (prev.settings.miscCollections || []).filter(mc => mc.source !== 'journal_entry' || mc.sourceId !== entryId),
+            };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
   const addManagerTransaction = useCallback((transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {
-      if (!prev.settings) return prev;
-      const newTransaction: ManagerTransaction = { 
-        ...transaction, 
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-      };
-      
-      const bankTxType = transaction.type === 'payment_from_manager' ? 'credit' : 'debit';
-      const bankTxDescription = transaction.type === 'payment_from_manager'
-          ? `Payment from Manager: ${transaction.description}`
-          : `Payment to Manager: ${transaction.description}`;
+        if (!prev.settings || !prev.settings.managerAccountId) return prev;
+        const { date, description, type, amount, accountId } = transaction;
 
-      const newBankTransaction: BankTransaction = {
-          id: crypto.randomUUID(),
-          accountId: transaction.accountId,
-          date: transaction.date,
-          description: bankTxDescription,
-          type: bankTxType,
-          amount: transaction.amount,
-          source: 'manager_payment',
-          sourceId: newTransaction.id,
-          createdAt: newTransaction.createdAt,
-      };
+        const journalLegs: JournalEntryLeg[] = [];
+        if (type === 'payment_to_manager') {
+            // Manager's account is debited, bank is credited
+            journalLegs.push({ accountType: 'chart_of_account', accountId: prev.settings.managerAccountId, debit: amount, credit: 0 });
+            journalLegs.push({ accountType: 'bank_account', accountId: accountId, credit: amount, debit: 0 });
+        } else { // payment_from_manager
+            // Bank is debited, Manager's account is credited
+            journalLegs.push({ accountType: 'bank_account', accountId: accountId, debit: amount, credit: 0 });
+            journalLegs.push({ accountType: 'chart_of_account', accountId: prev.settings.managerAccountId, credit: amount, debit: 0 });
+        }
+        
+        const journalEntry: Omit<JournalEntry, 'id' | 'createdAt'> = {
+            date,
+            description,
+            legs: journalLegs,
+        };
 
-      const newSettings = {
-        ...prev.settings,
-        managerLedger: [...(prev.settings.managerLedger || []), newTransaction].sort((a,b) => b.date.localeCompare(a.date)),
-        bankLedger: [...(prev.settings.bankLedger || []), newBankTransaction].sort((a,b) => b.date.localeCompare(a.date)),
-      };
-      return { ...prev, settings: newSettings };
+        // Re-use the master addJournalEntry logic by temporarily creating the entry and calling the function
+        const tempState = { settings: prev.settings };
+        const now = new Date().toISOString();
+        const newEntry: JournalEntry = { ...journalEntry, id: crypto.randomUUID(), createdAt: now };
+
+        const newBankTransactions: BankTransaction[] = [];
+        const newCashTransactions: MiscCollection[] = [];
+        journalEntry.legs.forEach(leg => {
+            if (leg.accountType === 'bank_account') {
+                newBankTransactions.push({
+                    id: crypto.randomUUID(), accountId: leg.accountId, date: journalEntry.date,
+                    description: `Journal: ${journalEntry.description}`, amount: leg.debit > 0 ? leg.debit : leg.credit,
+                    type: leg.debit > 0 ? 'credit' : 'debit', source: 'journal_entry',
+                    sourceId: newEntry.id, createdAt: now,
+                });
+            }
+        });
+        const newSettings = {
+            ...prev.settings,
+            journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
+            bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
+        };
+
+        return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
 
-  const deleteManagerTransaction = useCallback((transactionId: string) => {
-    setAppState(prev => {
-      if (!prev.settings) return prev;
-      const newSettings = {
-        ...prev.settings,
-        managerLedger: (prev.settings.managerLedger || []).filter(t => t.id !== transactionId),
-        bankLedger: (prev.settings.bankLedger || []).filter(bt => bt.sourceId !== transactionId || bt.source !== 'manager_payment'),
-      };
-      return { ...prev, settings: newSettings };
-    });
-  }, [setAppState]);
-  
   const addBankTransaction = useCallback((transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
@@ -740,77 +836,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         });
     }, [setAppState]);
     
-    // Journal Entries
-    const addJournalEntry = useCallback((entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
-        setAppState(prev => {
-            if (!prev.settings) return prev;
-
-            const now = new Date().toISOString();
-            const newEntry: JournalEntry = { ...entry, id: crypto.randomUUID(), createdAt: now };
-
-            const newBankTransactions: BankTransaction[] = [];
-            const newCashTransactions: MiscCollection[] = [];
-
-            entry.legs.forEach(leg => {
-                if (leg.accountType === 'bank_account') {
-                    const bankAccount = prev.settings?.bankAccounts.find(ba => ba.id === leg.accountId);
-                    if (bankAccount) {
-                        const amount = leg.debit > 0 ? leg.debit : leg.credit;
-                        const type = leg.debit > 0 ? 'credit' : 'debit';
-                        
-                        newBankTransactions.push({
-                            id: crypto.randomUUID(),
-                            accountId: bankAccount.id,
-                            date: entry.date,
-                            description: `Journal: ${entry.description}`,
-                            amount,
-                            type,
-                            source: 'journal_entry',
-                            sourceId: newEntry.id,
-                            createdAt: now,
-                        });
-                    }
-                } else if (leg.accountType === 'cash_account') {
-                    const amount = leg.debit > 0 ? leg.debit : leg.credit;
-                    const type = leg.debit > 0 ? 'inflow' : 'outflow';
-
-                    newCashTransactions.push({
-                        id: crypto.randomUUID(),
-                        date: entry.date,
-                        description: `Journal: ${entry.description}`,
-                        amount,
-                        type,
-                        source: 'journal_entry',
-                        sourceId: newEntry.id,
-                        createdAt: now,
-                    });
-                }
-            });
-
-            const newSettings = {
-                ...prev.settings,
-                journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
-                bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
-                miscCollections: [...(prev.settings.miscCollections || []), ...newCashTransactions].sort((a,b) => b.date.localeCompare(a.date)),
-            };
-            return { ...prev, settings: newSettings };
-        });
-    }, [setAppState]);
-
-    const deleteJournalEntry = useCallback((entryId: string) => {
-        setAppState(prev => {
-            if (!prev.settings) return prev;
-            const newSettings = {
-                ...prev.settings,
-                journalEntries: (prev.settings.journalEntries || []).filter(je => je.id !== entryId),
-                bankLedger: (prev.settings.bankLedger || []).filter(bt => bt.source !== 'journal_entry' || bt.sourceId !== entryId),
-                miscCollections: (prev.settings.miscCollections || []).filter(mc => mc.source !== 'journal_entry' || mc.sourceId !== entryId),
-            };
-            return { ...prev, settings: newSettings };
-        });
-    }, [setAppState]);
-
-
   const value = useMemo(() => ({
     ...appState,
     setSettings,
@@ -823,7 +848,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateCustomer,
     deleteCustomer,
     addManagerTransaction,
-    deleteManagerTransaction,
     addCreditGiven,
     addCreditRepayment,
     deleteCreditEntry,
@@ -860,7 +884,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateCustomer,
     deleteCustomer,
     addManagerTransaction,
-    deleteManagerTransaction,
     addCreditGiven,
     addCreditRepayment,
     deleteCreditEntry,

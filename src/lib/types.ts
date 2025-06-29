@@ -264,6 +264,7 @@ export interface Settings {
   employees: Employee[];
   customers: Customer[];
   managerInitialBalance?: number;
+  managerAccountId?: string;
   debtRecovered?: number;
   fuels: Fuel[];
   tanks: Tank[];
@@ -306,8 +307,7 @@ export interface AppStateContextType extends AppState {
 
   // Manager Ledger
   addManagerTransaction: (transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => void;
-  deleteManagerTransaction: (transactionId: string) => void;
-
+  
   // Credit Register
   addCreditGiven: (amount: number, date: string, customerId: string) => void;
   addCreditRepayment: (amount: number, destination: 'cash' | string, date: string, customerId: string) => void;
