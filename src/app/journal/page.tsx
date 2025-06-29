@@ -86,8 +86,8 @@ export default function JournalPage() {
     const accounts = useMemo(() => {
         if (!settings) return { coa: [], banks: [] };
         return {
-            coa: settings.chartOfAccounts,
-            banks: settings.bankAccounts,
+            coa: settings.chartOfAccounts || [],
+            banks: settings.bankAccounts || [],
         };
     }, [settings]);
 
@@ -123,7 +123,7 @@ export default function JournalPage() {
         if (type === 'bank_account') {
             return settings?.bankAccounts.find(a => a.id === id)?.name || 'Unknown Bank';
         }
-        return settings?.chartOfAccounts.find(a => a.id === id)?.name || 'Unknown Account';
+        return settings?.chartOfAccounts?.find(a => a.id === id)?.name || 'Unknown Account';
     };
 
     return (
