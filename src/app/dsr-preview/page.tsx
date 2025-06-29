@@ -120,12 +120,12 @@ export default function DsrPreviewPage() {
           bodyStyles: { fontSize: 8.5, cellPadding: 1.5 },
           margin: { left: margin, right: margin },
           columnStyles: {
-            0: { cellWidth: 20, halign: 'center' },
-            1: { halign: 'right' },
-            2: { halign: 'right' },
-            3: { halign: 'right' },
-            4: { halign: 'right' },
-            5: { halign: 'right' },
+            0: { cellWidth: 15, halign: 'center' }, // Nozzle
+            1: { cellWidth: 30, halign: 'right' },  // Opening
+            2: { cellWidth: 30, halign: 'right' },  // Closing
+            3: { cellWidth: 25, halign: 'right' },  // Testing
+            4: { cellWidth: 30, halign: 'right' },  // Sale (L)
+            5: { cellWidth: 'auto', halign: 'right' }, // Sale (₹)
           }
         });
         lastY = (doc as any).lastAutoTable.finalY + 8;
