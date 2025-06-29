@@ -44,6 +44,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const fullSettings: Settings = {
       ...settings,
       theme: settings.theme || 'light',
+      screenScale: settings.screenScale || 100,
+      fontSize: settings.fontSize || 16,
       employees: settings.employees || [],
       customers: settings.customers || [],
       fuelPriceHistory: settings.fuelPriceHistory || [],

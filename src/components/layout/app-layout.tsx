@@ -10,11 +10,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { settings } = useAppState();
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Theme
     if (settings?.theme) {
       document.documentElement.classList.remove('light', 'dark');
       document.documentElement.classList.add(settings.theme);
     }
-  }, [settings?.theme]);
+    
+    // Font Size
+    document.documentElement.style.fontSize = `${settings?.fontSize || 16}px`;
+
+    // Screen Scale (Zoom)
+    (document.documentElement.style as any).zoom = `${(settings?.screenScale || 100) / 100}`;
+
+  }, [settings?.theme, settings?.fontSize, settings?.screenScale]);
 
   return (
     <SidebarProvider>

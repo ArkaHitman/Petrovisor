@@ -19,11 +19,11 @@ import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
 import { Switch } from '@/components/ui/switch';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { formatCurrency } from '@/lib/utils';
 import { parseISO, format } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Slider } from '@/components/ui/slider';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -53,7 +53,8 @@ const bankAccountSchema = z.object({
 
 const settingsFormSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
-  theme: z.enum(['light', 'dark']),
+  screenScale: z.coerce.number().min(75).max(125).optional(),
+  fontSize: z.coerce.number().min(12).max(20).optional(),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
   managerInitialBalance: z.coerce.number().optional(),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
@@ -141,11 +142,15 @@ export default function SettingsPage() {
   const { fields: tankFields, append: appendTank, remove: removeTank } = useFieldArray({ control, name: "tanks" });
   
   const watchedFuels = watch('fuels');
+  const watchedScreenScale = watch('screenScale');
+  const watchedFontSize = watch('fontSize');
   
   useEffect(() => {
     if (settings) {
       const formValues: SettingsFormValues = {
         ...settings,
+        screenScale: settings.screenScale || 100,
+        fontSize: settings.fontSize || 16,
         fuels: settings.fuels.map(fuel => ({
           ...fuel,
           nozzleCount: settings.nozzlesPerFuel[fuel.id] || 0
@@ -171,12 +176,13 @@ export default function SettingsPage() {
     const finalSettings: Settings = {
       ...settings,
       pumpName: data.pumpName,
-      theme: data.theme,
       bankAccounts: data.bankAccounts,
       managerInitialBalance: data.managerInitialBalance,
       fuels: finalFuels,
       tanks: data.tanks,
       nozzlesPerFuel,
+      screenScale: data.screenScale,
+      fontSize: data.fontSize,
     };
     
     setSettings(finalSettings);
@@ -328,12 +334,12 @@ export default function SettingsPage() {
                         <Input id="pumpName" {...register('pumpName')} />
                     </div>
                      <div className="space-y-2">
+                        <Label>Initial Manager Balance</Label>
+                        <Input type="number" {...register('managerInitialBalance')} />
+                    </div>
+                     <div className="space-y-2">
                         <Label htmlFor="theme">Theme</Label>
-                         <Select value={watch('theme')} onValueChange={(value) => {
-                            if (settings) {
-                                setSettings({ ...settings, theme: value as 'light' | 'dark' });
-                            }
-                         }}>
+                         <Select value={settings.theme} onValueChange={(value) => setSettings({ ...settings, theme: value as 'light' | 'dark' })}>
                             <SelectTrigger id="theme"><SelectValue placeholder="Select theme" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="light">Light</SelectItem>
@@ -341,9 +347,26 @@ export default function SettingsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                     <div className="space-y-2">
-                        <Label>Initial Manager Balance</Label>
-                        <Input type="number" {...register('managerInitialBalance')} />
+                    <div></div>
+                    <div className="space-y-2">
+                        <Label>Screen Scale ({watchedScreenScale || 100}%)</Label>
+                        <Slider
+                            defaultValue={[watchedScreenScale || 100]}
+                            min={75}
+                            max={125}
+                            step={5}
+                            onValueChange={(value) => setValue('screenScale', value[0])}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Base Font Size ({watchedFontSize || 16}px)</Label>
+                        <Slider
+                            defaultValue={[watchedFontSize || 16]}
+                            min={12}
+                            max={20}
+                            step={1}
+                            onValueChange={(value) => setValue('fontSize', value[0])}
+                        />
                     </div>
                 </CardContent>
             </Card>
