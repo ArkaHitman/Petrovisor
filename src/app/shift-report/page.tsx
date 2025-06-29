@@ -167,14 +167,14 @@ export default function ShiftReportPage() {
   const { meterReadings, creditSales, onlinePayments, lubeSaleAmount } = JSON.parse(watchedValuesString);
   const totalFuelSales = meterReadings.reduce((acc: number, r: any) => acc + r.saleAmount, 0);
   const totalSales = totalFuelSales + (lubeSaleAmount || 0);
-  const totalCreditSales = (creditSales || []).reduce((acc: number, cs: any) => acc + (cs.amount || 0), 0);
+  const totalCreditSales = (creditSales || []).reduce((acc: number, cs: any) => acc + Number(cs.amount || 0), 0);
   const cashInHand = totalSales - totalCreditSales - onlinePayments;
 
   const onSubmit = (data: ShiftReportFormValues) => {
     const totalFuelSalesCalc = data.meterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
     const totalLubeSalesCalc = data.lubeSaleAmount || 0;
     const totalSalesCalc = totalFuelSalesCalc + totalLubeSalesCalc;
-    const totalCreditSalesCalc = (data.creditSales || []).reduce((acc, cs) => acc + cs.amount, 0);
+    const totalCreditSalesCalc = (data.creditSales || []).reduce((acc, cs) => acc + Number(cs.amount || 0), 0);
     const cashInHandCalc = totalSalesCalc - totalCreditSalesCalc - data.onlinePayments;
 
     addOrUpdateShiftReport({
