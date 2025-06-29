@@ -51,33 +51,39 @@ export default function DsrPreviewPage() {
       let lastY = 15;
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 14;
+      const contentWidth = pageWidth - (margin * 2);
 
       // --- LETTERHEAD ---
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
-      doc.text(settings.pumpName || 'PetroVisor Station', pageWidth / 2, lastY + 5, { align: 'center' });
-      lastY += 20;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-      // Example address, should be configurable in settings in a future update
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(settings.pumpName || 'PetroVisor Station', pageWidth / 2, lastY, { align: 'center' });
+      lastY += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
       doc.text('Dealer: Indian Oil Corporation Limited', pageWidth / 2, lastY, { align: 'center' });
-      lastY += 12;
+      lastY += 4;
       doc.text('P.S. -Talsara, Dist. - Sundargarh, Odisha', pageWidth / 2, lastY, { align: 'center' });
-      lastY += 20;
+      lastY += 10;
 
-      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2);
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.2);
       doc.line(margin, lastY, pageWidth - margin, lastY);
-      lastY += 15;
+      lastY += 8;
 
       // --- REPORT HEADER ---
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-      doc.text(`Shift Report`, margin, lastY);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(`Daily Shift Report`, margin, lastY);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
       const reportDateStr = `Date: ${format(parseISO(report.date), 'dd MMMM yyyy')} (${report.shiftType.toUpperCase()})`;
       doc.text(reportDateStr, pageWidth - margin, lastY, { align: 'right' });
-      lastY += 15;
+      lastY += 6;
 
       const employeeName = getEmployeeName(report.employeeId);
       doc.text(`Employee: ${employeeName}`, margin, lastY);
-      lastY += 20;
+      lastY += 10;
 
       // --- FUEL SALES ---
       const readingsByFuel = new Map<string, typeof report.meterReadings>();
@@ -93,12 +99,13 @@ export default function DsrPreviewPage() {
         if (!fuel) continue;
 
         const { sellingPrice } = getFuelPricesForDate(fuel.id, report.date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
         doc.text(`${fuel.name} Sales (Rate: ${formatCurrency(sellingPrice)})`, margin, lastY);
         
         autoTable(doc, {
-          startY: lastY + 3,
+          startY: lastY + 2,
           head: [['Nozzle', 'Opening', 'Closing', 'Testing', 'Sale (L)', 'Sale (₹)']],
           body: readings.map(r => [
             r.nozzleId.toString(),
@@ -109,11 +116,11 @@ export default function DsrPreviewPage() {
             formatCurrency(r.saleAmount)
           ]),
           theme: 'grid',
-          headStyles: { fillColor: '#f4f4f5', textColor: '#141414', fontStyle: 'normal', fontSize: 9 },
-          bodyStyles: { fontSize: 9 },
+          headStyles: { fillColor: '#f4f4f5', textColor: '#141414', fontStyle: 'bold', fontSize: 9, cellPadding: 1.5 },
+          bodyStyles: { fontSize: 8.5, cellPadding: 1.5 },
           margin: { left: margin, right: margin },
           columnStyles: {
-            0: { halign: 'center' },
+            0: { cellWidth: 20, halign: 'center' },
             1: { halign: 'right' },
             2: { halign: 'right' },
             3: { halign: 'right' },
@@ -124,68 +131,82 @@ export default function DsrPreviewPage() {
         lastY = (doc as any).lastAutoTable.finalY + 8;
       }
       
-      // --- FINANCIAL SUMMARY ---
-      let totalFuelSales = report.totalSales - (report.lubeSaleAmount || 0);
-
+      // --- FINANCIAL SUMMARY & CREDIT DETAILS (Two-Column Layout) ---
       let totalCreditSales = 0;
-      let creditDetailsText = '';
+      let creditDetails: { customerName: string, amount: number }[] = [];
       if (Array.isArray(report.creditSales) && report.creditSales.length > 0) {
         totalCreditSales = report.creditSales.reduce((sum, s) => sum + s.amount, 0);
-        creditDetailsText = report.creditSales.map(sale => {
-            const customerName = settings.customers.find(c => c.id === sale.customerId)?.name || 'Unknown';
-            return `  - ${customerName}: ${formatCurrency(sale.amount)}`;
-        }).join('\n');
+        creditDetails = report.creditSales.map(sale => ({
+            customerName: settings.customers.find(c => c.id === sale.customerId)?.name || 'Unknown',
+            amount: sale.amount,
+        }));
       } else if (typeof (report as any).creditSales === 'number' && (report as any).creditSales > 0) {
         totalCreditSales = (report as any).creditSales;
-        creditDetailsText = '  - Legacy Entry';
+        creditDetails = [{ customerName: 'Legacy Entry', amount: totalCreditSales }];
       }
-      const creditRowContent = totalCreditSales > 0 ? `Credit Sales\n${creditDetailsText}` : 'Credit Sales';
+      const totalFuelSales = report.totalSales - (report.lubeSaleAmount || 0);
 
-      const financialBody: any[] = [
-        [{ content: 'Total Fuel Sales' }, { content: formatCurrency(totalFuelSales), styles: { halign: 'right' } }],
+      const financialSummaryBody: any[] = [
+        [{content: 'Financial Summary', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 10, halign: 'left'}}],
+        ['Total Fuel Sales', formatCurrency(totalFuelSales)],
       ];
-
       if (report.lubeSaleAmount && report.lubeSaleAmount > 0) {
-        const lubeDetails = `Lube Sale (${report.lubeSaleName || 'N/A'})`;
-        financialBody.push([lubeDetails, { content: formatCurrency(report.lubeSaleAmount), styles: { halign: 'right' } }]);
+        financialSummaryBody.push([`Lube Sale (${report.lubeSaleName || 'N/A'})`, formatCurrency(report.lubeSaleAmount)]);
+      }
+      financialSummaryBody.push([
+        { content: 'Gross Total Sales', styles: { fontStyle: 'bold' } },
+        { content: formatCurrency(report.totalSales), styles: { fontStyle: 'bold' } }
+      ]);
+      financialSummaryBody.push([
+          { content: 'Less: Online Payments', styles: {textColor: '#ef4444'} },
+          { content: `(${formatCurrency(report.onlinePayments)})`, styles: {textColor: '#ef4444'} }
+      ]);
+      financialSummaryBody.push([
+          { content: 'Less: Credit Sales', styles: {textColor: '#ef4444'} },
+          { content: `(${formatCurrency(totalCreditSales)})`, styles: {textColor: '#ef4444'} }
+      ]);
+      financialSummaryBody.push([
+        { content: 'Net Cash In Hand', styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } },
+        { content: formatCurrency(report.cashInHand), styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } }
+      ]);
+
+      const creditDetailsBody: any[] = [];
+      if (creditDetails.length > 0) {
+          creditDetailsBody.push([{content: 'Credit Sale Details', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 10, halign: 'left'}}]);
+          creditDetails.forEach(cd => {
+              creditDetailsBody.push([cd.customerName, formatCurrency(cd.amount)]);
+          });
       }
 
-      financialBody.push([
-        { content: 'Gross Total Sales', styles: { fontStyle: 'bold', fillColor: '#f4f4f5' } },
-        { content: formatCurrency(report.totalSales), styles: { fontStyle: 'bold', halign: 'right', fillColor: '#f4f4f5' } }
-      ]);
+      // Check for page overflow
+      const financialTableHeight = financialSummaryBody.length * 7;
+      const creditTableHeight = creditDetailsBody.length * 7;
+      if (lastY + Math.max(financialTableHeight, creditTableHeight) > doc.internal.pageSize.getHeight() - 20) {
+        doc.addPage();
+        lastY = 15;
+      }
 
-      financialBody.push([
-          { content: creditRowContent },
-          { content: `(${formatCurrency(totalCreditSales)})`, styles: { halign: 'right' } }
-      ]);
-      financialBody.push(['Online Payments', { content: `(${formatCurrency(report.onlinePayments)})`, styles: { halign: 'right' } }]);
-      
-      financialBody.push([
-        { content: 'Net Cash In Hand', styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } },
-        { content: formatCurrency(report.cashInHand), styles: { fontStyle: 'bold', halign: 'right', fillColor: '#dcfce7', textColor: '#166534' } }
-      ]);
-      
       autoTable(doc, {
-        startY: lastY + 5,
-        head: [['Financial Summary', '']],
-        body: financialBody,
-        theme: 'grid',
-        headStyles: { fillColor: '#3f3f46', textColor: '#ffffff' },
-        bodyStyles: { fontSize: 9, cellPadding: 3, valign: 'middle' },
-        margin: { left: margin, right: margin },
-        didParseCell: (data) => {
-          if (data.row.section === 'body') {
-            if (data.row.raw[1]?.styles?.halign) {
-              data.cell.styles.halign = data.row.raw[1].styles.halign;
-            }
-            if(data.row.raw[0]?.styles) {
-              Object.assign(data.cell.styles, data.row.raw[0].styles);
-            }
-          }
-        }
+          startY: lastY,
+          body: financialSummaryBody,
+          theme: 'plain',
+          bodyStyles: {fontSize: 9, cellPadding: 1.5},
+          columnStyles: {1: {halign: 'right'}},
+          tableWidth: contentWidth / 2 - 5,
+          margin: { left: margin },
       });
-      lastY = (doc as any).lastAutoTable.finalY + 15;
+
+      if (creditDetailsBody.length > 0) {
+           autoTable(doc, {
+              startY: lastY,
+              body: creditDetailsBody,
+              theme: 'plain',
+              bodyStyles: {fontSize: 9, cellPadding: 1.5},
+              columnStyles: {1: {halign: 'right'}},
+              tableWidth: contentWidth / 2 - 5,
+              margin: { left: margin + contentWidth / 2 + 5 },
+          });
+      }
     });
 
     const pageCount = doc.getNumberOfPages();
