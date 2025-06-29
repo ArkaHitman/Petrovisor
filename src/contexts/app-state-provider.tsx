@@ -261,14 +261,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAppState(prev => {
       if (!prev.settings) return prev;
       let { updatedSettings, managerAccount } = getOrAddManagerAccount(prev.settings);
-      if (!updatedSettings.chartOfAccounts) {
-        updatedSettings.chartOfAccounts = [];
-      }
-
+      
       const isPaymentToManager = transaction.type === 'payment_to_manager';
       
-      // Debit manager account if payment is TO manager (equity decreases)
-      // Credit manager account if payment is FROM manager (equity increases)
       const managerLeg: JournalEntryLeg = {
           accountType: 'chart_of_account',
           accountId: managerAccount.id,
@@ -278,9 +273,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       
       const [counterpartyAccountType, counterpartyAccountId] = transaction.accountId.split(':');
 
-      // The counterparty account is an asset (cash or bank).
-      // If payment is TO manager, asset decreases -> CREDIT
-      // If payment is FROM manager, asset increases -> DEBIT
       const counterpartyLeg: JournalEntryLeg = {
           accountType: counterpartyAccountType as 'bank_account' | 'cash_account',
           accountId: counterpartyAccountId,

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Banknote, Landmark, PlusCircle, Trash2, FileUp, Loader2 } from 'lucide-react';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
@@ -169,6 +169,7 @@ export default function BankPage() {
     const { settings, deleteBankTransaction, clearManualBankTransactions } = useAppState();
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
     const [isAnalyzeDialogOpen, setIsAnalyzeDialogOpen] = React.useState(false);
+    const [selectedAccountId, setSelectedAccountId] = useState('all');
     const { toast } = useToast();
 
     const bankAccounts = settings?.bankAccounts || [];
@@ -188,8 +189,15 @@ export default function BankPage() {
         return balances;
     }, [bankAccounts, bankLedger]);
 
+    const filteredLedger = useMemo(() => {
+        if (selectedAccountId === 'all') {
+            return bankLedger;
+        }
+        return bankLedger.filter(tx => tx.accountId === selectedAccountId);
+    }, [bankLedger, selectedAccountId]);
+
     const canDeleteTransaction = (source?: string) => {
-        const nonDeletableSources = ['credit_repayment', 'monthly_report_deposit', 'fuel_purchase', 'daily_report'];
+        const nonDeletableSources = ['credit_repayment', 'monthly_report_deposit', 'fuel_purchase', 'daily_report', 'shift_report', 'supplier_payment', 'journal_entry'];
         return !source || !nonDeletableSources.includes(source);
     };
 
@@ -233,10 +241,28 @@ export default function BankPage() {
                     ))}
                 </div>
                 <Card>
-                    <CardHeader><CardTitle>Transaction History</CardTitle><CardDescription>A complete log of all credits and debits across all accounts.</CardDescription></CardHeader>
+                    <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div>
+                            <CardTitle>Transaction History</CardTitle>
+                            <CardDescription>A complete log of all credits and debits.</CardDescription>
+                        </div>
+                        <div className="w-full sm:w-auto sm:min-w-[250px]">
+                             <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Filter by account" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Accounts</SelectItem>
+                                    {bankAccounts.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardHeader>
                     <CardContent>
-                        {bankLedger.length === 0 ? (
-                            <div className="border rounded-lg p-8 text-center"><p className="text-muted-foreground">No bank transactions recorded.</p></div>
+                        {filteredLedger.length === 0 ? (
+                            <div className="border rounded-lg p-8 text-center"><p className="text-muted-foreground">No bank transactions found for the selected filter.</p></div>
                         ) : (
                             <Table>
                                 <TableHeader>
@@ -250,7 +276,7 @@ export default function BankPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {bankLedger.map(tx => (
+                                    {filteredLedger.map(tx => (
                                         <TableRow key={tx.id}>
                                             <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy')}</TableCell>
                                             <TableCell className="font-medium">{tx.description}</TableCell>
