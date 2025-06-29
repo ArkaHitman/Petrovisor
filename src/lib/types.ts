@@ -1,5 +1,6 @@
 
 
+
 export interface DipChartEntry {
   dip: number; // Dip reading in cm
   volume: number; // Corresponding volume in Litres
@@ -226,11 +227,10 @@ export interface AnalyzeDsrInput {
   dsrDataUri: string;
 }
 
-export interface AnalyzeDsrOutput {
-    reportDate: string;
-    fuelSales: {
+export type AnalyzeDsrOutput = {
+    date: string;
+    meterReadings: {
         fuelName: string;
-        pricePerLitre: number;
         nozzleId: number;
         openingReading: number;
         closingReading: number;
@@ -239,13 +239,8 @@ export interface AnalyzeDsrOutput {
     lubricantSales: number;
     creditSales: number;
     phonepeSales: number;
-    bankDeposits: {
-        description: string;
-        amount: number;
-        destinationAccount?: string;
-    }[];
-    cashInHand: number;
-}
+    cashDeposited: number;
+}[];
 
 
 export interface Settings {
@@ -330,9 +325,6 @@ export interface AppStateContextType extends AppState {
   deleteSupplierDelivery: (deliveryId: string) => void;
   addSupplierPayment: (payment: Omit<SupplierPayment, 'id' | 'createdAt'>) => void;
   deleteSupplierPayment: (paymentId: string) => void;
-  
-  // DSR Processing
-  processDsrData: (data: AnalyzeDsrOutput) => void;
 
   // Chart of Accounts
   addChartOfAccount: (account: Omit<ChartOfAccount, 'id'>) => void;

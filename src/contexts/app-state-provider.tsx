@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -749,84 +749,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
-  const processDsrData = useCallback((data: AnalyzeDsrOutput) => {
-    setAppState(prev => {
-        if (!prev.settings) return prev;
-
-        const now = new Date().toISOString();
-        const newSettings = JSON.parse(JSON.stringify(prev.settings));
-
-        if (data.creditSales > 0) {
-            const defaultCustomer = newSettings.customers.find((c: Customer) => c.name.toLowerCase() === 'default credit') || newSettings.customers[0];
-            if(defaultCustomer) {
-                 newSettings.creditHistory.push({
-                    id: crypto.randomUUID(), date: data.reportDate, type: 'given', amount: data.creditSales, createdAt: now, customerId: defaultCustomer.id
-                });
-            }
-        }
-
-        const overdraftAccount = getOverdraftAccount(newSettings);
-        if (!overdraftAccount) throw new Error("No overdraft or default bank account found in settings.");
-
-        const allDeposits = [...data.bankDeposits];
-        if (data.phonepeSales > 0) {
-            allDeposits.push({ description: 'PhonePe Collection', amount: data.phonepeSales });
-        }
-
-        allDeposits.forEach(deposit => {
-            if (deposit.amount > 0) {
-                const destinationAccount = newSettings.bankAccounts.find((acc: BankAccount) => deposit.destinationAccount && acc.name.toLowerCase().includes(deposit.destinationAccount.toLowerCase())) || overdraftAccount;
-                newSettings.bankLedger.push({
-                    id: crypto.randomUUID(),
-                    accountId: destinationAccount.id,
-                    date: data.reportDate,
-                    description: `${deposit.description}${deposit.destinationAccount ? ` to ${deposit.destinationAccount}` : ''}`,
-                    type: 'credit',
-                    amount: deposit.amount,
-                    source: 'dsr_import',
-                    createdAt: now,
-                });
-            }
-        });
-        
-        let totalProfit = 0; let totalLitres = 0;
-        const fuelSalesForReport = newSettings.fuels.map((fuel: any) => {
-            const aiReadingsForFuel = data.fuelSales.filter(fs => fs.fuelName.toLowerCase() === fuel.name.toLowerCase());
-            const { costPrice } = getFuelPricesForDate(fuel.id, data.reportDate, newSettings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-            let fuelTotalLitres = 0, fuelTotalSales = 0, fuelTotalProfit = 0;
-
-            const meterReadings = aiReadingsForFuel.map(r => {
-                const saleLitres = Math.max(0, r.closingReading - r.openingReading - r.testing);
-                const saleAmount = saleLitres * r.pricePerLitre;
-                const estProfit = saleLitres * (r.pricePerLitre - costPrice);
-                fuelTotalLitres += saleLitres; fuelTotalSales += saleAmount; fuelTotalProfit += estProfit;
-                return { nozzleId: r.nozzleId, opening: r.openingReading, closing: r.closingReading, testing: r.testing, saleLitres, saleAmount, estProfit };
-            });
-            
-            totalProfit += fuelTotalProfit; totalLitres += totalLitres;
-            const pricePerLitre = aiReadingsForFuel.length > 0 ? aiReadingsForFuel[0].pricePerLitre : 0;
-            return { fuelId: fuel.id, readings: meterReadings, totalLitres: fuelTotalLitres, totalSales: fuelTotalSales, estProfit: fuelTotalProfit, pricePerLitre, costPerLitre: costPrice };
-        });
-        
-        const finalFuelSales = fuelSalesForReport.filter(fs => fs.totalLitres > 0);
-        const finalFuelTotalSales = finalFuelSales.reduce((sum, fs) => sum + fs.totalSales, 0);
-        const totalSales = finalFuelTotalSales + (data.lubricantSales || 0);
-        const totalBankDepositsFromDSR = allDeposits.reduce((sum, dep) => sum + dep.amount, 0);
-
-        newSettings.monthlyReports.push({
-            id: crypto.randomUUID(), endDate: data.reportDate, fuelSales: finalFuelSales, lubricantSales: data.lubricantSales || 0,
-            totalSales, estProfit: totalProfit, litresSold: totalLitres, bankDeposits: totalBankDepositsFromDSR,
-            creditSales: data.creditSales, accountId: overdraftAccount.id, netCash: data.cashInHand || (totalSales - totalBankDepositsFromDSR - data.creditSales),
-            createdAt: now, updatedAt: now,
-        });
-        
-        newSettings.creditHistory.sort((a: any, b: any) => b.date.localeCompare(a.date));
-        newSettings.bankLedger.sort((a: any, b: any) => b.date.localeCompare(a.date));
-        newSettings.monthlyReports.sort((a: any, b: any) => b.endDate.localeCompare(a.endDate));
-
-        return { ...prev, settings: newSettings };
-    });
-  }, [setAppState, getOverdraftAccount]);
+  
 
     // Chart of Accounts
     const addChartOfAccount = useCallback((account: Omit<ChartOfAccount, 'id'>) => {
@@ -886,7 +809,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteSupplierDelivery,
     addSupplierPayment,
     deleteSupplierPayment,
-    processDsrData,
     addChartOfAccount,
     updateChartOfAccount,
     deleteChartOfAccount,
@@ -923,7 +845,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteSupplierDelivery,
     addSupplierPayment,
     deleteSupplierPayment,
-    processDsrData,
     addChartOfAccount,
     updateChartOfAccount,
     deleteChartOfAccount,
