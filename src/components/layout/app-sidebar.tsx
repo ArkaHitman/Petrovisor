@@ -36,6 +36,7 @@ import {
   Layers,
   BookMarked,
   ClipboardList,
+  BarChart3,
 } from 'lucide-react';
 import { useAppState } from '@/contexts/app-state-provider';
 
@@ -58,6 +59,7 @@ const financialsMenuItems = [
   { href: '/manager-ledger', label: 'Manager Ledger', icon: Briefcase },
   { href: '/supplier-ledger', label: 'Supplier Ledger', icon: Layers },
   { href: '/journal', label: 'Journal Vouchers', icon: BookMarked },
+  { href: '/profit-loss', label: 'Profit & Loss', icon: BarChart3 },
   { href: '/misc-collection', label: 'Misc Collection', icon: UsersRound },
   { href: '/misc-payments', label: 'Misc Payments', icon: UsersRound },
 ];
