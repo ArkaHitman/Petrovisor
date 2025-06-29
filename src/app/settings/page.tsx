@@ -253,7 +253,24 @@ export default function SettingsPage() {
             amount: tx.type === 'credit' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})`,
         }));
         
-        settings.managerLedger?.forEach(tx => logEntries.push({ date: format(parseISO(tx.date), 'yyyy-MM-dd'), category: 'Manager Ledger', description: tx.description, amount: tx.type === 'payment_from_manager' ? formatCurrency(tx.amount) : `(${formatCurrency(tx.amount)})` }));
+        settings.journalEntries?.forEach(entry => {
+             entry.legs.forEach(leg => {
+                let amountStr = leg.debit > 0 ? formatCurrency(leg.debit) : `(${formatCurrency(leg.credit)})`;
+                let accountName = '';
+                 if (leg.accountType === 'bank_account') {
+                    accountName = settings.bankAccounts.find(a => a.id === leg.accountId)?.name || 'Unknown Bank';
+                } else if (leg.accountType === 'chart_of_account') {
+                    accountName = settings.chartOfAccounts.find(a => a.id === leg.accountId)?.name || 'Unknown Account';
+                } else {
+                    accountName = 'Cash in Hand';
+                }
+                logEntries.push({
+                    date: format(parseISO(entry.date), 'yyyy-MM-dd'), category: 'Journal',
+                    description: `${entry.description} - ${accountName} ${leg.debit > 0 ? 'Dr' : 'Cr'}`,
+                    amount: amountStr
+                });
+            });
+        });
         
         settings.miscCollections?.forEach(c => logEntries.push({ date: format(parseISO(c.date), 'yyyy-MM-dd'), category: 'Misc Collection', description: c.description, amount: formatCurrency(c.amount) }));
         
@@ -332,6 +349,7 @@ export default function SettingsPage() {
                      <div className="space-y-2">
                         <Label>Initial Manager Balance</Label>
                         <Input type="number" {...register('managerInitialBalance')} />
+                         <FormDescription>If the manager has invested funds, this will create an opening balance entry in the journal.</FormDescription>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="theme">Theme</Label>

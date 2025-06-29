@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
-import type { BankAccount } from '@/lib/types';
+import type { BankAccount, JournalEntry } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Dashboard() {
@@ -29,8 +29,9 @@ export default function Dashboard() {
     remainingLimit,
     recentManagerTransactions,
     recentPurchases,
+    managerAccount,
   } = useMemo(() => {
-    if (!settings) return { totalStockValue: 0, currentOutstandingCredit: 0, accountBalances: [], totalBankBalance: 0, overdraftAccount: null, netManagerBalance: 0, netWorth: 0, remainingLimit: 0, recentManagerTransactions: [], recentPurchases: [] };
+    if (!settings) return { totalStockValue: 0, currentOutstandingCredit: 0, accountBalances: [], totalBankBalance: 0, overdraftAccount: null, netManagerBalance: 0, netWorth: 0, remainingLimit: 0, recentManagerTransactions: [], recentPurchases: [], managerAccount: null };
 
     const today = formatDate(new Date(), 'yyyy-MM-dd');
     const totalStockValue = settings.tanks.reduce((total, tank) => {
@@ -52,18 +53,26 @@ export default function Dashboard() {
     const overdraftAccount: BankAccount | null = (settings.bankAccounts || []).find(acc => acc.isOverdraft) || (settings.bankAccounts || [])[0] || null;
     const overdraftAccountBalance = calculatedAccountBalances.find(acc => acc.id === overdraftAccount?.id)?.balance || 0;
 
-    const netManagerBalance = (settings.managerLedger || []).reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
+    const managerAccount = settings.chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
+    let netManagerBalance = 0;
+    let recentManagerTransactions: JournalEntry[] = [];
+    if (managerAccount) {
+        const managerJournalEntries = (settings.journalEntries || []).filter(entry => 
+            entry.legs.some(leg => leg.accountType === 'chart_of_account' && leg.accountId === managerAccount.id)
+        );
+        netManagerBalance = managerJournalEntries.reduce((acc, entry) => {
+            const managerLeg = entry.legs.find(leg => leg.accountId === managerAccount.id);
+            return acc + (managerLeg?.credit || 0) - (managerLeg?.debit || 0);
+        }, 0);
+        recentManagerTransactions = managerJournalEntries.slice(0, 5);
+    }
     
-    // Per user request: Net Worth = Bank Balance + Credit + Tank Stock
     const netWorth = totalBankBalance + currentOutstandingCredit + totalStockValue;
     
-    // Assets backing the OD = Stock + Receivables + OD Balance + Manager Balance
     const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
     const remainingLimit = netWorthForLimit - sanctionedAmount;
     
-    const recentManagerTransactions = (settings.managerLedger || []).slice(0, 5);
-
     const allRecentPurchases = (settings.purchases || []);
     const filteredPurchases = selectedAccountId === 'all'
         ? allRecentPurchases
@@ -71,7 +80,7 @@ export default function Dashboard() {
     const recentPurchases = filteredPurchases.slice(0, 5);
 
 
-    return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases };
+    return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases, managerAccount };
   }, [settings, selectedAccountId]);
 
   if (!settings) return null;
@@ -80,8 +89,8 @@ export default function Dashboard() {
     if (percentage < 20) return 'bg-destructive'; if (percentage < 50) return 'bg-yellow-500'; return 'bg-green-500';
   };
   
-  const managerBalanceStatus = netManagerBalance > 0 ? "Manager Owes You" : netManagerBalance < 0 ? "You Owe Manager" : "Settled";
-  const managerBalanceColor = netManagerBalance > 0 ? "text-primary" : netManagerBalance < 0 ? "text-destructive" : "text-muted-foreground";
+  const managerBalanceStatus = netManagerBalance > 0 ? "You Owe Manager" : netManagerBalance < 0 ? "Manager Owes You" : "Settled";
+  const managerBalanceColor = netManagerBalance > 0 ? "text-destructive" : netManagerBalance < 0 ? "text-primary" : "text-muted-foreground";
 
   const showRemainingLimitCard = overdraftAccount && (selectedAccountId === 'all' || selectedAccountId === overdraftAccount.id);
 
@@ -137,7 +146,12 @@ export default function Dashboard() {
               <div className="mb-6 p-4 rounded-lg bg-muted"><p className="text-sm text-muted-foreground">Net Manager Balance</p><p className={cn("text-2xl font-bold font-headline", managerBalanceColor)}>{formatCurrency(Math.abs(netManagerBalance))}</p><p className="text-sm font-semibold">{managerBalanceStatus}</p></div>
               {recentManagerTransactions.length > 0 ? (
                  <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                    <TableBody>{recentManagerTransactions.map(tx => (<TableRow key={tx.id}><TableCell>{formatDate(parseISO(tx.date), 'dd MMM')}</TableCell><TableCell className="font-medium">{tx.description}</TableCell><TableCell><Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'destructive'}>{tx.type === 'payment_from_manager' ? 'From Manager' : 'To Manager'}</Badge></TableCell><TableCell className="text-right font-semibold">{formatCurrency(tx.amount)}</TableCell></TableRow>))}</TableBody>
+                    <TableBody>{recentManagerTransactions.map(tx => {
+                        const managerLeg = tx.legs.find(leg => leg.accountId === managerAccount?.id);
+                        const type = managerLeg?.credit ? 'From Manager' : 'To Manager';
+                        const amount = managerLeg?.credit || managerLeg?.debit || 0;
+                        return (<TableRow key={tx.id}><TableCell>{formatDate(parseISO(tx.date), 'dd MMM')}</TableCell><TableCell className="font-medium">{tx.description}</TableCell><TableCell><Badge variant={type === 'From Manager' ? 'default' : 'destructive'}>{type}</Badge></TableCell><TableCell className="text-right font-semibold">{formatCurrency(amount)}</TableCell></TableRow>)
+                    })}</TableBody>
                  </Table>
               ) : <div className="h-[150px] flex items-center justify-center text-muted-foreground">No manager transactions recorded.</div>}
             </CardContent>

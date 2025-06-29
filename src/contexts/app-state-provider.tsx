@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -96,6 +96,21 @@ function addJournalEntryLogic(settings: Settings, entry: Omit<JournalEntry, 'id'
     };
 }
 
+const getOrAddManagerAccount = (settings: Settings): { updatedSettings: Settings; managerAccount: ChartOfAccount } => {
+    let managerAccount = settings.chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
+    if (managerAccount) {
+        return { updatedSettings: settings, managerAccount };
+    }
+    managerAccount = {
+        id: crypto.randomUUID(),
+        name: "Manager's Capital Account",
+        type: 'Equity',
+    };
+    const updatedChartOfAccounts = [...settings.chartOfAccounts, managerAccount];
+    const updatedSettings = { ...settings, chartOfAccounts: updatedChartOfAccounts };
+    return { updatedSettings, managerAccount };
+};
+
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useLocalStorage<AppState>('petrovisor-data', defaultState);
@@ -107,7 +122,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const finishSetup = useCallback((settings: Settings) => {
     const openingBalanceEquityAccount: ChartOfAccount = { id: crypto.randomUUID(), name: 'Opening Balance Equity', type: 'Equity' };
 
-    const fullSettings: Settings = {
+    let settingsWithAccounts: Settings = {
       ...settings,
       theme: 'light',
       screenScale: 100,
@@ -115,7 +130,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       customers: settings.customers || [],
       fuelPriceHistory: settings.fuelPriceHistory || [],
       nozzlesPerFuel: settings.nozzlesPerFuel || {},
-      managerLedger: settings.managerLedger || [],
       bankLedger: settings.bankLedger || [],
       creditHistory: settings.creditHistory || [],
       miscCollections: settings.miscCollections || [],
@@ -130,9 +144,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ],
       journalEntries: settings.journalEntries || [],
     };
+
+    if (settings.managerInitialBalance && settings.managerInitialBalance > 0) {
+        const { updatedSettings, managerAccount } = getOrAddManagerAccount(settingsWithAccounts);
+        const openingBalanceEquity = updatedSettings.chartOfAccounts.find(acc => acc.name === 'Opening Balance Equity');
+
+        if (openingBalanceEquity) {
+            const openingEntry: Omit<JournalEntry, 'id' | 'createdAt'> = {
+                date: format(new Date(), 'yyyy-MM-dd'),
+                description: 'Initial Manager Investment',
+                legs: [
+                    { accountType: 'chart_of_account', accountId: managerAccount.id, credit: settings.managerInitialBalance, debit: 0 },
+                    { accountType: 'chart_of_account', accountId: openingBalanceEquity.id, debit: settings.managerInitialBalance, credit: 0 },
+                ]
+            };
+            settingsWithAccounts = addJournalEntryLogic(updatedSettings, openingEntry);
+        }
+    }
+    
     setAppState(prevState => ({
       ...prevState,
-      settings: fullSettings,
+      settings: settingsWithAccounts,
       isSetupComplete: true,
     }));
   }, [setAppState]);
@@ -224,53 +256,46 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         });
     }, [setAppState]);
 
-  const addManagerTransaction = useCallback((transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => {
+  const addManagerTransaction = useCallback((transaction: { date: string; description: string; type: 'payment_to_manager' | 'payment_from_manager'; amount: number; accountId: string; }) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
+      const { updatedSettings, managerAccount } = getOrAddManagerAccount(prev.settings);
+
+      const isPaymentToManager = transaction.type === 'payment_to_manager';
       
-      const now = new Date().toISOString();
-      const newTransaction: ManagerTransaction = { 
-        ...transaction,
-        id: crypto.randomUUID(),
-        createdAt: now,
+      // Payment TO manager DECREASES their equity -> DEBIT Manager Account
+      // Payment FROM manager INCREASES their equity -> CREDIT Manager Account
+      const managerLeg: JournalEntryLeg = {
+          accountType: 'chart_of_account',
+          accountId: managerAccount.id,
+          debit: isPaymentToManager ? transaction.amount : 0,
+          credit: !isPaymentToManager ? transaction.amount : 0,
       };
 
-      const bankTxType = transaction.type === 'payment_to_manager' ? 'debit' : 'credit';
-      const newBankTransaction: BankTransaction = {
-          id: crypto.randomUUID(),
+      // Bank account is an ASSET.
+      // Payment TO manager DECREASES asset -> CREDIT Bank Account
+      // Payment FROM manager INCREASES asset -> DEBIT Bank Account
+      const bankLeg: JournalEntryLeg = {
+          accountType: 'bank_account',
           accountId: transaction.accountId,
-          date: transaction.date,
-          description: `Manager Ledger: ${transaction.description}`,
-          type: bankTxType,
-          amount: transaction.amount,
-          source: 'manager_payment',
-          sourceId: newTransaction.id,
-          createdAt: now,
+          debit: !isPaymentToManager ? transaction.amount : 0,
+          credit: isPaymentToManager ? transaction.amount : 0,
       };
       
-      const newManagerLedger = [...(prev.settings.managerLedger || []), newTransaction].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const newBankLedger = [...(prev.settings.bankLedger || []), newBankTransaction].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      const newSettings = {
-        ...prev.settings,
-        managerLedger: newManagerLedger,
-        bankLedger: newBankLedger,
+      const newJournalEntry: Omit<JournalEntry, 'id' | 'createdAt'> = {
+          date: transaction.date,
+          description: transaction.description,
+          legs: [managerLeg, bankLeg]
       };
-      return { ...prev, settings: newSettings };
+      
+      const finalSettings = addJournalEntryLogic(updatedSettings, newJournalEntry);
+      return { ...prev, settings: finalSettings };
     });
   }, [setAppState]);
 
-  const deleteManagerTransaction = useCallback((transactionId: string) => {
-    setAppState(prev => {
-        if (!prev.settings) return prev;
-        const newSettings = {
-            ...prev.settings,
-            managerLedger: (prev.settings.managerLedger || []).filter(t => t.id !== transactionId),
-            bankLedger: (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== transactionId || tx.source !== 'manager_payment'),
-        };
-        return { ...prev, settings: newSettings };
-    });
-  }, [setAppState]);
+  const deleteManagerTransaction = useCallback((journalEntryId: string) => {
+    deleteJournalEntry(journalEntryId);
+  }, [deleteJournalEntry]);
 
   const addBankTransaction = useCallback((transaction: Omit<BankTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {

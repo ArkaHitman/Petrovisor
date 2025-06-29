@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
-import type { BankAccount, ManagerTransaction } from '@/lib/types';
+import type { BankAccount, JournalEntry } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const transactionSchema = z.object({
@@ -68,7 +68,7 @@ function AddTransactionDialog({ open, setOpen, bankAccounts, onSave }: { open: b
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Add Manager Transaction</DialogTitle>
-                    <DialogDescription>Record a new payment to or from the manager.</DialogDescription>
+                    <DialogDescription>This will create a new journal entry for the transaction.</DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -130,39 +130,72 @@ export default function ManagerLedgerPage() {
 
     const bankAccounts = settings?.bankAccounts || [];
 
-    const managerTransactions = useMemo(() => {
-        return settings?.managerLedger || [];
-    }, [settings?.managerLedger]);
+    const { managerTransactions, netBalance, managerAccount } = useMemo(() => {
+        if (!settings) return { managerTransactions: [], netBalance: 0, managerAccount: null };
+        const managerAccount = settings.chartOfAccounts.find(acc => acc.name === "Manager's Capital Account");
+        if (!managerAccount) return { managerTransactions: [], netBalance: 0, managerAccount: null };
 
-    const netBalance = useMemo(() => {
-        if (!settings?.managerLedger) return settings?.managerInitialBalance || 0;
-        return settings.managerLedger.reduce((balance, tx) => {
-            if (tx.type === 'payment_from_manager') {
-                return balance + tx.amount;
+        const transactions = (settings.journalEntries || []).filter(entry => 
+            entry.legs.some(leg => leg.accountType === 'chart_of_account' && leg.accountId === managerAccount.id)
+        );
+        
+        const balance = transactions.reduce((acc, entry) => {
+            const managerLeg = entry.legs.find(leg => leg.accountId === managerAccount.id);
+            if (managerLeg) {
+                // Credit to Manager Account = Manager has more equity/investment in the business
+                // Debit to Manager Account = Manager has less equity (e.g. took payment)
+                return acc + managerLeg.credit - managerLeg.debit;
             }
-            return balance - tx.amount;
-        }, settings.managerInitialBalance || 0);
-    }, [settings?.managerLedger, settings?.managerInitialBalance]);
+            return acc;
+        }, 0);
+        
+        return { managerTransactions: transactions, netBalance: balance, managerAccount };
+    }, [settings]);
 
 
     const handleSaveTransaction = (values: z.infer<typeof transactionSchema>) => {
         addManagerTransaction(values);
-        toast({ title: "Success", description: "Manager transaction recorded." });
+        toast({ title: "Success", description: "Manager transaction recorded in journal." });
     };
 
-    const handleDelete = (transactionId: string) => {
-        deleteManagerTransaction(transactionId);
-        toast({ title: "Success", description: "Manager transaction deleted." });
+    const handleDelete = (journalEntryId: string) => {
+        deleteManagerTransaction(journalEntryId);
+        toast({ title: "Success", description: "Manager transaction and associated journal entry deleted." });
     };
     
-    const balanceStatus = netBalance > 0 ? "Manager Owes You" : netBalance < 0 ? "You Owe Manager" : "Settled";
-    const balanceColor = netBalance > 0 ? "text-primary" : netBalance < 0 ? "text-destructive" : "text-muted-foreground";
+    // If balance is positive, business owes manager. If negative, manager owes business.
+    const balanceStatus = netBalance > 0 ? "You Owe Manager" : netBalance < 0 ? "Manager Owes You" : "Settled";
+    const balanceColor = netBalance > 0 ? "text-destructive" : netBalance < 0 ? "text-primary" : "text-muted-foreground";
+    
+    const getTransactionCounterparty = (entry: JournalEntry): string => {
+        if (!managerAccount) return 'N/A';
+        const otherLeg = entry.legs.find(leg => leg.accountId !== managerAccount.id);
+        if (!otherLeg) return 'Balanced Entry';
+        if (otherLeg.accountType === 'bank_account') {
+            return settings?.bankAccounts.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Bank';
+        }
+        if (otherLeg.accountType === 'chart_of_account') {
+            return settings?.chartOfAccounts.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Account';
+        }
+        return 'Cash';
+    }
+    
+    const getTransactionType = (entry: JournalEntry): { type: 'credit' | 'debit', amount: number } => {
+        if (!managerAccount) return { type: 'debit', amount: 0 };
+        const managerLeg = entry.legs.find(leg => leg.accountId === managerAccount.id);
+        if (!managerLeg) return { type: 'debit', amount: 0 };
+        // Credit to manager's account = money from manager
+        // Debit to manager's account = money to manager
+        return managerLeg.credit > 0 
+            ? { type: 'credit', amount: managerLeg.credit }
+            : { type: 'debit', amount: managerLeg.debit };
+    }
 
     return (
         <AppLayout>
             <PageHeader
                 title="Manager Ledger"
-                description="Track financial dealings with the manager."
+                description="Track financial dealings with the manager via the journal."
             >
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -173,7 +206,7 @@ export default function ManagerLedgerPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Net Manager Balance</CardTitle>
-                        <CardDescription>The current financial position with the manager.</CardDescription>
+                        <CardDescription>The current financial position with the manager, based on the journal.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className={cn("text-3xl font-bold font-headline", balanceColor)}>{formatCurrency(Math.abs(netBalance))}</p>
@@ -183,12 +216,13 @@ export default function ManagerLedgerPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Transaction History</CardTitle>
-                        <CardDescription>A complete log of all payments to and from the manager.</CardDescription>
+                        <CardDescription>A log of all journal entries involving the Manager's Capital Account.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {managerTransactions.length === 0 ? (
                              <div className="border rounded-lg p-8 text-center">
                                 <p className="text-muted-foreground">No manager transactions have been recorded yet.</p>
+                                <p className="text-sm text-muted-foreground mt-1">The first transaction will create a "Manager's Capital Account".</p>
                             </div>
                         ) : (
                             <Table>
@@ -196,26 +230,26 @@ export default function ManagerLedgerPage() {
                                     <TableRow>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Description</TableHead>
-                                        <TableHead>Account</TableHead>
+                                        <TableHead>Counterparty</TableHead>
                                         <TableHead>Type</TableHead>
                                         <TableHead className="text-right">Amount</TableHead>
                                         <TableHead className="w-12"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {managerTransactions.map(tx => {
-                                        const account = bankAccounts.find(acc => acc.id === tx.accountId);
+                                    {managerTransactions.map(entry => {
+                                        const { type, amount } = getTransactionType(entry);
                                         return (
-                                        <TableRow key={tx.id}>
-                                            <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy')}</TableCell>
-                                            <TableCell>{tx.description}</TableCell>
-                                            <TableCell><Badge variant="secondary">{account?.name || 'N/A'}</Badge></TableCell>
+                                        <TableRow key={entry.id}>
+                                            <TableCell>{format(parseISO(entry.date), 'dd MMM yyyy')}</TableCell>
+                                            <TableCell>{entry.description}</TableCell>
+                                            <TableCell><Badge variant="secondary">{getTransactionCounterparty(entry)}</Badge></TableCell>
                                             <TableCell>
-                                                <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'destructive'} className="capitalize">
-                                                    {tx.type.replace(/_/g, ' ')}
+                                                <Badge variant={type === 'credit' ? 'default' : 'destructive'} className="capitalize">
+                                                    {type === 'credit' ? 'From Manager' : 'To Manager'}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
                                             <TableCell>
                                                 <AlertDialog>
                                                   <AlertDialogTrigger asChild>
@@ -223,14 +257,14 @@ export default function ManagerLedgerPage() {
                                                   </AlertDialogTrigger>
                                                   <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                      <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
+                                                      <AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle>
                                                       <AlertDialogDescription>
-                                                        This will permanently delete this record and reverse the associated bank transaction. This cannot be undone.
+                                                        This will permanently delete this journal entry and reverse any associated bank or cash transactions. This cannot be undone.
                                                       </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                      <AlertDialogAction onClick={() => handleDelete(tx.id)}>Delete</AlertDialogAction>
+                                                      <AlertDialogAction onClick={() => handleDelete(entry.id)}>Delete</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                   </AlertDialogContent>
                                                 </AlertDialog>

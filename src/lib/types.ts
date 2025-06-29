@@ -1,4 +1,5 @@
 
+
 export interface DipChartEntry {
   dip: number; // Dip reading in cm
   volume: number; // Corresponding volume in Litres
@@ -62,16 +63,6 @@ export interface Customer {
   createdAt: string;
 }
 
-export interface ManagerTransaction {
-  id: string;
-  date: string;
-  description: string;
-  type: 'payment_to_manager' | 'payment_from_manager';
-  amount: number;
-  accountId: string; // The ID of the bank account involved.
-  createdAt: string;
-}
-
 export interface BankTransaction {
   id: string;
   accountId: string;
@@ -79,7 +70,7 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment' | 'manager_payment' | 'journal_entry';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment' | 'journal_entry';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }
@@ -273,7 +264,6 @@ export interface Settings {
   monthlyReports: MonthlyReport[];
   shiftReports: ShiftReport[];
   purchases: FuelPurchase[];
-  managerLedger: ManagerTransaction[];
   bankLedger: BankTransaction[];
   creditHistory: CreditHistoryEntry[];
   miscCollections: MiscCollection[];
@@ -306,8 +296,8 @@ export interface AppStateContextType extends AppState {
   deleteCustomer: (customerId: string) => void;
 
   // Manager Ledger
-  addManagerTransaction: (transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => void;
-  deleteManagerTransaction: (transactionId: string) => void;
+  addManagerTransaction: (transaction: { date: string; description: string; type: 'payment_to_manager' | 'payment_from_manager'; amount: number; accountId: string; }) => void;
+  deleteManagerTransaction: (journalEntryId: string) => void;
   
   // Credit Register
   addCreditGiven: (amount: number, date: string, customerId: string) => void;
