@@ -47,15 +47,39 @@ export default function DownloadReportPage() {
     if (!settings || !selectedDate) return null;
 
     const targetDate = selectedDate;
+    
+    // --- START: Historical Stock Calculation ---
+    const tanksWithHistoricalStock = settings.tanks.map(tank => {
+      let historicalStock = tank.initialStock; // Start with today's stock
+
+      // 1. Add back sales that happened AFTER the targetDate
+      const salesAfterTargetDate = (settings.shiftReports || [])
+          .filter(sr => isAfter(parseISO(sr.date), targetDate))
+          .flatMap(sr => sr.meterReadings)
+          .filter(reading => reading.fuelId === tank.fuelId)
+          .reduce((sum, reading) => sum + reading.saleLitres, 0);
+
+      historicalStock += salesAfterTargetDate;
+
+      // 2. Subtract purchases that happened AFTER the targetDate
+      const purchasesAfterTargetDate = (settings.purchases || [])
+          .filter(p => isAfter(parseISO(p.date), targetDate) && p.tankId === tank.id)
+          .reduce((sum, p) => sum + p.quantity, 0);
+      
+      historicalStock -= purchasesAfterTargetDate;
+
+      return { ...tank, historicalStock };
+    });
+    // --- END: Historical Stock Calculation ---
+    
     const reportDateStr = formatDate(targetDate, 'yyyy-MM-dd');
     
-    // This is the simplest interpretation: value current stock at historical prices.
-    // A full historical stock calculation is too complex without a proper snapshot system.
-    const totalStockValue = settings.tanks.reduce((total, tank) => {
+    // Now use historical stock for value calculation
+    const totalStockValue = tanksWithHistoricalStock.reduce((total, tank) => {
         const fuel = settings.fuels.find(f => f.id === tank.fuelId);
         if (!fuel) return total;
         const { costPrice } = getFuelPricesForDate(tank.fuelId, reportDateStr, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-        return total + (tank.initialStock * costPrice);
+        return total + (tank.historicalStock * costPrice);
     }, 0);
 
     const creditHistoryUpToDate = (settings.creditHistory || []).filter(tx => !isAfter(parseISO(tx.date), targetDate));
@@ -85,7 +109,7 @@ export default function DownloadReportPage() {
         .sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
         .slice(0, 5);
     
-    return { totalStockValue, currentOutstandingCredit, accountBalances, netManagerBalance, recentPurchases, netWorth, sanctionedAmount, remainingLimit };
+    return { totalStockValue, currentOutstandingCredit, accountBalances, netManagerBalance, recentPurchases, netWorth, sanctionedAmount, remainingLimit, tanksWithHistoricalStock };
   }, [settings, selectedDate]);
 
   const handleDownloadPdf = () => {
@@ -152,12 +176,13 @@ export default function DownloadReportPage() {
     if (reportOptions.fuelStock) {
       autoTable(doc, {
         startY: lastY,
-        head: [['Fuel Type', 'Current Stock (Ltrs)', 'Stock Value (Cost) (INR)']],
-        body: settings.tanks.map(tank => {
+        head: [['Fuel Type', 'Stock as of Date (L)', 'Stock Value (Cost) (INR)']],
+        body: financialData.tanksWithHistoricalStock.map(tank => {
           const fuel = settings.fuels.find(f => f.id === tank.fuelId);
           if (!fuel) return ['Unknown', { content: '0 L' }, { content: '0.00' }];
           const { costPrice } = getFuelPricesForDate(tank.fuelId, formatDate(selectedDate, 'yyyy-MM-dd'), settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-          return [fuel.name, { content: `${tank.initialStock.toLocaleString()} L`, styles: { halign: 'right' } }, { content: formatNum(tank.initialStock * costPrice), styles: { halign: 'right' } }];
+          const stockLtrs = tank.historicalStock.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+          return [fuel.name, { content: `${stockLtrs} L`, styles: { halign: 'right' } }, { content: formatNum(tank.historicalStock * costPrice), styles: { halign: 'right' } }];
         }),
         theme: 'striped', headStyles: { fillColor: primaryColor, textColor: whiteColor, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
       });
