@@ -105,22 +105,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [setAppState]);
   
   const finishSetup = useCallback((settings: Settings) => {
-    const managerAccount: ChartOfAccount = { id: crypto.randomUUID(), name: "Manager's Capital Account", type: 'Equity' };
     const openingBalanceEquityAccount: ChartOfAccount = { id: crypto.randomUUID(), name: 'Opening Balance Equity', type: 'Equity' };
-
-    const initialJournalEntries: JournalEntry[] = [];
-    if (settings.managerInitialBalance && settings.managerInitialBalance > 0) {
-        initialJournalEntries.push({
-            id: crypto.randomUUID(),
-            date: format(new Date(), 'yyyy-MM-dd'),
-            description: "Initial investment from manager",
-            legs: [
-                { accountType: 'chart_of_account', accountId: openingBalanceEquityAccount.id, debit: settings.managerInitialBalance, credit: 0 },
-                { accountType: 'chart_of_account', accountId: managerAccount.id, credit: settings.managerInitialBalance, debit: 0 },
-            ],
-            createdAt: new Date().toISOString()
-        });
-    }
 
     const fullSettings: Settings = {
       ...settings,
@@ -141,11 +126,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       supplierPayments: settings.supplierPayments || [],
       chartOfAccounts: [
         ...initialChartOfAccounts.map(acc => ({...acc, id: crypto.randomUUID()})),
-        managerAccount,
         openingBalanceEquityAccount
       ],
-      managerAccountId: managerAccount.id,
-      journalEntries: initialJournalEntries,
+      journalEntries: settings.journalEntries || [],
     };
     setAppState(prevState => ({
       ...prevState,
@@ -243,27 +226,48 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const addManagerTransaction = useCallback((transaction: Omit<ManagerTransaction, 'id' | 'createdAt'>) => {
     setAppState(prev => {
-        if (!prev.settings || !prev.settings.managerAccountId) return prev;
-        const { date, description, type, amount, accountId } = transaction;
+      if (!prev.settings) return prev;
+      
+      const now = new Date().toISOString();
+      const newTransaction: ManagerTransaction = { 
+        ...transaction,
+        id: crypto.randomUUID(),
+        createdAt: now,
+      };
 
-        const journalLegs: JournalEntryLeg[] = [];
-        if (type === 'payment_to_manager') {
-            // Manager's account is debited, bank is credited
-            journalLegs.push({ accountType: 'chart_of_account', accountId: prev.settings.managerAccountId, debit: amount, credit: 0 });
-            journalLegs.push({ accountType: 'bank_account', accountId: accountId, credit: amount, debit: 0 });
-        } else { // payment_from_manager
-            // Bank is debited, Manager's account is credited
-            journalLegs.push({ accountType: 'bank_account', accountId: accountId, debit: amount, credit: 0 });
-            journalLegs.push({ accountType: 'chart_of_account', accountId: prev.settings.managerAccountId, credit: amount, debit: 0 });
-        }
-        
-        const journalEntry: Omit<JournalEntry, 'id' | 'createdAt'> = {
-            date,
-            description,
-            legs: journalLegs,
+      const bankTxType = transaction.type === 'payment_to_manager' ? 'debit' : 'credit';
+      const newBankTransaction: BankTransaction = {
+          id: crypto.randomUUID(),
+          accountId: transaction.accountId,
+          date: transaction.date,
+          description: `Manager Ledger: ${transaction.description}`,
+          type: bankTxType,
+          amount: transaction.amount,
+          source: 'manager_payment',
+          sourceId: newTransaction.id,
+          createdAt: now,
+      };
+      
+      const newManagerLedger = [...(prev.settings.managerLedger || []), newTransaction].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const newBankLedger = [...(prev.settings.bankLedger || []), newBankTransaction].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      const newSettings = {
+        ...prev.settings,
+        managerLedger: newManagerLedger,
+        bankLedger: newBankLedger,
+      };
+      return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
+  const deleteManagerTransaction = useCallback((transactionId: string) => {
+    setAppState(prev => {
+        if (!prev.settings) return prev;
+        const newSettings = {
+            ...prev.settings,
+            managerLedger: (prev.settings.managerLedger || []).filter(t => t.id !== transactionId),
+            bankLedger: (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== transactionId || tx.source !== 'manager_payment'),
         };
-
-        const newSettings = addJournalEntryLogic(prev.settings, journalEntry);
         return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
@@ -840,6 +844,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateCustomer,
     deleteCustomer,
     addManagerTransaction,
+    deleteManagerTransaction,
     addCreditGiven,
     addCreditRepayment,
     deleteCreditEntry,
@@ -876,6 +881,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateCustomer,
     deleteCustomer,
     addManagerTransaction,
+    deleteManagerTransaction,
     addCreditGiven,
     addCreditRepayment,
     deleteCreditEntry,

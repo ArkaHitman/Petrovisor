@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
-import type { BankAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
+import type { BankAccount, ManagerTransaction } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const transactionSchema = z.object({
@@ -124,59 +124,35 @@ function AddTransactionDialog({ open, setOpen, bankAccounts, onSave }: { open: b
 }
 
 export default function ManagerLedgerPage() {
-    const { settings, addManagerTransaction, deleteJournalEntry } = useAppState();
+    const { settings, addManagerTransaction, deleteManagerTransaction } = useAppState();
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
     const { toast } = useToast();
 
     const bankAccounts = settings?.bankAccounts || [];
 
     const managerTransactions = useMemo(() => {
-        if (!settings?.journalEntries || !settings.managerAccountId) return [];
-        return settings.journalEntries
-            .filter(entry => entry.legs.some(leg => leg.accountId === settings.managerAccountId && leg.accountType === 'chart_of_account'))
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [settings?.journalEntries, settings?.managerAccountId]);
+        return settings?.managerLedger || [];
+    }, [settings?.managerLedger]);
 
     const netBalance = useMemo(() => {
-        if (!settings?.journalEntries || !settings.managerAccountId) return 0;
-        return settings.journalEntries.reduce((balance, entry) => {
-            const managerLeg = entry.legs.find(leg => leg.accountId === settings.managerAccountId && leg.accountType === 'chart_of_account');
-            if (managerLeg) {
-                return balance + managerLeg.credit - managerLeg.debit;
+        if (!settings?.managerLedger) return settings?.managerInitialBalance || 0;
+        return settings.managerLedger.reduce((balance, tx) => {
+            if (tx.type === 'payment_from_manager') {
+                return balance + tx.amount;
             }
-            return balance;
-        }, 0);
-    }, [settings?.journalEntries, settings?.managerAccountId]);
+            return balance - tx.amount;
+        }, settings.managerInitialBalance || 0);
+    }, [settings?.managerLedger, settings?.managerInitialBalance]);
+
 
     const handleSaveTransaction = (values: z.infer<typeof transactionSchema>) => {
         addManagerTransaction(values);
-        toast({ title: "Success", description: "Manager transaction recorded in the journal." });
+        toast({ title: "Success", description: "Manager transaction recorded." });
     };
 
-    const getOtherAccountInfo = (legs: JournalEntryLeg[]) => {
-        if (!settings?.managerAccountId) return { name: 'N/A' };
-        const otherLeg = legs.find(leg => !(leg.accountId === settings.managerAccountId && leg.accountType === 'chart_of_account'));
-        if (!otherLeg) return { name: 'Balanced Entry' };
-        
-        if (otherLeg.accountType === 'bank_account') {
-            return { name: settings.bankAccounts.find(b => b.id === otherLeg.accountId)?.name || 'Unknown Bank' };
-        }
-        if (otherLeg.accountType === 'cash_account') {
-            return { name: 'Cash in Hand' };
-        }
-        return { name: settings.chartOfAccounts?.find(c => c.id === otherLeg.accountId)?.name || 'Unknown Account' };
-    };
-
-    const getTransactionInfo = (entry: JournalEntry) => {
-        if (!settings?.managerAccountId) return null;
-        const managerLeg = entry.legs.find(leg => leg.accountId === settings.managerAccountId && leg.accountType === 'chart_of_account');
-        if (!managerLeg) return null;
-
-        const type = managerLeg.debit > 0 ? 'payment_to_manager' : 'payment_from_manager';
-        const amount = managerLeg.debit > 0 ? managerLeg.debit : managerLeg.credit;
-        const otherAccount = getOtherAccountInfo(entry.legs);
-        
-        return { type, amount, otherAccountName: otherAccount.name };
+    const handleDelete = (transactionId: string) => {
+        deleteManagerTransaction(transactionId);
+        toast({ title: "Success", description: "Manager transaction deleted." });
     };
     
     const balanceStatus = netBalance > 0 ? "Manager Owes You" : netBalance < 0 ? "You Owe Manager" : "Settled";
@@ -197,7 +173,7 @@ export default function ManagerLedgerPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Net Manager Balance</CardTitle>
-                        <CardDescription>The current financial position with the manager, calculated from the journal.</CardDescription>
+                        <CardDescription>The current financial position with the manager.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className={cn("text-3xl font-bold font-headline", balanceColor)}>{formatCurrency(Math.abs(netBalance))}</p>
@@ -207,7 +183,7 @@ export default function ManagerLedgerPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Transaction History</CardTitle>
-                        <CardDescription>A complete log of all journal entries involving the manager's account.</CardDescription>
+                        <CardDescription>A complete log of all payments to and from the manager.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {managerTransactions.length === 0 ? (
@@ -220,28 +196,26 @@ export default function ManagerLedgerPage() {
                                     <TableRow>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Description</TableHead>
-                                        <TableHead>Contra Account</TableHead>
+                                        <TableHead>Account</TableHead>
                                         <TableHead>Type</TableHead>
                                         <TableHead className="text-right">Amount</TableHead>
                                         <TableHead className="w-12"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {managerTransactions.map(entry => {
-                                        const info = getTransactionInfo(entry);
-                                        if (!info) return null;
-                                        const { type, amount, otherAccountName } = info;
+                                    {managerTransactions.map(tx => {
+                                        const account = bankAccounts.find(acc => acc.id === tx.accountId);
                                         return (
-                                        <TableRow key={entry.id}>
-                                            <TableCell>{format(parseISO(entry.date), 'dd MMM yyyy')}</TableCell>
-                                            <TableCell>{entry.description}</TableCell>
-                                            <TableCell><Badge variant="secondary">{otherAccountName}</Badge></TableCell>
+                                        <TableRow key={tx.id}>
+                                            <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy')}</TableCell>
+                                            <TableCell>{tx.description}</TableCell>
+                                            <TableCell><Badge variant="secondary">{account?.name || 'N/A'}</Badge></TableCell>
                                             <TableCell>
-                                                <Badge variant={type === 'payment_from_manager' ? 'default' : 'destructive'} className="capitalize">
-                                                    {type.replace(/_/g, ' ')}
+                                                <Badge variant={tx.type === 'payment_from_manager' ? 'default' : 'destructive'} className="capitalize">
+                                                    {tx.type.replace(/_/g, ' ')}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
                                             <TableCell>
                                                 <AlertDialog>
                                                   <AlertDialogTrigger asChild>
@@ -249,14 +223,14 @@ export default function ManagerLedgerPage() {
                                                   </AlertDialogTrigger>
                                                   <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                      <AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle>
+                                                      <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
                                                       <AlertDialogDescription>
-                                                        This will permanently delete this journal entry and reverse any associated bank or cash transactions. This action cannot be undone.
+                                                        This will permanently delete this record and reverse the associated bank transaction. This cannot be undone.
                                                       </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                      <AlertDialogAction onClick={() => deleteJournalEntry(entry.id)}>Delete</AlertDialogAction>
+                                                      <AlertDialogAction onClick={() => handleDelete(tx.id)}>Delete</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                   </AlertDialogContent>
                                                 </AlertDialog>
