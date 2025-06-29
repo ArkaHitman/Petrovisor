@@ -33,6 +33,70 @@ const initialChartOfAccounts: Omit<ChartOfAccount, 'id'>[] = [
 
 const GST_RATE = 0.28;
 
+// Helper function to centralize the logic for adding a journal entry and updating related ledgers.
+function addJournalEntryLogic(settings: Settings, entry: Omit<JournalEntry, 'id' | 'createdAt'>): Settings {
+    const now = new Date().toISOString();
+    const newEntry: JournalEntry = { ...entry, id: crypto.randomUUID(), createdAt: now };
+
+    const newBankTransactions: BankTransaction[] = [];
+    const newCashTransactions: MiscCollection[] = [];
+
+    entry.legs.forEach(leg => {
+        if (leg.accountType === 'bank_account') {
+            const bankAccount = settings.bankAccounts.find(ba => ba.id === leg.accountId);
+            if (bankAccount) {
+                const amount = leg.debit > 0 ? leg.debit : leg.credit;
+                // For Bank Ledger UI: Debit to asset (bank account) = money in = 'credit' transaction
+                const type = leg.debit > 0 ? 'credit' : 'debit';
+                
+                newBankTransactions.push({
+                    id: crypto.randomUUID(),
+                    accountId: bankAccount.id,
+                    date: entry.date,
+                    description: `Journal: ${entry.description}`,
+                    amount,
+                    type,
+                    source: 'journal_entry',
+                    sourceId: newEntry.id,
+                    createdAt: now,
+                });
+            }
+        } else if (leg.accountType === 'cash_account') {
+            const amount = leg.debit > 0 ? leg.debit : leg.credit;
+            // For Cash Account: Debit to asset (cash) = money in = 'inflow'
+            const type = leg.debit > 0 ? 'inflow' : 'outflow';
+
+            newCashTransactions.push({
+                id: crypto.randomUUID(),
+                date: entry.date,
+                description: `Journal: ${entry.description}`,
+                amount,
+                type,
+                source: 'journal_entry',
+                sourceId: newEntry.id,
+                createdAt: now,
+            });
+        }
+    });
+    
+    // Create a mutable copy to sort
+    const journalEntries = [...(settings.journalEntries || []), newEntry];
+    const bankLedger = [...(settings.bankLedger || []), ...newBankTransactions];
+    const miscCollections = [...(settings.miscCollections || []), ...newCashTransactions];
+
+    journalEntries.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    bankLedger.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    miscCollections.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return {
+        ...settings,
+        journalEntries,
+        bankLedger,
+        miscCollections,
+    };
+}
+
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useLocalStorage<AppState>('petrovisor-data', defaultState);
 
@@ -159,57 +223,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const addJournalEntry = useCallback((entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
         setAppState(prev => {
             if (!prev.settings) return prev;
-
-            const now = new Date().toISOString();
-            const newEntry: JournalEntry = { ...entry, id: crypto.randomUUID(), createdAt: now };
-
-            const newBankTransactions: BankTransaction[] = [];
-            const newCashTransactions: MiscCollection[] = [];
-
-            entry.legs.forEach(leg => {
-                if (leg.accountType === 'bank_account') {
-                    const bankAccount = prev.settings?.bankAccounts.find(ba => ba.id === leg.accountId);
-                    if (bankAccount) {
-                        const amount = leg.debit > 0 ? leg.debit : leg.credit;
-                        // For Bank Ledger UI: Debit to asset (bank account) = money in = 'credit' transaction
-                        const type = leg.debit > 0 ? 'credit' : 'debit';
-                        
-                        newBankTransactions.push({
-                            id: crypto.randomUUID(),
-                            accountId: bankAccount.id,
-                            date: entry.date,
-                            description: `Journal: ${entry.description}`,
-                            amount,
-                            type,
-                            source: 'journal_entry',
-                            sourceId: newEntry.id,
-                            createdAt: now,
-                        });
-                    }
-                } else if (leg.accountType === 'cash_account') {
-                    const amount = leg.debit > 0 ? leg.debit : leg.credit;
-                    // For Cash Account: Debit to asset (cash) = money in = 'inflow'
-                    const type = leg.debit > 0 ? 'inflow' : 'outflow';
-
-                    newCashTransactions.push({
-                        id: crypto.randomUUID(),
-                        date: entry.date,
-                        description: `Journal: ${entry.description}`,
-                        amount,
-                        type,
-                        source: 'journal_entry',
-                        sourceId: newEntry.id,
-                        createdAt: now,
-                    });
-                }
-            });
-
-            const newSettings = {
-                ...prev.settings,
-                journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
-                bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
-                miscCollections: [...(prev.settings.miscCollections || []), ...newCashTransactions].sort((a,b) => b.date.localeCompare(a.date)),
-            };
+            const newSettings = addJournalEntryLogic(prev.settings, entry);
             return { ...prev, settings: newSettings };
         });
     }, [setAppState]);
@@ -249,29 +263,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             legs: journalLegs,
         };
 
-        // Re-use the master addJournalEntry logic by temporarily creating the entry and calling the function
-        const tempState = { settings: prev.settings };
-        const now = new Date().toISOString();
-        const newEntry: JournalEntry = { ...journalEntry, id: crypto.randomUUID(), createdAt: now };
-
-        const newBankTransactions: BankTransaction[] = [];
-        const newCashTransactions: MiscCollection[] = [];
-        journalEntry.legs.forEach(leg => {
-            if (leg.accountType === 'bank_account') {
-                newBankTransactions.push({
-                    id: crypto.randomUUID(), accountId: leg.accountId, date: journalEntry.date,
-                    description: `Journal: ${journalEntry.description}`, amount: leg.debit > 0 ? leg.debit : leg.credit,
-                    type: leg.debit > 0 ? 'credit' : 'debit', source: 'journal_entry',
-                    sourceId: newEntry.id, createdAt: now,
-                });
-            }
-        });
-        const newSettings = {
-            ...prev.settings,
-            journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
-            bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
-        };
-
+        const newSettings = addJournalEntryLogic(prev.settings, journalEntry);
         return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
