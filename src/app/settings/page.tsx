@@ -418,7 +418,7 @@ export default function SettingsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {settings.chartOfAccounts.length > 0 ? settings.chartOfAccounts.map(account => (
+                                {settings.chartOfAccounts && settings.chartOfAccounts.length > 0 ? settings.chartOfAccounts.map(account => (
                                     <TableRow key={account.id}>
                                         <TableCell className="font-medium">{account.name}</TableCell>
                                         <TableCell>{account.type}</TableCell>
