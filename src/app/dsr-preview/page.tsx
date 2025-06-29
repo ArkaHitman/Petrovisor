@@ -1,3 +1,4 @@
+
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -69,49 +70,52 @@ export default function DsrPreviewPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {shiftReports.map(report => (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium">{format(parseISO(report.date), 'dd MMM yyyy')}</TableCell>
-                      <TableCell>
-                        <Badge variant={report.shiftType === 'day' ? 'default' : 'secondary'} className="capitalize">
-                          {report.shiftType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{getEmployeeName(report.employeeId)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(report.totalSales)}</TableCell>
-                      <TableCell className="text-right text-destructive">{formatCurrency(report.creditSales)}</TableCell>
-                      <TableCell className="text-right text-blue-600">{formatCurrency(report.onlinePayments)}</TableCell>
-                      <TableCell className="text-right font-semibold text-primary">{formatCurrency(report.cashInHand)}</TableCell>
-                       <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
-                                  <Link href={`/shift-report?id=${report.id}`}>
-                                      <Pencil className="h-4 w-4" />
-                                  </Link>
-                              </Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Delete Shift Report?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                              This will permanently delete this shift report and reverse all associated financial and stock transactions. This action cannot be undone.
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
-                          </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {shiftReports.map(report => {
+                    const totalCreditSales = (report.creditSales || []).reduce((sum, sale) => sum + sale.amount, 0);
+                    return (
+                        <TableRow key={report.id}>
+                        <TableCell className="font-medium">{format(parseISO(report.date), 'dd MMM yyyy')}</TableCell>
+                        <TableCell>
+                            <Badge variant={report.shiftType === 'day' ? 'default' : 'secondary'} className="capitalize">
+                            {report.shiftType}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>{getEmployeeName(report.employeeId)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(report.totalSales)}</TableCell>
+                        <TableCell className="text-right text-destructive">{formatCurrency(totalCreditSales)}</TableCell>
+                        <TableCell className="text-right text-blue-600">{formatCurrency(report.onlinePayments)}</TableCell>
+                        <TableCell className="text-right font-semibold text-primary">{formatCurrency(report.cashInHand)}</TableCell>
+                        <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                                <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                                    <Link href={`/shift-report?id=${report.id}`}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Shift Report?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete this shift report and reverse all associated financial and stock transactions. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </TableCell>
+                        </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
