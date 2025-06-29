@@ -254,7 +254,6 @@ export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark';
   screenScale?: number;
-  fontSize?: number;
   bankAccounts: BankAccount[];
   employees: Employee[];
   customers: Customer[];

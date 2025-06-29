@@ -10,21 +10,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { settings } = useAppState();
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined' || !settings) return;
+
     // Theme
-    if (settings?.theme) {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(settings.theme);
-    }
-    
-    // Font Size
-    document.documentElement.style.fontSize = `${settings?.fontSize || 16}px`;
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(settings.theme);
 
-    // Screen Scale (Zoom)
-    (document.documentElement.style as any).zoom = `${(settings?.screenScale || 100) / 100}`;
+    // UI Scale
+    // Adjust the root font-size based on the scale setting.
+    // All rem-based units in Tailwind will scale accordingly.
+    const baseFontSize = 16;
+    document.documentElement.style.fontSize = `${baseFontSize * ((settings.screenScale || 100) / 100)}px`;
 
-  }, [settings?.theme, settings?.fontSize, settings?.screenScale]);
+  }, [settings?.theme, settings?.screenScale, settings]);
+
 
   return (
     <SidebarProvider>

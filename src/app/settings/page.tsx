@@ -54,7 +54,6 @@ const bankAccountSchema = z.object({
 const settingsFormSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
   screenScale: z.coerce.number().min(75).max(125).optional(),
-  fontSize: z.coerce.number().min(12).max(20).optional(),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
   managerInitialBalance: z.coerce.number().optional(),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
@@ -143,14 +142,12 @@ export default function SettingsPage() {
   
   const watchedFuels = watch('fuels');
   const watchedScreenScale = watch('screenScale');
-  const watchedFontSize = watch('fontSize');
   
   useEffect(() => {
     if (settings) {
       const formValues: SettingsFormValues = {
         ...settings,
         screenScale: settings.screenScale || 100,
-        fontSize: settings.fontSize || 16,
         fuels: settings.fuels.map(fuel => ({
           ...fuel,
           nozzleCount: settings.nozzlesPerFuel[fuel.id] || 0
@@ -182,7 +179,6 @@ export default function SettingsPage() {
       tanks: data.tanks,
       nozzlesPerFuel,
       screenScale: data.screenScale,
-      fontSize: data.fontSize,
     };
     
     setSettings(finalSettings);
@@ -347,7 +343,6 @@ export default function SettingsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div></div>
                     <div className="space-y-2">
                         <Label>Screen Scale ({watchedScreenScale || 100}%)</Label>
                         <Slider
@@ -357,16 +352,7 @@ export default function SettingsPage() {
                             step={5}
                             onValueChange={(value) => setValue('screenScale', value[0])}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Base Font Size ({watchedFontSize || 16}px)</Label>
-                        <Slider
-                            defaultValue={[watchedFontSize || 16]}
-                            min={12}
-                            max={20}
-                            step={1}
-                            onValueChange={(value) => setValue('fontSize', value[0])}
-                        />
+                         <FormDescription>Controls the overall size of the application UI.</FormDescription>
                     </div>
                 </CardContent>
             </Card>
