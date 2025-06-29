@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, ShiftReportCreditSale } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -430,8 +430,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         };
 
         const sourceId = finalReport.id;
-        if (finalReport.creditSales > 0 && finalReport.creditCustomerId) {
-            newSettings.creditHistory.push({ id: crypto.randomUUID(), customerId: finalReport.creditCustomerId, date: finalReport.date, type: 'given', amount: finalReport.creditSales, createdAt: now, source: 'shift_report', sourceId });
+        if (finalReport.creditSales && finalReport.creditSales.length > 0) {
+            finalReport.creditSales.forEach(cs => {
+                if (cs.amount > 0 && cs.customerId) {
+                    newSettings.creditHistory.push({
+                        id: crypto.randomUUID(),
+                        customerId: cs.customerId,
+                        date: finalReport.date,
+                        type: 'given',
+                        amount: cs.amount,
+                        createdAt: now,
+                        source: 'shift_report',
+                        sourceId,
+                    });
+                }
+            });
         }
         if (finalReport.onlinePayments > 0 && finalReport.onlinePaymentsAccountId) {
             newSettings.bankLedger.push({ id: crypto.randomUUID(), accountId: finalReport.onlinePaymentsAccountId, date: finalReport.date, description: `Online Payments from Shift`, type: 'credit', amount: finalReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now });

@@ -184,6 +184,11 @@ export interface ShiftMeterReading {
   saleAmount: number;
 }
 
+export interface ShiftReportCreditSale {
+  customerId: string;
+  amount: number;
+}
+
 export interface ShiftReport {
   id: string;
   date: string; // YYYY-MM-DD
@@ -191,8 +196,7 @@ export interface ShiftReport {
   shiftType: 'day' | 'night';
   meterReadings: ShiftMeterReading[];
   totalSales: number;
-  creditSales: number;
-  creditCustomerId?: string; // Optional: if all credit sales go to one customer
+  creditSales: ShiftReportCreditSale[];
   onlinePayments: number;
   onlinePaymentsAccountId: string;
   lubeSaleName?: string;

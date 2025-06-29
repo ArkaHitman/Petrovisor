@@ -1,3 +1,4 @@
+
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -20,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link';
+import { PlusCircle, Trash2 } from 'lucide-react';
 
 const meterReadingSchema = z.object({
   fuelId: z.string(),
@@ -34,14 +36,18 @@ const meterReadingSchema = z.object({
   path: ["closing"],
 });
 
+const creditSaleSchema = z.object({
+  customerId: z.string().min(1, "Please select a customer."),
+  amount: z.coerce.number().positive("A positive amount is required."),
+});
+
 const shiftReportSchema = z.object({
   id: z.string().optional(),
   date: z.string().min(1, "Date is required"),
   employeeId: z.string().min(1, "Please select an employee."),
   shiftType: z.enum(['day', 'night']),
   meterReadings: z.array(meterReadingSchema),
-  creditSales: z.coerce.number().min(0).default(0),
-  creditCustomerId: z.string().optional(),
+  creditSales: z.array(creditSaleSchema).optional(),
   onlinePayments: z.coerce.number().min(0).default(0),
   onlinePaymentsAccountId: z.string().min(1, 'Please select an account for online payments.'),
   lubeSaleName: z.string().optional(),
@@ -59,8 +65,31 @@ export default function ShiftReportPage() {
   const reportId = searchParams.get('id');
   const isEditing = !!reportId;
   
-  const existingReport = useMemo(() => isEditing ? settings?.shiftReports?.find(r => r.id === reportId) : undefined, [isEditing, reportId, settings?.shiftReports]);
   const latestShiftReport = settings?.shiftReports?.[0];
+
+  const existingReport = useMemo(() => {
+    if (!isEditing || !settings?.shiftReports) return undefined;
+    const report = settings.shiftReports.find(r => r.id === reportId);
+    if (!report) return undefined;
+    
+    // Clone to avoid mutation and handle type issues during migration
+    const reportCopy: any = JSON.parse(JSON.stringify(report));
+
+    // Migration for old structure to new structure
+    if (typeof reportCopy.creditSales === 'number') {
+      const amount = reportCopy.creditSales;
+      const customerId = reportCopy.creditCustomerId;
+      if (amount > 0 && customerId) {
+        reportCopy.creditSales = [{ customerId: customerId, amount: amount }];
+      } else {
+        reportCopy.creditSales = [];
+      }
+      delete reportCopy.creditCustomerId;
+    }
+    
+    return reportCopy as ShiftReportFormValues;
+  }, [isEditing, reportId, settings?.shiftReports]);
+
 
   const form = useForm<ShiftReportFormValues>({
     resolver: zodResolver(shiftReportSchema),
@@ -83,8 +112,7 @@ export default function ShiftReportPage() {
           };
         })
       ) || [],
-      creditSales: 0,
-      creditCustomerId: '',
+      creditSales: [],
       onlinePayments: 0,
       onlinePaymentsAccountId: settings?.bankAccounts?.find(acc => acc.isOverdraft)?.id || settings?.bankAccounts?.[0]?.id || '',
       lubeSaleName: '',
@@ -102,6 +130,12 @@ export default function ShiftReportPage() {
     control: form.control,
     name: "meterReadings",
   });
+  
+  const { fields: creditSalesFields, append: appendCreditSale, remove: removeCreditSale } = useFieldArray({
+    control: form.control,
+    name: "creditSales",
+  });
+
 
   const watchedValuesString = JSON.stringify(form.watch());
 
@@ -133,13 +167,21 @@ export default function ShiftReportPage() {
   const { meterReadings, creditSales, onlinePayments, lubeSaleAmount } = JSON.parse(watchedValuesString);
   const totalFuelSales = meterReadings.reduce((acc: number, r: any) => acc + r.saleAmount, 0);
   const totalSales = totalFuelSales + (lubeSaleAmount || 0);
-  const cashInHand = totalSales - creditSales - onlinePayments;
+  const totalCreditSales = (creditSales || []).reduce((acc: number, cs: any) => acc + (cs.amount || 0), 0);
+  const cashInHand = totalSales - totalCreditSales - onlinePayments;
 
   const onSubmit = (data: ShiftReportFormValues) => {
+    const totalFuelSalesCalc = data.meterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
+    const totalLubeSalesCalc = data.lubeSaleAmount || 0;
+    const totalSalesCalc = totalFuelSalesCalc + totalLubeSalesCalc;
+    const totalCreditSalesCalc = (data.creditSales || []).reduce((acc, cs) => acc + cs.amount, 0);
+    const cashInHandCalc = totalSalesCalc - totalCreditSalesCalc - data.onlinePayments;
+
     addOrUpdateShiftReport({
       ...data,
-      totalSales,
-      cashInHand,
+      creditSales: data.creditSales || [],
+      totalSales: totalSalesCalc,
+      cashInHand: cashInHandCalc,
     });
     toast({ title: 'Success', description: `Shift report ${isEditing ? 'updated' : 'saved'} and ledgers updated.` });
     router.push('/dsr-preview');
@@ -214,32 +256,58 @@ export default function ShiftReportPage() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Financials</CardTitle><CardDescription>Enter other sales and payments for the day.</CardDescription></CardHeader>
-              <CardContent className="grid md:grid-cols-2 gap-6">
-                <FormField control={form.control} name="lubeSaleName" render={({ field }) => <FormItem><FormLabel>Lube Sale Name (Optional)</FormLabel><FormControl><Input placeholder="e.g., Castrol GTX" {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="lubeSaleAmount" render={({ field }) => <FormItem><FormLabel>Lube Sale Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name="creditCustomerId" render={({ field }) => (
-                        <FormItem><FormLabel>Credit To</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
-                                <SelectContent>{(settings.customers || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
-                            </Select><FormMessage />
-                        </FormItem>
-                    )} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name="onlinePaymentsAccountId" render={({ field }) => (
-                        <FormItem><FormLabel>Deposit To</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
-                                <SelectContent>{(settings.bankAccounts || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
-                            </Select><FormMessage />
-                        </FormItem>
-                    )} />
-                </div>
+                <CardHeader>
+                    <CardTitle>Financials</CardTitle>
+                    <CardDescription>Enter other sales and payments for the shift.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-6">
+                    {/* Lube Sales */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="lubeSaleName" render={({ field }) => <FormItem><FormLabel>Lube Sale Name (Optional)</FormLabel><FormControl><Input placeholder="e.g., Castrol GTX" {...field} /></FormControl><FormMessage /></FormItem>} />
+                        <FormField control={form.control} name="lubeSaleAmount" render={({ field }) => <FormItem><FormLabel>Lube Sale Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    </div>
+                    {/* Online Payments */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                        <FormField control={form.control} name="onlinePaymentsAccountId" render={({ field }) => (
+                            <FormItem><FormLabel>Deposit To</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
+                                    <SelectContent>{(settings.bankAccounts || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
+                                </Select><FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle>Credit Sales</CardTitle><CardDescription>Add credit sales given to different customers during this shift.</CardDescription></CardHeader>
+              <CardContent className="space-y-4">
+                {creditSalesFields.map((field, index) => (
+                  <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg bg-muted/50">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+                        <FormField control={form.control} name={`creditSales.${index}.customerId`} render={({ field }) => (
+                            <FormItem><FormLabel>Customer</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
+                                    <SelectContent>{(settings.customers || []).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                </Select><FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name={`creditSales.${index}.amount`} render={({ field }) => (
+                            <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" className="mt-8 shrink-0" onClick={() => removeCreditSale(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => appendCreditSale({ customerId: '', amount: 0 })}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Credit Entry
+                </Button>
+                 {form.formState.errors.creditSales && <p className="text-sm font-medium text-destructive">{form.formState.errors.creditSales.message}</p>}
               </CardContent>
             </Card>
 
@@ -268,7 +336,7 @@ export default function ShiftReportPage() {
                     <div className="space-y-2 text-sm p-4 border rounded-lg bg-muted/50">
                          <div className="flex justify-between">
                             <span>Less: Credit Sales</span>
-                            <span className="font-medium text-destructive">-{formatCurrency(creditSales)}</span>
+                            <span className="font-medium text-destructive">-{formatCurrency(totalCreditSales)}</span>
                         </div>
                          <div className="flex justify-between">
                             <span>Less: Online Payments</span>
