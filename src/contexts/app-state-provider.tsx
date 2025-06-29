@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, ManagerTransaction, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, AnalyzeDsrOutput, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -13,6 +13,23 @@ const defaultState: AppState = {
   settings: null,
   isSetupComplete: false,
 };
+
+const initialChartOfAccounts: Omit<ChartOfAccount, 'id'>[] = [
+    { name: 'Cash Sales', type: 'Revenue' },
+    { name: 'Customer Advance', type: 'Asset' },
+    { name: 'IOCL Vendor Account', type: 'Liability' },
+    { name: 'Salary & Wages', type: 'Expense' },
+    { name: 'Electricity Charges', type: 'Expense' },
+    { name: 'Generator Fuel', type: 'Expense' },
+    { name: 'Maintenance & Repairs', type: 'Expense' },
+    { name: 'License Renewal / Admin', type: 'Expense' },
+    { name: 'Security / Labour Contractor', type: 'Expense' },
+    { name: 'GST Paid', type: 'Expense' },
+    { name: 'Insurance', type: 'Expense' },
+    { name: 'Interest', type: 'Expense' },
+    { name: 'Commission Paid', type: 'Expense' },
+];
+
 
 const GST_RATE = 0.28;
 
@@ -40,6 +57,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       purchases: settings.purchases || [],
       supplierDeliveries: settings.supplierDeliveries || [],
       supplierPayments: settings.supplierPayments || [],
+      chartOfAccounts: initialChartOfAccounts.map(acc => ({...acc, id: crypto.randomUUID()})),
+      journalEntries: [],
     };
     setAppState(prevState => ({
       ...prevState,
@@ -542,7 +561,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
 
-
   const processDsrData = useCallback((data: AnalyzeDsrOutput) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
@@ -622,6 +640,86 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState, getOverdraftAccount]);
 
+    // Chart of Accounts
+    const addChartOfAccount = useCallback((account: Omit<ChartOfAccount, 'id'>) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+            const newAccount: ChartOfAccount = { ...account, id: crypto.randomUUID() };
+            const newSettings = { ...prev.settings, chartOfAccounts: [...prev.settings.chartOfAccounts, newAccount] };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
+    const updateChartOfAccount = useCallback((account: ChartOfAccount) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+            const newSettings = { ...prev.settings, chartOfAccounts: prev.settings.chartOfAccounts.map(a => a.id === account.id ? account : a) };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
+    const deleteChartOfAccount = useCallback((accountId: string) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+            // TODO: Also check if this account is used in any journal entries and prevent deletion.
+            const newSettings = { ...prev.settings, chartOfAccounts: prev.settings.chartOfAccounts.filter(a => a.id !== accountId) };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+    
+    // Journal Entries
+    const addJournalEntry = useCallback((entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+
+            const now = new Date().toISOString();
+            const newEntry: JournalEntry = { ...entry, id: crypto.randomUUID(), createdAt: now };
+
+            const newBankTransactions: BankTransaction[] = [];
+
+            entry.legs.forEach(leg => {
+                if (leg.accountType === 'bank_account') {
+                    const bankAccount = prev.settings?.bankAccounts.find(ba => ba.id === leg.accountId);
+                    if (bankAccount) {
+                        const amount = leg.debit > 0 ? leg.debit : leg.credit;
+                        const type = leg.debit > 0 ? 'credit' : 'debit';
+                        
+                        newBankTransactions.push({
+                            id: crypto.randomUUID(),
+                            accountId: bankAccount.id,
+                            date: entry.date,
+                            description: `Journal: ${entry.description}`,
+                            amount,
+                            type,
+                            source: 'journal_entry',
+                            sourceId: newEntry.id,
+                            createdAt: now,
+                        });
+                    }
+                }
+            });
+
+            const newSettings = {
+                ...prev.settings,
+                journalEntries: [...prev.settings.journalEntries, newEntry].sort((a,b) => b.date.localeCompare(a.date)),
+                bankLedger: [...prev.settings.bankLedger, ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
+            };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
+    const deleteJournalEntry = useCallback((entryId: string) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+            const newSettings = {
+                ...prev.settings,
+                journalEntries: prev.settings.journalEntries.filter(je => je.id !== entryId),
+                bankLedger: prev.settings.bankLedger.filter(bt => bt.source !== 'journal_entry' || bt.sourceId !== entryId),
+            };
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
 
   const value = useMemo(() => ({
     ...appState,
@@ -654,6 +752,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addSupplierPayment,
     deleteSupplierPayment,
     processDsrData,
+    addChartOfAccount,
+    updateChartOfAccount,
+    deleteChartOfAccount,
+    addJournalEntry,
+    deleteJournalEntry,
   }), [
     appState,
     setSettings,
@@ -685,6 +788,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     addSupplierPayment,
     deleteSupplierPayment,
     processDsrData,
+    addChartOfAccount,
+    updateChartOfAccount,
+    deleteChartOfAccount,
+    addJournalEntry,
+    deleteJournalEntry,
   ]);
 
   return (

@@ -27,7 +27,7 @@ export interface FuelPriceEntry {
 }
 
 export interface Tank {
-  id: string;
+  id:string;
   name: string;
   fuelId: string;
   capacity: number;
@@ -78,7 +78,7 @@ export interface BankTransaction {
   description: string;
   type: 'credit' | 'debit';
   amount: number;
-  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment' | 'manager_payment';
+  source?: 'credit_repayment' | 'manual' | 'monthly_report_deposit' | 'misc_payment' | 'fuel_purchase' | 'statement_import' | 'dsr_import' | 'shift_report' | 'supplier_payment' | 'manager_payment' | 'journal_entry';
   sourceId?: string; // e.g., the ID of the monthly report or purchase
   createdAt: string;
 }
@@ -201,6 +201,27 @@ export interface ShiftReport {
   updatedAt: string;
 }
 
+export interface ChartOfAccount {
+  id: string;
+  name: string;
+  type: 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
+}
+
+export interface JournalEntryLeg {
+  accountId: string;
+  accountType: 'chart_of_account' | 'bank_account';
+  debit: number;
+  credit: number;
+}
+
+export interface JournalEntry {
+  id: string;
+  date: string;
+  description: string;
+  legs: JournalEntryLeg[];
+  createdAt: string;
+}
+
 
 // Types for DSR AI Flow
 export interface AnalyzeDsrInput {
@@ -250,6 +271,8 @@ export interface Settings {
   miscCollections: MiscCollection[];
   supplierDeliveries: SupplierDelivery[];
   supplierPayments: SupplierPayment[];
+  chartOfAccounts: ChartOfAccount[];
+  journalEntries: JournalEntry[];
 }
 
 export interface AppState {
@@ -311,4 +334,13 @@ export interface AppStateContextType extends AppState {
   
   // DSR Processing
   processDsrData: (data: AnalyzeDsrOutput) => void;
+
+  // Chart of Accounts
+  addChartOfAccount: (account: Omit<ChartOfAccount, 'id'>) => void;
+  updateChartOfAccount: (account: ChartOfAccount) => void;
+  deleteChartOfAccount: (accountId: string) => void;
+
+  // Journal Entries
+  addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => void;
+  deleteJournalEntry: (entryId: string) => void;
 }

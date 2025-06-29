@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
-import type { Fuel, NozzlesPerFuel, Settings, Tank } from '@/lib/types';
-import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText } from 'lucide-react';
+import type { Fuel, NozzlesPerFuel, Settings, Tank, ChartOfAccount } from '@/lib/types';
+import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText, BookText, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState, useRef } from 'react';
 import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
@@ -21,6 +21,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { formatCurrency } from '@/lib/utils';
 import { parseISO, format } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -65,14 +68,68 @@ const settingsFormSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
+const chartOfAccountSchema = z.object({
+  name: z.string().min(1, 'Account name is required'),
+  type: z.enum(['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']),
+});
+
+function ChartOfAccountDialog({ open, setOpen, account, onSave }: { open: boolean, setOpen: (open: boolean) => void, account: ChartOfAccount | null, onSave: (data: z.infer<typeof chartOfAccountSchema>, id?: string) => void }) {
+    const form = useForm<z.infer<typeof chartOfAccountSchema>>({
+        resolver: zodResolver(chartOfAccountSchema),
+        defaultValues: account || { name: '', type: 'Expense' },
+    });
+
+    useEffect(() => {
+        form.reset(account || { name: '', type: 'Expense' });
+    }, [account, form]);
+    
+    const onSubmit = (values: z.infer<typeof chartOfAccountSchema>) => {
+        onSave(values, account?.id);
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{account ? 'Edit Account' : 'Add New Account'}</DialogTitle>
+                    <DialogDescription>Manage accounts for your journal entries.</DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g., Office Supplies" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="type" render={({ field }) => (
+                            <FormItem><FormLabel>Account Type</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Asset">Asset</SelectItem>
+                                        <SelectItem value="Liability">Liability</SelectItem>
+                                        <SelectItem value="Equity">Equity</SelectItem>
+                                        <SelectItem value="Revenue">Revenue</SelectItem>
+                                        <SelectItem value="Expense">Expense</SelectItem>
+                                    </SelectContent>
+                                </Select><FormMessage />
+                            </FormItem>
+                        )} />
+                        <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit">Save Account</Button></DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function SettingsPage() {
   const router = useRouter();
-  const { settings, setSettings, resetApp } = useAppState();
+  const { settings, setSettings, resetApp, addChartOfAccount, updateChartOfAccount, deleteChartOfAccount } = useAppState();
   const { toast } = useToast();
   
   const [isClient, setIsClient] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<ChartOfAccount | null>(null);
+
   const formMethods = useForm<SettingsFormValues>({
       resolver: zodResolver(settingsFormSchema),
   });
@@ -250,6 +307,21 @@ export default function SettingsPage() {
     router.push('/');
   };
 
+  const handleSaveAccount = (data: z.infer<typeof chartOfAccountSchema>, id?: string) => {
+    if (id) {
+        updateChartOfAccount({ ...data, id });
+        toast({ title: 'Success', description: 'Account updated.' });
+    } else {
+        addChartOfAccount(data);
+        toast({ title: 'Success', description: 'New account added.' });
+    }
+  };
+
+  const openAccountDialog = (account: ChartOfAccount | null = null) => {
+      setSelectedAccount(account);
+      setIsAccountDialogOpen(true);
+  };
+
   if (!isClient || !settings) {
     return <AppLayout><div className="p-8">Loading Settings...</div></AppLayout>;
   }
@@ -327,6 +399,45 @@ export default function SettingsPage() {
                          </Card>
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={() => appendBank({id: crypto.randomUUID(), name: '', accountNumber: '', initialBalance: 0, isOverdraft: false })}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><BookText /> Chart of Accounts</CardTitle>
+                    <CardDescription>Manage the accounts used in your journal entries.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="border rounded-md">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Account Name</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead className="w-24"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {settings.chartOfAccounts.length > 0 ? settings.chartOfAccounts.map(account => (
+                                    <TableRow key={account.id}>
+                                        <TableCell className="font-medium">{account.name}</TableCell>
+                                        <TableCell>{account.type}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAccountDialog(account)}><Edit className="h-4 w-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Delete Account?</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete the "{account.name}" account? This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteChartOfAccount(account.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No accounts configured.</TableCell></TableRow>}
+                            </TableBody>
+                        </Table>
+                     </div>
+                     <Button type="button" variant="outline" size="sm" onClick={() => openAccountDialog()}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
                 </CardContent>
             </Card>
 
@@ -449,6 +560,7 @@ export default function SettingsPage() {
             </div>
         </form>
         </FormProvider>
+        {isAccountDialogOpen && <ChartOfAccountDialog open={isAccountDialogOpen} setOpen={setIsAccountDialogOpen} account={selectedAccount} onSave={handleSaveAccount} />}
     </AppLayout>
   );
 }
