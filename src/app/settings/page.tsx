@@ -430,7 +430,7 @@ export default function SettingsPage() {
                             </TableBody>
                         </Table>
                      </div>
-                     <Button type="button" variant="outline" size="sm" onClick={() => openAccountDialog()}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
+                     <Button type="button" variant="outline" size="sm" onClick={() => openAccountDialog(null)}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
                 </CardContent>
             </Card>
 

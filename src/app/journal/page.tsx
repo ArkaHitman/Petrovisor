@@ -188,7 +188,7 @@ export default function JournalPage() {
                                     <Button type="button" variant="outline" size="sm" onClick={() => append({ accountId: '', debit: 0, credit: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Add Row</Button>
                                     <Button type="submit" disabled={!form.formState.isValid}>Save Entry</Button>
                                 </div>
-                                {form.formState.errors.legs?.message && <p className="text-sm font-medium text-destructive text-center">{form.formState.errors.legs.message}</p>}
+                                {form.formState.errors.legs?.root?.message && <p className="text-sm font-medium text-destructive text-center">{form.formState.errors.legs.root.message}</p>}
                             </form>
                         </Form>
                     </CardContent>

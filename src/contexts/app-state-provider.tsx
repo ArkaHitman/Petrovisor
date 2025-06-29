@@ -645,7 +645,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setAppState(prev => {
             if (!prev.settings) return prev;
             const newAccount: ChartOfAccount = { ...account, id: crypto.randomUUID() };
-            const newSettings = { ...prev.settings, chartOfAccounts: [...prev.settings.chartOfAccounts, newAccount] };
+            const newSettings = { ...prev.settings, chartOfAccounts: [...(prev.settings.chartOfAccounts || []), newAccount] };
             return { ...prev, settings: newSettings };
         });
     }, [setAppState]);
@@ -653,7 +653,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const updateChartOfAccount = useCallback((account: ChartOfAccount) => {
         setAppState(prev => {
             if (!prev.settings) return prev;
-            const newSettings = { ...prev.settings, chartOfAccounts: prev.settings.chartOfAccounts.map(a => a.id === account.id ? account : a) };
+            const newSettings = { ...prev.settings, chartOfAccounts: (prev.settings.chartOfAccounts || []).map(a => a.id === account.id ? account : a) };
             return { ...prev, settings: newSettings };
         });
     }, [setAppState]);
@@ -662,7 +662,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setAppState(prev => {
             if (!prev.settings) return prev;
             // TODO: Also check if this account is used in any journal entries and prevent deletion.
-            const newSettings = { ...prev.settings, chartOfAccounts: prev.settings.chartOfAccounts.filter(a => a.id !== accountId) };
+            const newSettings = { ...prev.settings, chartOfAccounts: (prev.settings.chartOfAccounts || []).filter(a => a.id !== accountId) };
             return { ...prev, settings: newSettings };
         });
     }, [setAppState]);
@@ -682,6 +682,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                     const bankAccount = prev.settings?.bankAccounts.find(ba => ba.id === leg.accountId);
                     if (bankAccount) {
                         const amount = leg.debit > 0 ? leg.debit : leg.credit;
+                        // A DEBIT to a bank account in accounting is a DEPOSIT in real life (an increase in assets).
+                        // A CREDIT to a bank account in accounting is a WITHDRAWAL in real life (a decrease in assets).
                         const type = leg.debit > 0 ? 'credit' : 'debit';
                         
                         newBankTransactions.push({
@@ -701,8 +703,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
             const newSettings = {
                 ...prev.settings,
-                journalEntries: [...prev.settings.journalEntries, newEntry].sort((a,b) => b.date.localeCompare(a.date)),
-                bankLedger: [...prev.settings.bankLedger, ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
+                journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
+                bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
             };
             return { ...prev, settings: newSettings };
         });
@@ -713,8 +715,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             if (!prev.settings) return prev;
             const newSettings = {
                 ...prev.settings,
-                journalEntries: prev.settings.journalEntries.filter(je => je.id !== entryId),
-                bankLedger: prev.settings.bankLedger.filter(bt => bt.source !== 'journal_entry' || bt.sourceId !== entryId),
+                journalEntries: (prev.settings.journalEntries || []).filter(je => je.id !== entryId),
+                bankLedger: (prev.settings.bankLedger || []).filter(bt => bt.source !== 'journal_entry' || bt.sourceId !== entryId),
             };
             return { ...prev, settings: newSettings };
         });
