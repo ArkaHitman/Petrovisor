@@ -18,6 +18,16 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// This helper is specific to the PDF generation due to font limitations.
+const formatCurrencyForPdf = (amount: number) => {
+  // jsPDF's default fonts don't support the Rupee symbol (₹).
+  // Using "Rs." as a fallback to ensure correct display in the PDF.
+  return `Rs. ${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`;
+};
+
 export default function DsrPreviewPage() {
   const { settings, deleteShiftReport } = useAppState();
   const { toast } = useToast();
@@ -102,7 +112,7 @@ export default function DsrPreviewPage() {
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
-        doc.text(`${fuel.name} Sales (Rate: ${formatCurrency(sellingPrice)})`, margin, lastY);
+        doc.text(`${fuel.name} Sales (Rate: ${formatCurrencyForPdf(sellingPrice)})`, margin, lastY);
         
         autoTable(doc, {
           startY: lastY + 2,
@@ -113,19 +123,19 @@ export default function DsrPreviewPage() {
             r.closing.toFixed(2),
             r.testing.toFixed(2),
             r.saleLitres.toFixed(2),
-            formatCurrency(r.saleAmount)
+            formatCurrencyForPdf(r.saleAmount)
           ]),
           theme: 'grid',
           headStyles: { fillColor: '#f4f4f5', textColor: '#141414', fontStyle: 'bold', fontSize: 9, cellPadding: 1.5 },
           bodyStyles: { fontSize: 8.5, cellPadding: 1.5 },
           margin: { left: margin, right: margin },
           columnStyles: {
-            0: { cellWidth: 15, halign: 'center' }, // Nozzle
-            1: { cellWidth: 30, halign: 'right' },  // Opening
-            2: { cellWidth: 30, halign: 'right' },  // Closing
-            3: { cellWidth: 25, halign: 'right' },  // Testing
-            4: { cellWidth: 30, halign: 'right' },  // Sale (L)
-            5: { cellWidth: 'auto', halign: 'right' }, // Sale (₹)
+            0: { cellWidth: 15, halign: 'center' },
+            1: { cellWidth: 30, halign: 'right' },
+            2: { cellWidth: 30, halign: 'right' },
+            3: { cellWidth: 25, halign: 'right' },
+            4: { cellWidth: 30, halign: 'right' },
+            5: { cellWidth: 'auto', halign: 'right' },
           }
         });
         lastY = (doc as any).lastAutoTable.finalY + 8;
@@ -148,33 +158,33 @@ export default function DsrPreviewPage() {
 
       const financialSummaryBody: any[] = [
         [{content: 'Financial Summary', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 10, halign: 'left'}}],
-        ['Total Fuel Sales', formatCurrency(totalFuelSales)],
+        ['Total Fuel Sales', formatCurrencyForPdf(totalFuelSales)],
       ];
       if (report.lubeSaleAmount && report.lubeSaleAmount > 0) {
-        financialSummaryBody.push([`Lube Sale (${report.lubeSaleName || 'N/A'})`, formatCurrency(report.lubeSaleAmount)]);
+        financialSummaryBody.push([`Lube Sale (${report.lubeSaleName || 'N/A'})`, formatCurrencyForPdf(report.lubeSaleAmount)]);
       }
       financialSummaryBody.push([
         { content: 'Gross Total Sales', styles: { fontStyle: 'bold' } },
-        { content: formatCurrency(report.totalSales), styles: { fontStyle: 'bold' } }
+        { content: formatCurrencyForPdf(report.totalSales), styles: { fontStyle: 'bold' } }
       ]);
       financialSummaryBody.push([
           { content: 'Less: Online Payments', styles: {textColor: '#ef4444'} },
-          { content: `(${formatCurrency(report.onlinePayments)})`, styles: {textColor: '#ef4444'} }
+          { content: `(${formatCurrencyForPdf(report.onlinePayments)})`, styles: {textColor: '#ef4444'} }
       ]);
       financialSummaryBody.push([
           { content: 'Less: Credit Sales', styles: {textColor: '#ef4444'} },
-          { content: `(${formatCurrency(totalCreditSales)})`, styles: {textColor: '#ef4444'} }
+          { content: `(${formatCurrencyForPdf(totalCreditSales)})`, styles: {textColor: '#ef4444'} }
       ]);
       financialSummaryBody.push([
         { content: 'Net Cash In Hand', styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } },
-        { content: formatCurrency(report.cashInHand), styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } }
+        { content: formatCurrencyForPdf(report.cashInHand), styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } }
       ]);
 
       const creditDetailsBody: any[] = [];
       if (creditDetails.length > 0) {
           creditDetailsBody.push([{content: 'Credit Sale Details', colSpan: 2, styles: {fontStyle: 'bold', fontSize: 10, halign: 'left'}}]);
           creditDetails.forEach(cd => {
-              creditDetailsBody.push([cd.customerName, formatCurrency(cd.amount)]);
+              creditDetailsBody.push([cd.customerName, formatCurrencyForPdf(cd.amount)]);
           });
       }
 
