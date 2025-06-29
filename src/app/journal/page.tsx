@@ -15,7 +15,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
 import { PlusCircle, Trash2 } from 'lucide-react';
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -29,16 +29,21 @@ const legSchema = z.object({
 const journalEntrySchema = z.object({
     date: z.string().min(1, 'Date is required'),
     description: z.string().min(1, 'Description is required'),
-    legs: z.array(legSchema).min(2, 'At least two accounts are required.'),
+    legs: z.array(legSchema).min(1, 'At least one account is required.'),
+}).refine(data => {
+    if (data.legs.length > 1) {
+        const totalDebit = data.legs.reduce((sum, leg) => sum + leg.debit, 0);
+        const totalCredit = data.legs.reduce((sum, leg) => sum + leg.credit, 0);
+        return totalDebit === totalCredit;
+    }
+    return true; // Allow single-leg entries
+}, {
+    message: 'For multiple accounts, total debits must equal total credits.',
+    path: ['legs'],
 }).refine(data => {
     const totalDebit = data.legs.reduce((sum, leg) => sum + leg.debit, 0);
     const totalCredit = data.legs.reduce((sum, leg) => sum + leg.credit, 0);
-    return totalDebit === totalCredit;
-}, {
-    message: 'Total debits must equal total credits.',
-    path: ['legs'],
-}).refine(data => {
-    return data.legs.reduce((sum, leg) => sum + leg.debit, 0) > 0;
+    return totalDebit > 0 || totalCredit > 0;
 }, {
     message: 'Total amount cannot be zero.',
     path: ['legs'],
@@ -51,11 +56,11 @@ export default function JournalPage() {
 
     const form = useForm<z.infer<typeof journalEntrySchema>>({
         resolver: zodResolver(journalEntrySchema),
+        mode: 'onChange',
         defaultValues: {
             date: format(new Date(), 'yyyy-MM-dd'),
             description: '',
             legs: [
-                { accountId: '', debit: 0, credit: 0 },
                 { accountId: '', debit: 0, credit: 0 },
             ],
         },
@@ -74,14 +79,6 @@ export default function JournalPage() {
             return acc;
         }, { totalDebit: 0, totalCredit: 0 });
     }, [watchedLegs]);
-    
-    useEffect(() => {
-        if (totalDebit !== totalCredit) {
-            form.setError('legs', { type: 'manual', message: 'Totals must balance.' });
-        } else {
-            form.clearErrors('legs');
-        }
-    }, [totalDebit, totalCredit, form]);
 
     const accounts = useMemo(() => {
         if (!settings) return { coa: [], banks: [] };
@@ -114,7 +111,6 @@ export default function JournalPage() {
             description: '',
             legs: [
                 { accountId: '', debit: 0, credit: 0 },
-                { accountId: '', debit: 0, credit: 0 },
             ],
         });
     };
@@ -128,12 +124,12 @@ export default function JournalPage() {
 
     return (
         <AppLayout>
-            <PageHeader title="Journal Vouchers" description="Record custom double-entry transactions." />
+            <PageHeader title="Journal Vouchers" description="Record single or double-entry transactions." />
             <div className="p-4 md:p-8 space-y-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>New Journal Entry</CardTitle>
-                        <CardDescription>Ensure total debits equal total credits before saving.</CardDescription>
+                        <CardDescription>Record expenses, income, or other financial events. For multi-line entries, ensure total debits equal total credits.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
@@ -174,15 +170,15 @@ export default function JournalPage() {
                                                     </TableCell>
                                                     <TableCell><FormField control={form.control} name={`legs.${index}.debit`} render={({ field }) => (<FormItem><FormControl><Input type="number" className="text-right" {...field} /></FormControl><FormMessage /></FormItem>)} /></TableCell>
                                                     <TableCell><FormField control={form.control} name={`legs.${index}.credit`} render={({ field }) => (<FormItem><FormControl><Input type="number" className="text-right" {...field} /></FormControl><FormMessage /></FormItem>)} /></TableCell>
-                                                    <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 2}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                                                    <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
                                         <TableFooter>
                                             <TableRow>
                                                 <TableCell className="text-right font-bold">Totals</TableCell>
-                                                <TableCell className={cn("text-right font-bold", totalDebit !== totalCredit && 'text-destructive')}>{formatCurrency(totalDebit)}</TableCell>
-                                                <TableCell className={cn("text-right font-bold", totalDebit !== totalCredit && 'text-destructive')}>{formatCurrency(totalCredit)}</TableCell>
+                                                <TableCell className={cn("text-right font-bold", watchedLegs.length > 1 && totalDebit !== totalCredit && 'text-destructive')}>{formatCurrency(totalDebit)}</TableCell>
+                                                <TableCell className={cn("text-right font-bold", watchedLegs.length > 1 && totalDebit !== totalCredit && 'text-destructive')}>{formatCurrency(totalCredit)}</TableCell>
                                                 <TableCell></TableCell>
                                             </TableRow>
                                         </TableFooter>
@@ -190,7 +186,7 @@ export default function JournalPage() {
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <Button type="button" variant="outline" size="sm" onClick={() => append({ accountId: '', debit: 0, credit: 0 })}><PlusCircle className="mr-2 h-4 w-4" /> Add Row</Button>
-                                    <Button type="submit" disabled={totalDebit !== totalCredit || totalDebit === 0}>Save Entry</Button>
+                                    <Button type="submit" disabled={!form.formState.isValid}>Save Entry</Button>
                                 </div>
                                 {form.formState.errors.legs?.message && <p className="text-sm font-medium text-destructive text-center">{form.formState.errors.legs.message}</p>}
                             </form>
