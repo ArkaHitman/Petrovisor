@@ -158,17 +158,6 @@ export default function SettingsPage() {
     setIsClient(true);
   }, [settings, reset]);
 
-  const watchedTheme = watch('theme');
-  useEffect(() => {
-    const themeClasses = ['dark'];
-    if (watchedTheme) {
-        document.documentElement.classList.remove(...themeClasses);
-        if (watchedTheme === 'dark') {
-          document.documentElement.classList.add('dark');
-        }
-    }
-  }, [watchedTheme]);
-
   const handleSave = (data: SettingsFormValues) => {
     if (!settings) return;
 
@@ -340,7 +329,11 @@ export default function SettingsPage() {
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="theme">Theme</Label>
-                         <Select value={watchedTheme} onValueChange={(value) => setValue('theme', value as any)}>
+                         <Select value={watch('theme')} onValueChange={(value) => {
+                            if (settings) {
+                                setSettings({ ...settings, theme: value as 'light' | 'dark' });
+                            }
+                         }}>
                             <SelectTrigger id="theme"><SelectValue placeholder="Select theme" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="light">Light</SelectItem>
