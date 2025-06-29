@@ -6,7 +6,7 @@ import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAppState } from '@/contexts/app-state-provider';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getFuelPricesForDate } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -42,59 +42,134 @@ export default function DsrPreviewPage() {
     }
 
     const doc = new jsPDF();
+    let lastY = 15;
 
     doc.setFontSize(18);
-    doc.text("Shift Report History", 14, 22);
+    doc.text("Shift Report History", doc.internal.pageSize.getWidth() / 2, lastY, { align: 'center' });
+    lastY += 8;
     doc.setFontSize(10);
-    doc.text(`Generated on: ${format(new Date(), 'dd MMM yyyy, h:mm a')}`, 14, 28);
-    
-    const tableBody: any[] = [];
-    const meterReadingHead = ['Fuel', 'Nozzle', 'Opening', 'Closing', 'Testing', 'Sale (L)', 'Sale (₹)'];
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${format(new Date(), 'dd MMM yyyy, h:mm a')}`, doc.internal.pageSize.getWidth() / 2, lastY, { align: 'center' });
+    lastY += 12;
 
-    shiftReports.forEach(report => {
-      const employeeName = getEmployeeName(report.employeeId);
-      let totalCreditSales = 0;
-      if (Array.isArray(report.creditSales)) {
-          totalCreditSales = (report.creditSales || []).reduce((sum, sale) => sum + sale.amount, 0);
-      } else if (typeof (report as any).creditSales === 'number') {
-          totalCreditSales = (report as any).creditSales;
+    shiftReports.forEach((report, reportIndex) => {
+      if (lastY > 250) {
+        doc.addPage();
+        lastY = 15;
+      }
+      
+      if (reportIndex > 0) {
+        doc.setDrawColor(221, 221, 221);
+        doc.setLineWidth(0.3);
+        doc.line(14, lastY, doc.internal.pageSize.getWidth() - 14, lastY);
+        lastY += 10;
       }
 
-      tableBody.push([{
-        content: `Date: ${format(parseISO(report.date), 'dd MMM yyyy')} | Shift: ${report.shiftType.toUpperCase()} | Employee: ${employeeName}`,
-        colSpan: 7,
-        styles: { halign: 'center', fontStyle: 'bold', fillColor: [232, 232, 232] }
-      }]);
+      const employeeName = getEmployeeName(report.employeeId);
 
-      tableBody.push(meterReadingHead.map(h => ({ content: h, styles: { fontStyle: 'bold' } })));
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0,0,0);
+      doc.text(`Shift Report: ${format(parseISO(report.date), 'dd MMMM yyyy')} (${report.shiftType.toUpperCase()})`, 14, lastY);
+      lastY += 6;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Employee: ${employeeName}`, 14, lastY);
+      lastY += 8;
 
+      const readingsByFuel = new Map<string, typeof report.meterReadings>();
       report.meterReadings.forEach(reading => {
-        const fuel = settings.fuels.find(f => f.id === reading.fuelId);
-        tableBody.push([
-          fuel?.name || 'N/A',
-          reading.nozzleId.toString(),
-          reading.opening.toFixed(2),
-          reading.closing.toFixed(2),
-          reading.testing.toFixed(2),
-          reading.saleLitres.toFixed(2),
-          { content: formatCurrency(reading.saleAmount), styles: { halign: 'right' } }
-        ]);
+        if (!readingsByFuel.has(reading.fuelId)) {
+          readingsByFuel.set(reading.fuelId, []);
+        }
+        readingsByFuel.get(reading.fuelId)!.push(reading);
       });
 
-      const summaryText = `Total Sales: ${formatCurrency(report.totalSales)}  |  Credit: ${formatCurrency(totalCreditSales)}  |  Online: ${formatCurrency(report.onlinePayments)}  |  Cash: ${formatCurrency(report.cashInHand)}`;
-      tableBody.push([{
-        content: summaryText,
-        colSpan: 7,
-        styles: { halign: 'right', fontStyle: 'italic', fontSize: 9 }
-      }]);
-      
-      tableBody.push([{ content: '', colSpan: 7, styles: { minCellHeight: 5 } }]);
-    });
+      for (const [fuelId, readings] of readingsByFuel.entries()) {
+        const fuel = settings.fuels.find(f => f.id === fuelId);
+        if (!fuel) continue;
 
-    autoTable(doc, {
-        startY: 35,
-        body: tableBody,
+        const { sellingPrice } = getFuelPricesForDate(fuel.id, report.date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${fuel.name} Sales (Rate: ${formatCurrency(sellingPrice)})`, 14, lastY);
+        lastY += 1;
+        
+        autoTable(doc, {
+          startY: lastY,
+          head: [['Nozzle', 'Opening', 'Closing', 'Testing', 'Sale (L)', 'Sale (₹)']],
+          body: readings.map(r => [
+            r.nozzleId.toString(),
+            r.opening.toFixed(2),
+            r.closing.toFixed(2),
+            r.testing.toFixed(2),
+            r.saleLitres.toFixed(2),
+            formatCurrency(r.saleAmount)
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: '#f4f4f5', textColor: '#141414', fontStyle: 'normal', fontSize: 9 },
+          bodyStyles: { fontSize: 9 },
+          columnStyles: {
+            0: { halign: 'center' },
+            1: { halign: 'right' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+          }
+        });
+        lastY = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      let totalCreditSales = 0;
+      let creditDetails = '';
+      if (Array.isArray(report.creditSales) && report.creditSales.length > 0) {
+        totalCreditSales = report.creditSales.reduce((sum, s) => sum + s.amount, 0);
+        creditDetails = report.creditSales.map(sale => {
+            const customerName = settings.customers.find(c => c.id === sale.customerId)?.name || 'Unknown';
+            return `  - ${customerName}: ${formatCurrency(sale.amount)}`;
+        }).join('\n');
+      } else if (typeof report.creditSales === 'number' && report.creditSales > 0) {
+        totalCreditSales = report.creditSales;
+        creditDetails = '  - Legacy Entry';
+      }
+
+      const financialBody: any[] = [];
+      financialBody.push([
+        { content: 'Total Fuel Sales', styles: { fontStyle: 'bold' } },
+        { content: formatCurrency(report.totalSales - (report.lubeSaleAmount || 0)), styles: { halign: 'right' } }
+      ]);
+      
+      if (report.lubeSaleAmount && report.lubeSaleAmount > 0) {
+        financialBody.push([`Lube Sale (${report.lubeSaleName || 'N/A'})`, { content: formatCurrency(report.lubeSaleAmount), styles: { halign: 'right' } }]);
+      }
+
+      financialBody.push([
+        { content: 'Gross Total Sales', styles: { fontStyle: 'bold', fillColor: '#f4f4f5' } },
+        { content: formatCurrency(report.totalSales), styles: { fontStyle: 'bold', halign: 'right', fillColor: '#f4f4f5' } }
+      ]);
+
+      if (totalCreditSales > 0) {
+        financialBody.push([{ content: 'Credit Sales\n' + creditDetails, styles: { cellPadding: { top: 2, right: 2, bottom: 4, left: 2 } } }, { content: `(${formatCurrency(totalCreditSales)})`, styles: { halign: 'right', fontStyle: 'bold' } }]);
+      }
+
+      financialBody.push(['Online Payments', { content: `(${formatCurrency(report.onlinePayments)})`, styles: { halign: 'right', fontStyle: 'bold' } }]);
+      
+      financialBody.push([
+        { content: 'Net Cash In Hand', styles: { fontStyle: 'bold', fillColor: '#dcfce7', textColor: '#166534' } },
+        { content: formatCurrency(report.cashInHand), styles: { fontStyle: 'bold', halign: 'right', fillColor: '#dcfce7', textColor: '#166534' } }
+      ]);
+      
+      autoTable(doc, {
+        startY: lastY,
+        head: [['Financial Summary', '']],
+        body: financialBody,
         theme: 'grid',
+        headStyles: { fillColor: '#3f3f46', textColor: '#ffffff' },
+        bodyStyles: { fontSize: 9 },
+      });
+      lastY = (doc as any).lastAutoTable.finalY + 15;
     });
 
     const pageCount = doc.getNumberOfPages();
@@ -105,7 +180,7 @@ export default function DsrPreviewPage() {
         doc.text(`Page ${i} of ${pageCount} | Generated by PetroVisor`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
     }
 
-    doc.save(`PetroVisor_DSR_Preview_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    doc.save(`PetroVisor_DSR_History_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     toast({ title: 'Success', description: 'PDF download initiated!' });
   };
 
@@ -154,7 +229,6 @@ export default function DsrPreviewPage() {
                 <TableBody>
                   {shiftReports.map(report => {
                     let totalCreditSales = 0;
-                    // Handle backwards compatibility for old data structure where creditSales was a number
                     if (Array.isArray(report.creditSales)) {
                         totalCreditSales = (report.creditSales || []).reduce((sum, sale) => sum + sale.amount, 0);
                     } else if (typeof (report as any).creditSales === 'number') {
