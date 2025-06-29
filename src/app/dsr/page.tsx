@@ -129,7 +129,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
                     <CardHeader>
                         <CardTitle className="font-headline">3. Review & Save Daily Reports</CardTitle>
                         <CardDescription>
-                            The AI has extracted {dailyReports.length} daily entries. Review them, assign an employee, and save.
+                            The AI has extracted {dailyReports.length} daily entries. Click on a date to expand and edit its details, then assign an employee and save.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -161,7 +161,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
                                 </FormItem>
                             )} />
                         </div>
-                        <Accordion type="multiple" className="w-full">
+                        <Accordion type="multiple" defaultValue={fields.length > 0 ? [fields[0].id] : []} className="w-full">
                             {fields.map((field, index) => (
                                 <AccordionItem key={field.id} value={field.id}>
                                     <AccordionTrigger>
