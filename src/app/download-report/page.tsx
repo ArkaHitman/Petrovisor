@@ -98,10 +98,16 @@ export default function DownloadReportPage() {
     const managerLedgerUpToDate = (settings.managerLedger || []).filter(tx => !isAfter(parseISO(tx.date), targetDate));
     const netManagerBalance = managerLedgerUpToDate.reduce((acc, tx) => (tx.type === 'payment_from_manager' ? acc + tx.amount : acc - tx.amount), settings.managerInitialBalance || 0);
 
-    const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance;
+    const supplierDeliveriesUpToDate = (settings.supplierDeliveries || []).filter(tx => !isAfter(parseISO(tx.date), targetDate));
+    const supplierPaymentsUpToDate = (settings.supplierPayments || []).filter(tx => !isAfter(parseISO(tx.date), targetDate));
+    const totalDeliveryValue = supplierDeliveriesUpToDate.reduce((sum, d) => sum + d.totalInvoiceValue, 0);
+    const totalPaid = supplierPaymentsUpToDate.reduce((sum, p) => sum + p.amount, 0);
+    const supplierDues = totalDeliveryValue - totalPaid > 0 ? totalDeliveryValue - totalPaid : 0;
+
+    const netWorth = totalStockValue + currentOutstandingCredit + totalBankBalance + netManagerBalance - supplierDues;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
 
-    const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
+    const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance - supplierDues;
     const remainingLimit = netWorthForLimit - sanctionedAmount;
     
     const recentPurchases = (settings.purchases || [])
@@ -109,7 +115,7 @@ export default function DownloadReportPage() {
         .sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
         .slice(0, 5);
     
-    return { totalStockValue, currentOutstandingCredit, accountBalances, netManagerBalance, recentPurchases, netWorth, sanctionedAmount, remainingLimit, tanksWithHistoricalStock };
+    return { totalStockValue, currentOutstandingCredit, accountBalances, netManagerBalance, recentPurchases, netWorth, sanctionedAmount, remainingLimit, tanksWithHistoricalStock, supplierDues };
   }, [settings, selectedDate]);
 
   const handleDownloadPdf = () => {
@@ -149,14 +155,14 @@ export default function DownloadReportPage() {
         const includedBalances = financialData.accountBalances.filter(acc => selectedAccountIds[acc.id]);
         const totalIncludedBankBalance = includedBalances.reduce((sum, acc) => sum + acc.currentBalance, 0);
 
-        const netWorthWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + totalIncludedBankBalance + financialData.netManagerBalance;
+        const netWorthWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + totalIncludedBankBalance + financialData.netManagerBalance - financialData.supplierDues;
 
         const overdraftAccount = settings.bankAccounts.find(acc => acc.isOverdraft) || settings.bankAccounts[0];
         const overdraftBalanceForLimitCalc = selectedAccountIds[overdraftAccount.id] 
             ? (financialData.accountBalances.find(acc => acc.id === overdraftAccount.id)?.currentBalance || 0)
             : 0;
 
-        const netWorthForLimitWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + overdraftBalanceForLimitCalc + financialData.netManagerBalance;
+        const netWorthForLimitWithSelectedAccounts = financialData.totalStockValue + financialData.currentOutstandingCredit + overdraftBalanceForLimitCalc + financialData.netManagerBalance - financialData.supplierDues;
         const remainingLimitWithSelectedAccounts = netWorthForLimitWithSelectedAccounts - financialData.sanctionedAmount;
 
         const financialBody = [
@@ -165,6 +171,7 @@ export default function DownloadReportPage() {
             ['Credit Outstanding', { content: formatNum(financialData.currentOutstandingCredit), styles: { halign: 'right' } }],
             ...includedBalances.map(acc => [ `Bank: ${acc.name}`, { content: formatNum(acc.currentBalance), styles: { halign: 'right' } } ]),
             ['Net Manager Balance', { content: formatNum(financialData.netManagerBalance), styles: { halign: 'right', textColor: financialData.netManagerBalance >= 0 ? undefined : negativeColor } }],
+            ['Supplier Dues', { content: formatNum(financialData.supplierDues), styles: { halign: 'right', textColor: financialData.supplierDues > 0 ? negativeColor : undefined } }],
             [{ content: 'Net Worth (Selected Accounts)', styles: { fontStyle: 'bold', fillColor: lightGrey } }, { content: formatNum(netWorthWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', fillColor: lightGrey } }],
             [{ content: 'Remaining Limit', styles: { fontStyle: 'bold', textColor: remainingLimitWithSelectedAccounts >= 0 ? positiveColor : negativeColor } }, { content: formatNum(remainingLimitWithSelectedAccounts), styles: { fontStyle: 'bold', halign: 'right', textColor: remainingLimitWithSelectedAccounts >= 0 ? positiveColor : negativeColor } }],
         ];
