@@ -11,8 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, getFuelPricesForDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, addDays, parseISO } from 'date-fns';
-import { useRouter } from 'next/navigation';
-import React, { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -35,6 +35,7 @@ const meterReadingSchema = z.object({
 });
 
 const shiftReportSchema = z.object({
+  id: z.string().optional(),
   date: z.string().min(1, "Date is required"),
   employeeId: z.string().min(1, "Please select an employee."),
   shiftType: z.enum(['day', 'night']),
@@ -50,15 +51,20 @@ const shiftReportSchema = z.object({
 type ShiftReportFormValues = z.infer<typeof shiftReportSchema>;
 
 export default function ShiftReportPage() {
-  const { settings, addShiftReport } = useAppState();
+  const { settings, addOrUpdateShiftReport } = useAppState();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-
+  
+  const reportId = searchParams.get('id');
+  const isEditing = !!reportId;
+  
+  const existingReport = useMemo(() => isEditing ? settings?.shiftReports?.find(r => r.id === reportId) : undefined, [isEditing, reportId, settings?.shiftReports]);
   const latestShiftReport = settings?.shiftReports?.[0];
 
   const form = useForm<ShiftReportFormValues>({
     resolver: zodResolver(shiftReportSchema),
-    defaultValues: {
+    defaultValues: existingReport || {
       date: latestShiftReport ? format(addDays(parseISO(latestShiftReport.date), 1), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
       employeeId: '',
       shiftType: 'day',
@@ -85,6 +91,12 @@ export default function ShiftReportPage() {
       lubeSaleAmount: 0,
     }
   });
+
+  useEffect(() => {
+    if (existingReport) {
+      form.reset(existingReport);
+    }
+  }, [existingReport, form]);
 
   const { fields: meterReadingFields } = useFieldArray({
     control: form.control,
@@ -124,13 +136,13 @@ export default function ShiftReportPage() {
   const cashInHand = totalSales - creditSales - onlinePayments;
 
   const onSubmit = (data: ShiftReportFormValues) => {
-    addShiftReport({
+    addOrUpdateShiftReport({
       ...data,
       totalSales,
       cashInHand,
     });
-    toast({ title: 'Success', description: 'Shift report saved and ledgers updated.' });
-    router.push('/');
+    toast({ title: 'Success', description: `Shift report ${isEditing ? 'updated' : 'saved'} and ledgers updated.` });
+    router.push('/dsr-preview');
   };
   
   if (!settings) return <AppLayout><div>Loading settings...</div></AppLayout>;
@@ -142,7 +154,7 @@ export default function ShiftReportPage() {
   
   return (
     <AppLayout>
-      <PageHeader title="Shift Report Entry" description="Enter shift sales data to automatically update stock and ledgers." />
+      <PageHeader title={isEditing ? 'Edit Shift Report' : 'Shift Report Entry'} description="Enter shift sales data to automatically update stock and ledgers." />
       <div className="p-4 md:p-8">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -154,7 +166,7 @@ export default function ShiftReportPage() {
                 )} />
                 <FormField control={form.control} name="employeeId" render={({ field }) => (
                     <FormItem><FormLabel>Employee</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger></FormControl>
                             <SelectContent>{(settings.employees || []).length > 0 ? settings.employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>) : <div className="p-4 text-sm text-center">No employees. <Link href="/employees" className="text-primary underline">Add one</Link>.</div>}</SelectContent>
                         </Select><FormMessage />
@@ -163,7 +175,7 @@ export default function ShiftReportPage() {
                  <FormField control={form.control} name="shiftType" render={({ field }) => (
                     <FormItem><FormLabel>Shift</FormLabel>
                         <FormControl>
-                            <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2">
+                            <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center space-x-4 pt-2">
                                 <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="day" /></FormControl><FormLabel className="font-normal">Day</FormLabel></FormItem>
                                 <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="night" /></FormControl><FormLabel className="font-normal">Night</FormLabel></FormItem>
                             </RadioGroup>
@@ -174,7 +186,7 @@ export default function ShiftReportPage() {
             </Card>
             
             <Card>
-              <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>For your first report, enter opening meter readings. Subsequently, they auto-fill from the previous day.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>{isEditing ? 'Edit meter readings for this shift.' : 'For your first report, enter opening meter readings. Subsequently, they auto-fill from the previous day.'}</CardDescription></CardHeader>
               <CardContent>
                  <Accordion type="multiple" defaultValue={(settings.fuels || []).map(f => f.id)} className="w-full">
                     {readingsByFuel.map(({ fuel, readings }) => (
@@ -187,7 +199,7 @@ export default function ShiftReportPage() {
                           {readings.map(({ field, index }) => (
                             <div key={field.id} className="grid grid-cols-[repeat(6,1fr)] gap-4 items-start px-2">
                                 <FormLabel className="pt-2">Nozzle {field.nozzleId}</FormLabel>
-                                <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly={!!latestShiftReport} className={!!latestShiftReport ? "bg-muted/50" : ""} {...field} /></FormControl><FormMessage/></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly={!isEditing && !!latestShiftReport} className={!isEditing && !!latestShiftReport ? "bg-muted/50" : ""} {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.closing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.testing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted/50" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
@@ -210,7 +222,7 @@ export default function ShiftReportPage() {
                     <FormField control={form.control} name="creditSales" render={({ field }) => <FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name="creditCustomerId" render={({ field }) => (
                         <FormItem><FormLabel>Credit To</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
                                 <SelectContent>{(settings.customers || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
                             </Select><FormMessage />
@@ -221,7 +233,7 @@ export default function ShiftReportPage() {
                     <FormField control={form.control} name="onlinePayments" render={({ field }) => <FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name="onlinePaymentsAccountId" render={({ field }) => (
                         <FormItem><FormLabel>Deposit To</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
                                 <SelectContent>{(settings.bankAccounts || []).map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}</SelectContent>
                             </Select><FormMessage />
@@ -271,7 +283,7 @@ export default function ShiftReportPage() {
                 </CardContent>
                 <CardContent className="pt-0">
                     <Button type="submit" size="lg" className="w-full">
-                        Submit Shift Report
+                        {isEditing ? 'Update' : 'Submit'} Shift Report
                     </Button>
                 </CardContent>
             </Card>

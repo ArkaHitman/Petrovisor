@@ -321,7 +321,8 @@ export interface AppStateContextType extends AppState {
   deleteMonthlyReport: (reportId: string) => void;
 
   // Shift Reports
-  addShiftReport: (report: Omit<ShiftReport, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addOrUpdateShiftReport: (report: Omit<ShiftReport, 'createdAt' | 'updatedAt'>) => void;
+  deleteShiftReport: (reportId: string) => void;
 
   // Fuel Purchases
   addFuelPurchase: (purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => void;

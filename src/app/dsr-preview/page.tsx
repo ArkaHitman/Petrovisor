@@ -11,9 +11,13 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Pencil, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DsrPreviewPage() {
-  const { settings } = useAppState();
+  const { settings, deleteShiftReport } = useAppState();
+  const { toast } = useToast();
 
   const shiftReports = React.useMemo(() => {
     return settings?.shiftReports?.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
@@ -21,6 +25,11 @@ export default function DsrPreviewPage() {
 
   const getEmployeeName = (id: string) => {
     return settings?.employees.find(e => e.id === id)?.name || 'Unknown Employee';
+  };
+
+  const handleDelete = (reportId: string) => {
+    deleteShiftReport(reportId);
+    toast({ title: 'Success', description: 'Shift report and all associated transactions have been deleted.' });
   };
 
   return (
@@ -56,6 +65,7 @@ export default function DsrPreviewPage() {
                     <TableHead className="text-right">Credit Sales</TableHead>
                     <TableHead className="text-right">Online Payments</TableHead>
                     <TableHead className="text-right">Cash In Hand</TableHead>
+                    <TableHead className="text-right w-28">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -72,6 +82,34 @@ export default function DsrPreviewPage() {
                       <TableCell className="text-right text-destructive">{formatCurrency(report.creditSales)}</TableCell>
                       <TableCell className="text-right text-blue-600">{formatCurrency(report.onlinePayments)}</TableCell>
                       <TableCell className="text-right font-semibold text-primary">{formatCurrency(report.cashInHand)}</TableCell>
+                       <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                                  <Link href={`/shift-report?id=${report.id}`}>
+                                      <Pencil className="h-4 w-4" />
+                                  </Link>
+                              </Button>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Shift Report?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                              This will permanently delete this shift report and reverse all associated financial and stock transactions. This action cannot be undone.
+                                          </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDelete(report.id)}>Delete</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
+                          </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

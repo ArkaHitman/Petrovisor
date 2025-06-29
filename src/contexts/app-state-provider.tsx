@@ -391,55 +391,110 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
   
-  const addShiftReport = useCallback((report: Omit<ShiftReport, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addOrUpdateShiftReport = useCallback((reportData: Omit<ShiftReport, 'createdAt' | 'updatedAt'>) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
 
         const now = new Date().toISOString();
         const newSettings = JSON.parse(JSON.stringify(prev.settings));
-        
-        const newReport: ShiftReport = { ...report, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
 
-        newSettings.shiftReports = [...(newSettings.shiftReports || []), newReport].sort((a:any,b:any) => b.date.localeCompare(a.date));
+        const isEditing = !!reportData.id && newSettings.shiftReports.some((r: ShiftReport) => r.id === reportData.id);
 
-        const sourceId = newReport.id;
-        if (newReport.creditSales > 0 && newReport.creditCustomerId) {
-            newSettings.creditHistory.push({
-            id: crypto.randomUUID(), customerId: newReport.creditCustomerId, date: newReport.date, type: 'given', amount: newReport.creditSales, createdAt: now, source: 'shift_report', sourceId
-            });
+        if (isEditing) {
+            const oldReport = newSettings.shiftReports.find((r: ShiftReport) => r.id === reportData.id);
+            if (oldReport) {
+                const litresSoldByFuel: { [fuelId: string]: number } = {};
+                oldReport.meterReadings.forEach((reading: any) => {
+                    litresSoldByFuel[reading.fuelId] = (litresSoldByFuel[reading.fuelId] || 0) + reading.saleLitres;
+                });
+                newSettings.tanks = newSettings.tanks.map((tank: any) => {
+                    const returnedAmount = litresSoldByFuel[tank.fuelId];
+                    if (returnedAmount) {
+                        return { ...tank, initialStock: tank.initialStock + returnedAmount };
+                    }
+                    return tank;
+                });
+                newSettings.creditHistory = (newSettings.creditHistory || []).filter((e: any) => e.sourceId !== oldReport.id || e.source !== 'shift_report');
+                newSettings.bankLedger = (newSettings.bankLedger || []).filter((tx: any) => tx.sourceId !== oldReport.id || tx.source !== 'shift_report');
+                newSettings.miscCollections = (newSettings.miscCollections || []).filter((c: any) => c.sourceId !== oldReport.id);
+            }
         }
-        if (newReport.onlinePayments > 0 && newReport.onlinePaymentsAccountId) {
-            newSettings.bankLedger.push({
-            id: crypto.randomUUID(), accountId: newReport.onlinePaymentsAccountId, date: newReport.date, description: `Online Payments from Shift`, type: 'credit', amount: newReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now
-            });
+
+        const finalReport: ShiftReport = {
+            ...reportData,
+            id: isEditing ? reportData.id : crypto.randomUUID(),
+            createdAt: isEditing ? (newSettings.shiftReports.find((r: ShiftReport) => r.id === reportData.id)?.createdAt || now) : now,
+            updatedAt: now,
+        };
+
+        const sourceId = finalReport.id;
+        if (finalReport.creditSales > 0 && finalReport.creditCustomerId) {
+            newSettings.creditHistory.push({ id: crypto.randomUUID(), customerId: finalReport.creditCustomerId, date: finalReport.date, type: 'given', amount: finalReport.creditSales, createdAt: now, source: 'shift_report', sourceId });
         }
-        if (newReport.cashInHand > 0) {
-            newSettings.miscCollections.push({
-            id: crypto.randomUUID(), date: newReport.date, description: `Cash from Shift`, amount: newReport.cashInHand, createdAt: now, sourceId
-            });
+        if (finalReport.onlinePayments > 0 && finalReport.onlinePaymentsAccountId) {
+            newSettings.bankLedger.push({ id: crypto.randomUUID(), accountId: finalReport.onlinePaymentsAccountId, date: finalReport.date, description: `Online Payments from Shift`, type: 'credit', amount: finalReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now });
         }
-        
-        const litresSoldByFuel: { [fuelId: string]: number } = {};
-        newReport.meterReadings.forEach(reading => {
-            litresSoldByFuel[reading.fuelId] = (litresSoldByFuel[reading.fuelId] || 0) + reading.saleLitres;
+        if (finalReport.cashInHand > 0) {
+            newSettings.miscCollections.push({ id: crypto.randomUUID(), date: finalReport.date, description: `Cash from Shift`, amount: finalReport.cashInHand, createdAt: now, sourceId });
+        }
+
+        const litresSoldByFuelNew: { [fuelId: string]: number } = {};
+        finalReport.meterReadings.forEach((reading: any) => {
+            litresSoldByFuelNew[reading.fuelId] = (litresSoldByFuelNew[reading.fuelId] || 0) + reading.saleLitres;
         });
         newSettings.tanks = newSettings.tanks.map((tank: any) => {
-            const soldAmount = litresSoldByFuel[tank.fuelId];
+            const soldAmount = litresSoldByFuelNew[tank.fuelId];
             if (soldAmount) {
-                const newStock = tank.initialStock - soldAmount;
-                litresSoldByFuel[tank.fuelId] = 0; 
-                return { ...tank, initialStock: newStock };
+                return { ...tank, initialStock: tank.initialStock - soldAmount };
             }
             return tank;
         });
-
-        newSettings.creditHistory.sort((a: any, b: any) => b.date.localeCompare(a.date));
-        newSettings.bankLedger.sort((a: any, b: any) => b.date.localeCompare(a.date));
-        newSettings.miscCollections.sort((a: any, b: any) => b.date.localeCompare(a.date));
+        
+        if (isEditing) {
+            const index = newSettings.shiftReports.findIndex((r: ShiftReport) => r.id === finalReport.id);
+            if (index > -1) newSettings.shiftReports[index] = finalReport;
+        } else {
+            newSettings.shiftReports.push(finalReport);
+        }
+        
+        newSettings.shiftReports.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        newSettings.creditHistory.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        newSettings.bankLedger.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        newSettings.miscCollections.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
         return { ...prev, settings: newSettings };
     });
   }, [setAppState]);
+
+  const deleteShiftReport = useCallback((reportId: string) => {
+    setAppState(prev => {
+        if (!prev.settings) return prev;
+        const reportToDelete = prev.settings.shiftReports.find(r => r.id === reportId);
+        if (!reportToDelete) return prev;
+
+        const newSettings = JSON.parse(JSON.stringify(prev.settings));
+
+        const litresSoldByFuel: { [fuelId: string]: number } = {};
+        reportToDelete.meterReadings.forEach(reading => {
+            litresSoldByFuel[reading.fuelId] = (litresSoldByFuel[reading.fuelId] || 0) + reading.saleLitres;
+        });
+        newSettings.tanks = newSettings.tanks.map((tank: any) => {
+            const returnedAmount = litresSoldByFuel[tank.fuelId];
+            if (returnedAmount) {
+                return { ...tank, initialStock: tank.initialStock + returnedAmount };
+            }
+            return tank;
+        });
+
+        newSettings.creditHistory = (newSettings.creditHistory || []).filter((e: any) => e.sourceId !== reportId || e.source !== 'shift_report');
+        newSettings.bankLedger = (newSettings.bankLedger || []).filter((tx: any) => tx.sourceId !== reportId || tx.source !== 'shift_report');
+        newSettings.miscCollections = (newSettings.miscCollections || []).filter((c: any) => c.sourceId !== reportId);
+        newSettings.shiftReports = (newSettings.shiftReports || []).filter((r: any) => r.id !== reportId);
+
+        return { ...prev, settings: newSettings };
+    });
+  }, [setAppState]);
+
 
   const addFuelPurchase = useCallback((purchase: Omit<FuelPurchase, 'id' | 'createdAt'>) => {
     setAppState(prev => {
@@ -747,7 +802,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
-    addShiftReport,
+    addOrUpdateShiftReport,
+    deleteShiftReport,
     addFuelPurchase,
     deleteFuelPurchase,
     addSupplierDelivery,
@@ -783,7 +839,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteMiscCollection,
     addOrUpdateMonthlyReport,
     deleteMonthlyReport,
-    addShiftReport,
+    addOrUpdateShiftReport,
+    deleteShiftReport,
     addFuelPurchase,
     deleteFuelPurchase,
     addSupplierDelivery,
