@@ -279,6 +279,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
            date,
            description: `Credit Repayment (Cash) from ${newSettings.customers.find(c => c.id === customerId)?.name || 'Customer'}`,
            amount,
+           type: 'inflow',
            source: 'credit_repayment',
            sourceId: newCreditEntry.id,
          }
@@ -312,12 +313,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setAppState]);
   
-  const addMiscCollection = useCallback((collection: Omit<MiscCollection, 'id' | 'createdAt' | 'sourceId'>) => {
+  const addMiscCollection = useCallback((collection: Omit<MiscCollection, 'id' | 'createdAt' | 'sourceId' | 'type'>) => {
     setAppState(prev => {
         if (!prev.settings) return prev;
         const newCollection: MiscCollection = { 
           ...collection,
           source: 'manual',
+          type: 'inflow',
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
         };
@@ -450,7 +452,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             newSettings.bankLedger.push({ id: crypto.randomUUID(), accountId: finalReport.onlinePaymentsAccountId, date: finalReport.date, description: `Online Payments from Shift`, type: 'credit', amount: finalReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now });
         }
         if (finalReport.cashInHand > 0) {
-            newSettings.miscCollections.push({ id: crypto.randomUUID(), date: finalReport.date, description: `Cash from Shift`, amount: finalReport.cashInHand, createdAt: now, source: 'shift_report', sourceId });
+            newSettings.miscCollections.push({ id: crypto.randomUUID(), date: finalReport.date, description: `Cash from Shift`, amount: finalReport.cashInHand, createdAt: now, type: 'inflow', source: 'shift_report', sourceId });
         }
 
         const litresSoldByFuelNew: { [fuelId: string]: number } = {};
@@ -747,14 +749,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             const newEntry: JournalEntry = { ...entry, id: crypto.randomUUID(), createdAt: now };
 
             const newBankTransactions: BankTransaction[] = [];
+            const newCashTransactions: MiscCollection[] = [];
 
             entry.legs.forEach(leg => {
                 if (leg.accountType === 'bank_account') {
                     const bankAccount = prev.settings?.bankAccounts.find(ba => ba.id === leg.accountId);
                     if (bankAccount) {
                         const amount = leg.debit > 0 ? leg.debit : leg.credit;
-                        // A DEBIT to a bank account in accounting is a DEPOSIT in real life (an increase in assets).
-                        // A CREDIT to a bank account in accounting is a WITHDRAWAL in real life (a decrease in assets).
                         const type = leg.debit > 0 ? 'credit' : 'debit';
                         
                         newBankTransactions.push({
@@ -769,6 +770,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                             createdAt: now,
                         });
                     }
+                } else if (leg.accountType === 'cash_account') {
+                    const amount = leg.debit > 0 ? leg.debit : leg.credit;
+                    const type = leg.debit > 0 ? 'inflow' : 'outflow';
+
+                    newCashTransactions.push({
+                        id: crypto.randomUUID(),
+                        date: entry.date,
+                        description: `Journal: ${entry.description}`,
+                        amount,
+                        type,
+                        source: 'journal_entry',
+                        sourceId: newEntry.id,
+                        createdAt: now,
+                    });
                 }
             });
 
@@ -776,6 +791,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                 ...prev.settings,
                 journalEntries: [...(prev.settings.journalEntries || []), newEntry].sort((a,b) => b.date.localeCompare(a.date)),
                 bankLedger: [...(prev.settings.bankLedger || []), ...newBankTransactions].sort((a,b) => b.date.localeCompare(a.date)),
+                miscCollections: [...(prev.settings.miscCollections || []), ...newCashTransactions].sort((a,b) => b.date.localeCompare(a.date)),
             };
             return { ...prev, settings: newSettings };
         });
@@ -788,6 +804,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                 ...prev.settings,
                 journalEntries: (prev.settings.journalEntries || []).filter(je => je.id !== entryId),
                 bankLedger: (prev.settings.bankLedger || []).filter(bt => bt.source !== 'journal_entry' || bt.sourceId !== entryId),
+                miscCollections: (prev.settings.miscCollections || []).filter(mc => mc.source !== 'journal_entry' || mc.sourceId !== entryId),
             };
             return { ...prev, settings: newSettings };
         });

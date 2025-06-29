@@ -92,7 +92,7 @@ export default function JournalPage() {
         const finalLegs = values.legs.map(leg => {
             const [type, id] = leg.accountId.split(':');
             return {
-                accountType: type as 'chart_of_account' | 'bank_account',
+                accountType: type as 'chart_of_account' | 'bank_account' | 'cash_account',
                 accountId: id,
                 debit: leg.debit,
                 credit: leg.credit,
@@ -115,7 +115,10 @@ export default function JournalPage() {
         });
     };
 
-    const getAccountName = (type: 'chart_of_account' | 'bank_account', id: string) => {
+    const getAccountName = (type: 'chart_of_account' | 'bank_account' | 'cash_account', id: string) => {
+        if (type === 'cash_account') {
+            return 'Cash in Hand';
+        }
         if (type === 'bank_account') {
             return settings?.bankAccounts.find(a => a.id === id)?.name || 'Unknown Bank';
         }
@@ -157,11 +160,15 @@ export default function JournalPage() {
                                                                 <FormControl><SelectTrigger><SelectValue placeholder="Select an account..." /></SelectTrigger></FormControl>
                                                                 <SelectContent>
                                                                     <SelectGroup>
-                                                                        <FormLabel className="px-2 text-xs">Bank Accounts</FormLabel>
+                                                                        <FormLabel className="px-2 text-xs font-semibold text-muted-foreground">Cash</FormLabel>
+                                                                        <SelectItem value="cash_account:cash">Cash in Hand</SelectItem>
+                                                                    </SelectGroup>
+                                                                    <SelectGroup>
+                                                                        <FormLabel className="px-2 text-xs font-semibold text-muted-foreground">Bank Accounts</FormLabel>
                                                                         {accounts.banks.map(acc => <SelectItem key={acc.id} value={`bank_account:${acc.id}`}>{acc.name}</SelectItem>)}
                                                                     </SelectGroup>
                                                                     <SelectGroup>
-                                                                        <FormLabel className="px-2 text-xs">Other Accounts</FormLabel>
+                                                                        <FormLabel className="px-2 text-xs font-semibold text-muted-foreground">Other Accounts</FormLabel>
                                                                         {accounts.coa.map(acc => <SelectItem key={acc.id} value={`chart_of_account:${acc.id}`}>{acc.name}</SelectItem>)}
                                                                     </SelectGroup>
                                                                 </SelectContent>
@@ -209,7 +216,7 @@ export default function JournalPage() {
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
-                                                    <AlertDialogHeader><AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle><AlertDialogDescription>This will delete the entry and any associated bank transactions. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogHeader><AlertDialogTitle>Delete Journal Entry?</AlertDialogTitle><AlertDialogDescription>This will delete the entry and any associated bank or cash transactions. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                                                     <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteJournalEntry(entry.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>

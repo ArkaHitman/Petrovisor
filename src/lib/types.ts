@@ -100,8 +100,9 @@ export interface MiscCollection {
     date: string;
     description: string;
     amount: number;
+    type: 'inflow' | 'outflow';
     createdAt: string;
-    source?: 'shift_report' | 'manual' | 'credit_repayment';
+    source?: 'shift_report' | 'manual' | 'credit_repayment' | 'journal_entry';
     sourceId?: string;
 }
 
@@ -214,7 +215,7 @@ export interface ChartOfAccount {
 
 export interface JournalEntryLeg {
   accountId: string;
-  accountType: 'chart_of_account' | 'bank_account';
+  accountType: 'chart_of_account' | 'bank_account' | 'cash_account';
   debit: number;
   credit: number;
 }
@@ -318,7 +319,7 @@ export interface AppStateContextType extends AppState {
   clearManualBankTransactions: () => void;
 
   // Misc Collections
-  addMiscCollection: (collection: Omit<MiscCollection, 'id' | 'createdAt'>) => void;
+  addMiscCollection: (collection: Omit<MiscCollection, 'id' | 'createdAt' | 'type' | 'sourceId'>) => void;
   deleteMiscCollection: (collectionId: string) => void;
   
   // Monthly Reports
