@@ -30,7 +30,10 @@ export default function ProfitLossPage() {
         // 1. Calculate Revenue
         const fuelSales = settings.shiftReports?.reduce((sum, report) => sum + report.totalSales - (report.lubeSaleAmount || 0), 0) || 0;
         const lubeSales = settings.shiftReports?.reduce((sum, report) => sum + (report.lubeSaleAmount || 0), 0) || 0;
-        const miscCollections = settings.miscCollections?.reduce((sum, c) => sum + c.amount, 0) || 0;
+        
+        // Filter misc collections to only include "true" other income, not cash transfers from sales or credit repayments.
+        const miscCollections = settings.miscCollections?.filter(c => !['shift_report', 'credit_repayment'].includes(c.source || '')).reduce((sum, c) => sum + c.amount, 0) || 0;
+
         const totalRevenue = fuelSales + lubeSales + miscCollections;
 
         // 2. Calculate Cost of Goods Sold (COGS) for Fuel
@@ -107,7 +110,7 @@ export default function ProfitLossPage() {
     return (
         <AppLayout>
             <PageHeader
-                title="Profit & Loss Statement"
+                title="Profit &amp; Loss Statement"
                 description="An overview of your revenue, costs, and profitability."
             />
             <div className="p-4 md:p-8 space-y-6">
@@ -166,7 +169,7 @@ export default function ProfitLossPage() {
                         <CardHeader>
                             <CardTitle className="font-headline flex items-center gap-2">
                                 <TrendingDown className="text-red-500" />
-                                Costs & Expenses
+                                Costs &amp; Expenses
                             </CardTitle>
                         </CardHeader>
                         <CardContent>

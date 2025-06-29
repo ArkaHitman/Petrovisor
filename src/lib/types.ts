@@ -101,6 +101,7 @@ export interface MiscCollection {
     description: string;
     amount: number;
     createdAt: string;
+    source?: 'shift_report' | 'manual' | 'credit_repayment';
     sourceId?: string;
 }
 
@@ -253,7 +254,7 @@ export interface AnalyzeDsrOutput {
 export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark';
-  screenScale?: number;
+  screenScale: number;
   bankAccounts: BankAccount[];
   employees: Employee[];
   customers: Customer[];

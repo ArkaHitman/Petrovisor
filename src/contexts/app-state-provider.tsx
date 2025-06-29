@@ -43,8 +43,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const finishSetup = useCallback((settings: Settings) => {
     const fullSettings: Settings = {
       ...settings,
-      theme: settings.theme || 'light',
-      screenScale: settings.screenScale || 100,
+      theme: 'light',
+      screenScale: 100,
       employees: settings.employees || [],
       customers: settings.customers || [],
       fuelPriceHistory: settings.fuelPriceHistory || [],
@@ -279,6 +279,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
            date,
            description: `Credit Repayment (Cash) from ${newSettings.customers.find(c => c.id === customerId)?.name || 'Customer'}`,
            amount,
+           source: 'credit_repayment',
            sourceId: newCreditEntry.id,
          }
          newSettings.miscCollections = [...(newSettings.miscCollections || []), newMiscCollection].sort((a, b) => b.date.localeCompare(a.date));
@@ -316,6 +317,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (!prev.settings) return prev;
         const newCollection: MiscCollection = { 
           ...collection,
+          source: 'manual',
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
         };
@@ -422,8 +424,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
         const finalReport: ShiftReport = {
             ...reportData,
-            id: isEditing ? reportData.id : crypto.randomUUID(),
-            createdAt: isEditing ? (newSettings.shiftReports.find((r: ShiftReport) => r.id === reportData.id)?.createdAt || now) : now,
+            id: isEditing ? reportData.id! : crypto.randomUUID(),
+            createdAt: isEditing ? (newSettings.shiftReports.find((r: ShiftReport) => r.id === reportData.id)!.createdAt || now) : now,
             updatedAt: now,
         };
 
@@ -435,7 +437,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             newSettings.bankLedger.push({ id: crypto.randomUUID(), accountId: finalReport.onlinePaymentsAccountId, date: finalReport.date, description: `Online Payments from Shift`, type: 'credit', amount: finalReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now });
         }
         if (finalReport.cashInHand > 0) {
-            newSettings.miscCollections.push({ id: crypto.randomUUID(), date: finalReport.date, description: `Cash from Shift`, amount: finalReport.cashInHand, createdAt: now, sourceId });
+            newSettings.miscCollections.push({ id: crypto.randomUUID(), date: finalReport.date, description: `Cash from Shift`, amount: finalReport.cashInHand, createdAt: now, source: 'shift_report', sourceId });
         }
 
         const litresSoldByFuelNew: { [fuelId: string]: number } = {};
