@@ -78,15 +78,23 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
         if (!settings) return;
         const reportsData = dailyReports.map(dr => {
             const meterReadings = dr.meterReadings.map(mr => {
-                 const fuel = settings.fuels.find(f => f.name.toLowerCase() === mr.fuelName.toLowerCase());
-                 return { ...mr, fuelId: fuel?.id || '' };
+                const fuel = settings.fuels.find(f => f.name.toLowerCase() === mr.fuelName.toLowerCase());
+                return {
+                    fuelId: fuel?.id || '',
+                    nozzleId: mr.nozzleId,
+                    opening: mr.openingReading,
+                    closing: mr.closingReading,
+                    testing: mr.testing,
+                    saleLitres: 0, // Initialize to 0
+                    saleAmount: 0, // Initialize to 0
+                };
             });
             return {
-                ...dr,
+                date: dr.date,
                 lubeSaleAmount: dr.lubricantSales || 0,
                 creditSales: dr.creditSales || 0,
                 onlinePayments: dr.phonepeSales || 0,
-                cashInHand: 0, // Will be calculated
+                cashInHand: 0, // Will be calculated later
                 meterReadings,
             };
         });
