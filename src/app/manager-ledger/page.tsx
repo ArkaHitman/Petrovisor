@@ -38,11 +38,13 @@ const transactionSchema = z.object({
     description: z.string().min(1, 'Description is required'),
     type: z.enum(['payment_to_manager', 'payment_from_manager']),
     amount: z.coerce.number().positive('Amount must be positive'),
-    accountId: z.string().min(1, 'Please select a bank account'),
+    accountId: z.string().min(1, 'Please select a source/destination account'),
 });
 
 function AddTransactionDialog({ open, setOpen, bankAccounts, onSave }: { open: boolean; setOpen: (open: boolean) => void, bankAccounts: BankAccount[], onSave: (values: z.infer<typeof transactionSchema>) => void }) {
     
+    const defaultBankId = bankAccounts.find(acc => acc.isOverdraft)?.id || bankAccounts[0]?.id || '';
+
     const form = useForm<z.infer<typeof transactionSchema>>({
         resolver: zodResolver(transactionSchema),
         defaultValues: {
@@ -50,7 +52,7 @@ function AddTransactionDialog({ open, setOpen, bankAccounts, onSave }: { open: b
             description: '',
             type: 'payment_to_manager',
             amount: 0,
-            accountId: bankAccounts.find(acc => acc.isOverdraft)?.id || bankAccounts[0]?.id || '',
+            accountId: defaultBankId ? `bank_account:${defaultBankId}` : 'cash_account:cash',
         }
     });
     
@@ -103,10 +105,11 @@ function AddTransactionDialog({ open, setOpen, bankAccounts, onSave }: { open: b
                                 <FormLabel>{accountLabel}</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
-                                        <SelectTrigger><SelectValue placeholder="Select a bank account" /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        {bankAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        <SelectItem value="cash_account:cash">Cash in Hand</SelectItem>
+                                        {bankAccounts.map(acc => <SelectItem key={acc.id} value={`bank_account:${acc.id}`}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -124,7 +127,7 @@ function AddTransactionDialog({ open, setOpen, bankAccounts, onSave }: { open: b
 }
 
 export default function ManagerLedgerPage() {
-    const { settings, addManagerTransaction, deleteManagerTransaction } = useAppState();
+    const { settings, addManagerTransaction, deleteJournalEntry } = useAppState();
     const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
     const { toast } = useToast();
 
@@ -159,7 +162,7 @@ export default function ManagerLedgerPage() {
     };
 
     const handleDelete = (journalEntryId: string) => {
-        deleteManagerTransaction(journalEntryId);
+        deleteJournalEntry(journalEntryId);
         toast({ title: "Success", description: "Manager transaction and associated journal entry deleted." });
     };
     
@@ -168,21 +171,25 @@ export default function ManagerLedgerPage() {
     const balanceColor = netBalance > 0 ? "text-destructive" : netBalance < 0 ? "text-primary" : "text-muted-foreground";
     
     const getTransactionCounterparty = (entry: JournalEntry): string => {
-        if (!managerAccount) return 'N/A';
-        const otherLeg = entry.legs.find(leg => leg.accountId !== managerAccount.id);
+        if (!managerAccount || !settings) return 'N/A';
+        const otherLeg = entry.legs.find(leg => !(leg.accountType === 'chart_of_account' && leg.accountId === managerAccount.id));
         if (!otherLeg) return 'Balanced Entry';
+        
         if (otherLeg.accountType === 'bank_account') {
-            return settings?.bankAccounts.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Bank';
+            return settings.bankAccounts.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Bank';
         }
         if (otherLeg.accountType === 'chart_of_account') {
-            return settings?.chartOfAccounts?.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Account';
+            return settings.chartOfAccounts?.find(acc => acc.id === otherLeg.accountId)?.name || 'Unknown Account';
         }
-        return 'Cash';
+        if (otherLeg.accountType === 'cash_account') {
+            return 'Cash in Hand';
+        }
+        return 'Unknown';
     }
     
     const getTransactionType = (entry: JournalEntry): { type: 'credit' | 'debit', amount: number } => {
         if (!managerAccount) return { type: 'debit', amount: 0 };
-        const managerLeg = entry.legs.find(leg => leg.accountId === managerAccount.id);
+        const managerLeg = entry.legs.find(leg => leg.accountType === 'chart_of_account' && leg.accountId === managerAccount.id);
         if (!managerLeg) return { type: 'debit', amount: 0 };
         // Credit to manager's account = money from manager
         // Debit to manager's account = money to manager

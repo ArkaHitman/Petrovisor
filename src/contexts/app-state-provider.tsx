@@ -260,25 +260,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addManagerTransaction = useCallback((transaction: { date: string; description: string; type: 'payment_to_manager' | 'payment_from_manager'; amount: number; accountId: string; }) => {
     setAppState(prev => {
       if (!prev.settings) return prev;
-      const { updatedSettings, managerAccount } = getOrAddManagerAccount(prev.settings);
+      let { updatedSettings, managerAccount } = getOrAddManagerAccount(prev.settings);
+      if (!updatedSettings.chartOfAccounts) {
+        updatedSettings.chartOfAccounts = [];
+      }
 
       const isPaymentToManager = transaction.type === 'payment_to_manager';
       
-      // Payment TO manager DECREASES their equity -> DEBIT Manager Account
-      // Payment FROM manager INCREASES their equity -> CREDIT Manager Account
+      // Debit manager account if payment is TO manager (equity decreases)
+      // Credit manager account if payment is FROM manager (equity increases)
       const managerLeg: JournalEntryLeg = {
           accountType: 'chart_of_account',
           accountId: managerAccount.id,
           debit: isPaymentToManager ? transaction.amount : 0,
           credit: !isPaymentToManager ? transaction.amount : 0,
       };
+      
+      const [counterpartyAccountType, counterpartyAccountId] = transaction.accountId.split(':');
 
-      // Bank account is an ASSET.
-      // Payment TO manager DECREASES asset -> CREDIT Bank Account
-      // Payment FROM manager INCREASES asset -> DEBIT Bank Account
-      const bankLeg: JournalEntryLeg = {
-          accountType: 'bank_account',
-          accountId: transaction.accountId,
+      // The counterparty account is an asset (cash or bank).
+      // If payment is TO manager, asset decreases -> CREDIT
+      // If payment is FROM manager, asset increases -> DEBIT
+      const counterpartyLeg: JournalEntryLeg = {
+          accountType: counterpartyAccountType as 'bank_account' | 'cash_account',
+          accountId: counterpartyAccountId,
           debit: !isPaymentToManager ? transaction.amount : 0,
           credit: isPaymentToManager ? transaction.amount : 0,
       };
@@ -286,7 +291,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const newJournalEntry: Omit<JournalEntry, 'id' | 'createdAt'> = {
           date: transaction.date,
           description: transaction.description,
-          legs: [managerLeg, bankLeg]
+          legs: [managerLeg, counterpartyLeg]
       };
       
       const finalSettings = addJournalEntryLogic(updatedSettings, newJournalEntry);
