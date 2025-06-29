@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
@@ -25,7 +26,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const finishSetup = useCallback((settings: Settings) => {
     const fullSettings: Settings = {
       ...settings,
-      theme: settings.theme || 'slate',
+      theme: settings.theme || 'light',
       employees: settings.employees || [],
       customers: settings.customers || [],
       fuelPriceHistory: settings.fuelPriceHistory || [],

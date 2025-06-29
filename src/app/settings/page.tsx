@@ -1,3 +1,4 @@
+
 'use client';
 
 import AppLayout from '@/components/layout/app-layout';
@@ -102,7 +103,7 @@ export default function SettingsPage() {
 
   const watchedTheme = watch('theme');
   useEffect(() => {
-    const themeClasses = ['dark', 'slate', 'stone', 'violet'];
+    const themeClasses = ['dark'];
     if (watchedTheme) {
         document.documentElement.classList.remove(...themeClasses);
         if (watchedTheme === 'dark') {
