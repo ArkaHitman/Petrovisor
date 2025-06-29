@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg } from '@/lib/types';
+import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg, Tank } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
@@ -778,6 +778,98 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         });
     }, [setAppState]);
     
+    const processDsrData = useCallback((dsrData: any, datesToOverwrite: string[]) => {
+        setAppState(prev => {
+            if (!prev.settings) return prev;
+            
+            let newSettings = JSON.parse(JSON.stringify(prev.settings));
+
+            const reportsToDelete = (newSettings.shiftReports || []).filter((sr: ShiftReport) => datesToOverwrite.includes(sr.date));
+            
+            if (reportsToDelete.length > 0) {
+                const reportIdsToDelete = new Set(reportsToDelete.map((r: ShiftReport) => r.id));
+
+                reportsToDelete.forEach((report: ShiftReport) => {
+                    const litresSoldByFuel: { [fuelId: string]: number } = {};
+                    report.meterReadings.forEach(reading => {
+                        litresSoldByFuel[reading.fuelId] = (litresSoldByFuel[reading.fuelId] || 0) + reading.saleLitres;
+                    });
+                    newSettings.tanks = newSettings.tanks.map((tank: Tank) => {
+                        const returnedAmount = litresSoldByFuel[tank.fuelId];
+                        return returnedAmount ? { ...tank, initialStock: tank.initialStock + returnedAmount } : tank;
+                    });
+                });
+
+                newSettings.shiftReports = (newSettings.shiftReports || []).filter((r: ShiftReport) => !reportIdsToDelete.has(r.id));
+                newSettings.creditHistory = (newSettings.creditHistory || []).filter((e: CreditHistoryEntry) => e.source !== 'shift_report' || !reportIdsToDelete.has(e.sourceId || ''));
+                newSettings.bankLedger = (newSettings.bankLedger || []).filter((tx: BankTransaction) => tx.source !== 'shift_report' || !reportIdsToDelete.has(tx.sourceId || ''));
+                newSettings.miscCollections = (newSettings.miscCollections || []).filter((c: MiscCollection) => c.source !== 'shift_report' || !reportIdsToDelete.has(c.sourceId || ''));
+            }
+
+            const defaultCustomer = newSettings.customers.find((c: Customer) => c.id === 'default-credit') || newSettings.customers[0];
+            if (!defaultCustomer) {
+                console.error("Default credit customer not found.");
+                return prev;
+            }
+            
+            const now = new Date().toISOString();
+
+            dsrData.reports.forEach((dr: any) => {
+                const totalSales = dr.meterReadings.reduce((sum: number, r: any) => sum + r.saleAmount, 0) + dr.lubeSaleAmount;
+                const newReport: ShiftReport = {
+                    id: crypto.randomUUID(),
+                    date: dr.date,
+                    employeeId: dsrData.employeeId,
+                    shiftType: dsrData.shiftType,
+                    meterReadings: dr.meterReadings.map((mr: any) => ({...mr, saleLitres: mr.saleLitres, saleAmount: mr.saleAmount})),
+                    lubeSaleAmount: dr.lubeSaleAmount,
+                    onlinePayments: dr.onlinePayments,
+                    onlinePaymentsAccountId: dsrData.onlinePaymentsAccountId,
+                    creditSales: dr.creditSales > 0 ? [{ customerId: defaultCustomer.id, amount: dr.creditSales }] : [],
+                    totalSales,
+                    cashInHand: dr.cashInHand,
+                    createdAt: now,
+                    updatedAt: now,
+                };
+
+                newSettings.shiftReports.push(newReport);
+                
+                const litresSoldByFuelNew: { [fuelId: string]: number } = {};
+                newReport.meterReadings.forEach(reading => {
+                    litresSoldByFuelNew[reading.fuelId] = (litresSoldByFuelNew[reading.fuelId] || 0) + reading.saleLitres;
+                });
+                newSettings.tanks = newSettings.tanks.map((tank: Tank) => {
+                    const soldAmount = litresSoldByFuelNew[tank.fuelId];
+                    return soldAmount ? { ...tank, initialStock: tank.initialStock - soldAmount } : tank;
+                });
+                
+                const sourceId = newReport.id;
+                if (newReport.creditSales && newReport.creditSales.length > 0) {
+                    newReport.creditSales.forEach(cs => {
+                        if (cs.amount > 0 && cs.customerId) {
+                            newSettings.creditHistory.push({ id: crypto.randomUUID(), customerId: cs.customerId, date: newReport.date, type: 'given', amount: cs.amount, createdAt: now, source: 'shift_report', sourceId });
+                        }
+                    });
+                }
+                if (newReport.onlinePayments > 0 && newReport.onlinePaymentsAccountId) {
+                    newSettings.bankLedger.push({ id: crypto.randomUUID(), accountId: newReport.onlinePaymentsAccountId, date: newReport.date, description: `Online Payments from Shift`, type: 'credit', amount: newReport.onlinePayments, source: 'shift_report', sourceId, createdAt: now });
+                }
+                if (newReport.cashInHand > 0) {
+                    newSettings.miscCollections.push({ id: crypto.randomUUID(), date: newReport.date, description: `Cash from Shift`, amount: newReport.cashInHand, createdAt: now, type: 'inflow', source: 'shift_report', sourceId });
+                }
+            });
+
+            const sortByDateAndCreation = (a: {date: string, createdAt: string}, b: {date: string, createdAt: string}) => new Date(b.date).getTime() - new Date(a.date).getTime() || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            newSettings.shiftReports.sort(sortByDateAndCreation);
+            newSettings.creditHistory.sort(sortByDateAndCreation);
+            newSettings.bankLedger.sort(sortByDateAndCreation);
+            newSettings.miscCollections.sort(sortByDateAndCreation);
+
+            return { ...prev, settings: newSettings };
+        });
+    }, [setAppState]);
+
+
   const value = useMemo(() => ({
     ...appState,
     setSettings,
@@ -814,6 +906,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteChartOfAccount,
     addJournalEntry,
     deleteJournalEntry,
+    processDsrData,
   }), [
     appState,
     setSettings,
@@ -850,6 +943,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteChartOfAccount,
     addJournalEntry,
     deleteJournalEntry,
+    processDsrData,
   ]);
 
   return (

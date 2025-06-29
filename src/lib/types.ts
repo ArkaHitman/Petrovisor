@@ -1,6 +1,7 @@
 
 
 
+
 export interface DipChartEntry {
   dip: number; // Dip reading in cm
   volume: number; // Corresponding volume in Litres
@@ -334,4 +335,7 @@ export interface AppStateContextType extends AppState {
   // Journal Entries
   addJournalEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => void;
   deleteJournalEntry: (entryId: string) => void;
+  
+  // DSR Bulk Processing
+  processDsrData: (dsrData: any, datesToOverwrite: string[]) => void;
 }

@@ -23,6 +23,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useRouter } from 'next/navigation';
+import type { ShiftReport } from '@/lib/types';
 
 type DailyReportData = AnalyzeDsrOutput[0];
 
@@ -226,7 +227,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
 
 // --- Main Page Component ---
 export default function DsrPage() {
-    const { settings, addOrUpdateShiftReport, deleteShiftReport } = useAppState();
+    const { settings, processDsrData } = useAppState();
     const { toast } = useToast();
     const router = useRouter();
     const [file, setFile] = useState<File | null>(null);
@@ -295,35 +296,20 @@ export default function DsrPage() {
     
     const handleSaveReports = (data: DsrFormValues) => {
         if (!settings) return;
-        
-        // First, delete existing reports if user agreed to overwrite
-        const datesToOverwrite = new Set(dailyReports.map(r => r.date));
-        const reportsToDelete = settings.shiftReports.filter(sr => datesToOverwrite.has(sr.date));
-        reportsToDelete.forEach(report => deleteShiftReport(report.id));
 
         const defaultCustomer = settings.customers.find(c => c.id === 'default-credit') || settings.customers[0];
         if (!defaultCustomer) {
-            toast({ title: "Error", description: "Default credit customer not found.", variant: 'destructive' });
+            toast({ title: "Error", description: "Default credit customer not found. Please add one via Management > Customers.", variant: "destructive" });
             return;
         }
 
-        data.reports.forEach(dr => {
-            const totalSales = dr.meterReadings.reduce((sum, r) => sum + r.saleAmount, 0) + dr.lubeSaleAmount;
-            
-            const newReport: Omit<ShiftReport, 'id' | 'createdAt' | 'updatedAt'> = {
-                date: dr.date,
-                employeeId: data.employeeId,
-                shiftType: data.shiftType,
-                meterReadings: dr.meterReadings.map(mr => ({...mr, saleLitres: mr.saleLitres, saleAmount: mr.saleAmount})),
-                lubeSaleAmount: dr.lubeSaleAmount,
-                onlinePayments: dr.onlinePayments,
-                onlinePaymentsAccountId: data.onlinePaymentsAccountId,
-                creditSales: dr.creditSales > 0 ? [{ customerId: defaultCustomer.id, amount: dr.creditSales }] : [],
-                totalSales: totalSales,
-                cashInHand: dr.cashInHand,
-            };
-            addOrUpdateShiftReport(newReport);
-        });
+        const datesToOverwrite = Array.from(new Set(
+            (settings.shiftReports || [])
+            .map(sr => sr.date)
+            .filter(date => data.reports.some(dr => dr.date === date))
+        ));
+
+        processDsrData(data, datesToOverwrite);
         
         toast({ title: "Success!", description: `${data.reports.length} daily reports have been saved.` });
         router.push('/dsr-preview');
