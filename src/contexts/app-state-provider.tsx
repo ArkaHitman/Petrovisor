@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useEffect } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg, Tank } from '@/lib/types';
 import { format, parseISO, isAfter } from 'date-fns';
@@ -115,6 +115,18 @@ const getOrAddManagerAccount = (settings: Settings): { updatedSettings: Settings
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useLocalStorage<AppState>('petrovisor-data', defaultState);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !appState.settings) return;
+
+    // Theme
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(appState.settings.theme);
+
+    // UI Scale
+    const baseFontSize = 16;
+    document.documentElement.style.fontSize = `${baseFontSize * ((appState.settings.screenScale || 100) / 100)}px`;
+  }, [appState.settings]);
 
   const setSettings = useCallback((newSettings: Settings) => {
     setAppState((prevState) => ({ ...prevState, settings: newSettings }));
