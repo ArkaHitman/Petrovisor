@@ -66,7 +66,7 @@ const financialsMenuItems = [
 
 const dataMenuItems = [
   { href: '/dsr', label: 'AI DSR Analysis', icon: FileScan },
-  { href: '/fund-analysis', label: 'AI Fund Analysis', icon: Spline },
+  { href: '/fund-analysis', label: 'Financial Audit', icon: Spline },
   { href: '/reports', label: 'Monthly Reports', icon: FileText },
   { href: '/download-report', label: 'Download Report', icon: Download },
 ];
