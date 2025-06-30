@@ -29,7 +29,7 @@ const meterReadingSchema = z.object({
   opening: z.coerce.number().min(0),
   closing: z.coerce.number().min(0),
   testing: z.coerce.number().min(0).default(0),
-  saleLitres: z.number(),
+  saleLitres: z.coerce.number().min(0).default(0),
   saleAmount: z.number(),
 }).refine(data => data.closing >= data.opening, {
   message: "Closing meter cannot be less than opening meter.",
@@ -120,6 +120,8 @@ export default function ShiftReportPage() {
     }
   });
 
+  const { watch, setValue, getValues } = form;
+
   useEffect(() => {
     if (existingReport) {
       form.reset(existingReport);
@@ -136,39 +138,53 @@ export default function ShiftReportPage() {
     name: "creditSales",
   });
 
-
-  const watchedValuesString = JSON.stringify(form.watch());
-
   useEffect(() => {
-    if (!settings) return;
+    const subscription = watch((value, { name, type }) => {
+      if (!name || type !== 'change' || !settings) return;
 
-    const currentValues = JSON.parse(watchedValuesString);
-    const { meterReadings, date } = currentValues;
+      const nameParts = name.split('.');
+      if (nameParts.length < 3 || nameParts[0] !== 'meterReadings') return;
 
-    meterReadings.forEach((reading: any, index: number) => {
+      const index = parseInt(nameParts[1], 10);
+      const fieldName = nameParts[3];
+
+      if (isNaN(index)) return;
+
+      const reading = getValues(`meterReadings.${index}`);
+      if (!reading) return;
+
       const fuel = settings.fuels.find(f => f.id === reading.fuelId);
       if (!fuel) return;
       
-      const { sellingPrice } = getFuelPricesForDate(fuel.id, date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-      
-      const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
-      const saleAmount = saleLitres * sellingPrice;
+      const reportDate = getValues('date');
+      const { sellingPrice } = getFuelPricesForDate(fuel.id, reportDate, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
 
-      if (form.getValues(`meterReadings.${index}.saleLitres`) !== saleLitres) {
-        form.setValue(`meterReadings.${index}.saleLitres`, saleLitres, { shouldValidate: true });
-      }
-      if (form.getValues(`meterReadings.${index}.saleAmount`) !== saleAmount) {
-        form.setValue(`meterReadings.${index}.saleAmount`, saleAmount);
+      if (fieldName === 'closing' || fieldName === 'testing') {
+        const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
+        if (getValues(`meterReadings.${index}.saleLitres`) !== saleLitres) {
+          setValue(`meterReadings.${index}.saleLitres`, saleLitres);
+        }
+        setValue(`meterReadings.${index}.saleAmount`, saleLitres * sellingPrice);
+      } else if (fieldName === 'saleLitres') {
+        const saleLitresValue = value.meterReadings?.[index]?.saleLitres;
+        if (typeof saleLitresValue !== 'number') return;
+        
+        const closing = reading.opening + saleLitresValue + reading.testing;
+        if (getValues(`meterReadings.${index}.closing`) !== closing) {
+          setValue(`meterReadings.${index}.closing`, closing, { shouldValidate: true });
+        }
+        setValue(`meterReadings.${index}.saleAmount`, saleLitresValue * sellingPrice);
       }
     });
+    return () => subscription.unsubscribe();
+  }, [watch, setValue, getValues, settings]);
 
-  }, [watchedValuesString, settings, form]);
 
-  const { meterReadings, creditSales, onlinePayments, lubeSaleAmount } = JSON.parse(watchedValuesString);
-  const totalFuelSales = meterReadings.reduce((acc: number, r: any) => acc + r.saleAmount, 0);
-  const totalSales = totalFuelSales + (lubeSaleAmount || 0);
-  const totalCreditSales = (creditSales || []).reduce((acc: number, cs: any) => acc + Number(cs.amount || 0), 0);
-  const cashInHand = totalSales - totalCreditSales - onlinePayments;
+  const watchedForm = form.watch();
+  const totalFuelSales = (watchedForm.meterReadings || []).reduce((acc, r) => acc + r.saleAmount, 0);
+  const totalSales = totalFuelSales + (watchedForm.lubeSaleAmount || 0);
+  const totalCreditSales = (watchedForm.creditSales || []).reduce((acc, cs) => acc + Number(cs.amount || 0), 0);
+  const cashInHand = totalSales - totalCreditSales - watchedForm.onlinePayments;
 
   const onSubmit = (data: ShiftReportFormValues) => {
     const totalFuelSalesCalc = data.meterReadings.reduce((acc, r) => acc + r.saleAmount, 0);
@@ -228,7 +244,7 @@ export default function ShiftReportPage() {
             </Card>
             
             <Card>
-              <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>{isEditing ? 'Edit meter readings for this shift.' : 'For your first report, enter opening meter readings. Subsequently, they auto-fill from the previous day.'}</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Meter Readings</CardTitle><CardDescription>{isEditing ? 'Edit meter readings for this shift.' : 'Enter closing meter or sale litres. The other will calculate automatically.'}</CardDescription></CardHeader>
               <CardContent>
                  <Accordion type="multiple" defaultValue={(settings.fuels || []).map(f => f.id)} className="w-full">
                     {readingsByFuel.map(({ fuel, readings }) => (
@@ -244,7 +260,9 @@ export default function ShiftReportPage() {
                                 <FormField control={form.control} name={`meterReadings.${index}.opening`} render={({ field }) => <FormItem><FormControl><Input type="number" readOnly={!isEditing && !!latestShiftReport} className={!isEditing && !!latestShiftReport ? "bg-muted/50" : ""} {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.closing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
                                 <FormField control={form.control} name={`meterReadings.${index}.testing`} render={({ field }) => <FormItem><FormControl><Input type="number" {...field} /></FormControl><FormMessage/></FormItem>} />
-                                <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted/50" value={field.value.toFixed(2)} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name={`meterReadings.${index}.saleLitres`} render={({ field }) => (
+                                    <FormItem><FormControl><Input type="number" step="0.01" className="text-right" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
                                 <FormField control={form.control} name={`meterReadings.${index}.saleAmount`} render={({ field }) => <FormItem><FormControl><Input type="text" readOnly className="text-right bg-muted/50" value={formatCurrency(field.value)} /></FormControl></FormItem>} />
                             </div>
                           ))}
@@ -324,7 +342,7 @@ export default function ShiftReportPage() {
                         </div>
                         <div className="flex justify-between">
                             <span>Total Lube Sales</span>
-                            <span className="font-medium">{formatCurrency(lubeSaleAmount || 0)}</span>
+                            <span className="font-medium">{formatCurrency(watchedForm.lubeSaleAmount || 0)}</span>
                         </div>
                         <Separator className="my-2" />
                         <div className="flex justify-between font-bold text-base">
@@ -340,7 +358,7 @@ export default function ShiftReportPage() {
                         </div>
                          <div className="flex justify-between">
                             <span>Less: Online Payments</span>
-                            <span className="font-medium text-destructive">-{formatCurrency(onlinePayments)}</span>
+                            <span className="font-medium text-destructive">-{formatCurrency(watchedForm.onlinePayments)}</span>
                         </div>
                         <Separator className="my-2" />
                         <div className="flex justify-between items-center font-bold text-lg text-primary">

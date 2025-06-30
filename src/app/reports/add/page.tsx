@@ -13,13 +13,15 @@ import { formatCurrency, getFuelPricesForDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
-import type { MonthlyReport } from '@/lib/types';
+import type { MonthlyReport, Settings } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { AnalyzeMonthlyReportOutput } from '@/ai/flows/analyze-monthly-report-flow';
+
 
 const meterReadingSchema = z.object({ nozzleId: z.number(), opening: z.coerce.number().min(0), closing: z.coerce.number().min(0), testing: z.coerce.number().min(0), saleLitres: z.number(), saleAmount: z.number(), estProfit: z.number(), }).refine(data => data.closing >= data.opening, { message: "Closing meter cannot be less than opening meter.", path: ["closing"], });
 const fuelSaleSchema = z.object({ fuelId: z.string(), readings: z.array(meterReadingSchema), totalLitres: z.number(), totalSales: z.number(), estProfit: z.number(), pricePerLitre: z.number(), costPerLitre: z.number(), });
@@ -33,13 +35,87 @@ const monthlyReportSchema = z.object({
     fuelSales: z.array(fuelSaleSchema),
 });
 
+const getInitialFormValues = (
+    existingReport: MonthlyReport | undefined,
+    importedData: AnalyzeMonthlyReportOutput | null,
+    settings: Settings | null,
+    latestReport: MonthlyReport | undefined,
+    defaultAccountId: string
+) => {
+    if (existingReport) return existingReport;
+
+    if (importedData && settings) {
+        const fuelSales = settings.fuels.map(fuel => {
+            const matchingReadings = importedData.fuelReadings.filter((r: any) => r.fuelName.toLowerCase() === fuel.name.toLowerCase());
+            return {
+                fuelId: fuel.id,
+                readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
+                    const nozzleId = i + 1;
+                    const readingForNozzle = matchingReadings.find((r: any) => r.nozzleId === nozzleId);
+                    return {
+                        nozzleId,
+                        opening: readingForNozzle?.openingReading || 0,
+                        closing: readingForNozzle?.closingReading || 0,
+                        testing: readingForNozzle?.testing || 0,
+                        saleLitres: 0, saleAmount: 0, estProfit: 0,
+                    };
+                }),
+                totalLitres: 0, totalSales: 0, estProfit: 0, pricePerLitre: 0, costPerLitre: 0,
+            };
+        });
+
+        return {
+            id: crypto.randomUUID(),
+            endDate: importedData.endDate || format(new Date(), 'yyyy-MM-dd'),
+            bankDeposits: importedData.bankDeposits || 0,
+            accountId: defaultAccountId,
+            creditSales: importedData.creditSales || 0,
+            lubricantSales: importedData.lubricantSales || 0,
+            fuelSales,
+        };
+    }
+
+    return {
+        id: crypto.randomUUID(),
+        endDate: format(new Date(), 'yyyy-MM-dd'),
+        bankDeposits: 0,
+        accountId: defaultAccountId,
+        creditSales: 0,
+        lubricantSales: 0,
+        fuelSales: settings?.fuels.map(fuel => {
+            const latestFuelSale = latestReport?.fuelSales.find(fs => fs.fuelId === fuel.id);
+            return {
+                fuelId: fuel.id,
+                readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
+                    const nozzleId = i + 1;
+                    const latestReading = latestFuelSale?.readings.find(r => r.nozzleId === nozzleId);
+                    return { nozzleId, opening: latestReading?.closing || 0, closing: latestReading?.closing || 0, testing: 0, saleLitres: 0, saleAmount: 0, estProfit: 0 };
+                }),
+                totalLitres: 0, totalSales: 0, estProfit: 0, pricePerLitre: 0, costPerLitre: 0,
+            };
+        }) || []
+    };
+};
+
 
 export default function AddReportPage() {
     const { settings, addOrUpdateMonthlyReport } = useAppState();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    
     const reportId = searchParams.get('id');
+    const importDataRaw = searchParams.get('importData');
+
+    const importedData: AnalyzeMonthlyReportOutput | null = useMemo(() => {
+        if (!importDataRaw) return null;
+        try {
+            return JSON.parse(atob(importDataRaw));
+        } catch (e) {
+            console.error("Failed to parse import data", e);
+            return null;
+        }
+    }, [importDataRaw]);
 
     const existingReport = reportId ? settings?.monthlyReports.find(r => r.id === reportId) : undefined;
     const latestReport = !reportId && settings?.monthlyReports?.[0];
@@ -47,26 +123,7 @@ export default function AddReportPage() {
 
     const form = useForm<z.infer<typeof monthlyReportSchema>>({
         resolver: zodResolver(monthlyReportSchema),
-        defaultValues: existingReport ? existingReport : {
-            id: crypto.randomUUID(),
-            endDate: format(new Date(), 'yyyy-MM-dd'),
-            bankDeposits: 0,
-            accountId: defaultAccountId,
-            creditSales: 0,
-            lubricantSales: 0,
-            fuelSales: settings?.fuels.map(fuel => {
-                const latestFuelSale = latestReport?.fuelSales.find(fs => fs.fuelId === fuel.id);
-                return {
-                    fuelId: fuel.id,
-                    readings: Array.from({ length: settings.nozzlesPerFuel?.[fuel.id] || 0 }, (_, i) => {
-                        const nozzleId = i + 1;
-                        const latestReading = latestFuelSale?.readings.find(r => r.nozzleId === nozzleId);
-                        return { nozzleId, opening: latestReading?.closing || 0, closing: latestReading?.closing || 0, testing: 0, saleLitres: 0, saleAmount: 0, estProfit: 0 };
-                    }),
-                    totalLitres: 0, totalSales: 0, estProfit: 0, pricePerLitre: 0, costPerLitre: 0,
-                };
-            }) || []
-        },
+        defaultValues: getInitialFormValues(existingReport, importedData, settings, latestReport, defaultAccountId),
     });
 
     const { fields: fuelSalesFields } = useFieldArray({ control: form.control, name: "fuelSales" });

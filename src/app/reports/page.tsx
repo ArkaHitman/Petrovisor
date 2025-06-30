@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAppState } from '@/contexts/app-state-provider';
 import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-import { Eye, PlusCircle, Trash2, Pencil } from 'lucide-react';
+import { Eye, PlusCircle, Trash2, Pencil, FileScan } from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -31,12 +31,20 @@ export default function ReportsPage() {
         title="Monthly Reports"
         description="Manage and view your monthly sales and performance reports."
       >
-        <Button asChild className="bg-accent hover:bg-accent/90">
-          <Link href="/reports/add">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Report
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href="/reports/import">
+                <FileScan className="mr-2 h-4 w-4" />
+                Import Report
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/reports/add">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Report
+              </Link>
+            </Button>
+        </div>
       </PageHeader>
       <div className="p-4 md:p-8">
         <Card>
