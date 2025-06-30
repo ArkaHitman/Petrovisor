@@ -78,7 +78,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
         const reportsData = dailyReports.map(dr => {
             const meterReadings = dr.meterReadings.map(mr => {
                 const fuel = settings.fuels.find(f => f.name.toLowerCase() === mr.fuelName.toLowerCase());
-                const saleLitres = Math.max(0, mr.closingReading - mr.openingReading - mr.testing);
+                const saleLitres = Math.max(0, mr.closingReading - mr.openingReading - (mr.testing || 0));
                 const { sellingPrice } = getFuelPricesForDate(fuel?.id || '', dr.date, settings.fuelPriceHistory, { sellingPrice: fuel?.price || 0, costPrice: fuel?.cost || 0 });
                 const saleAmount = saleLitres * sellingPrice;
                 return {
@@ -86,7 +86,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
                     nozzleId: mr.nozzleId,
                     opening: mr.openingReading,
                     closing: mr.closingReading,
-                    testing: mr.testing,
+                    testing: mr.testing || 0,
                     saleLitres,
                     saleAmount,
                 };
@@ -203,7 +203,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
                                             <div className="text-xs text-muted-foreground grid grid-cols-5 gap-2 px-1">
                                                 <span>Fuel</span><span>Opening</span><span>Closing</span><span>Testing</span><span className="text-right">Sale (L)</span>
                                             </div>
-                                             {watch(`reports.${index}.meterReadings`).map((mr, mrIndex) => (
+                                             {watch(`reports.${index}.meterReadings`).map((mr: any, mrIndex: number) => (
                                                 <div key={mrIndex} className="grid grid-cols-5 gap-2 items-center text-sm">
                                                      <span>{settings.fuels.find(f=>f.id === mr.fuelId)?.name} #{mr.nozzleId}</span>
                                                      <Input readOnly value={mr.opening} className="bg-muted/50 h-8"/>
