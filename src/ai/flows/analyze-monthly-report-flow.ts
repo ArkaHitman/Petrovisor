@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const AnalyzeMonthlyReportInputSchema = z.object({
+const AnalyzeMonthlyReportInputSchema = z.object({
   reportDataUri: z
     .string()
     .describe(
@@ -27,7 +27,7 @@ const MeterReadingSchema = z.object({
     testing: z.number().describe("The total amount of fuel used for testing in litres for the month.").default(0),
 });
 
-export const AnalyzeMonthlyReportOutputSchema = z.object({
+const AnalyzeMonthlyReportOutputSchema = z.object({
     endDate: z.string().describe("The end date of the report period in YYYY-MM-DD format."),
     fuelReadings: z.array(MeterReadingSchema),
     lubricantSales: z.number().describe("The total sales value of lubricants for the month.").default(0),
