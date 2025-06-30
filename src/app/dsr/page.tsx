@@ -72,29 +72,35 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
 
     const { control, setValue, watch, handleSubmit } = formMethods;
     const { fields } = useFieldArray({ control, name: 'reports' });
-    const watchedReportsString = JSON.stringify(watch('reports'));
-
+    
     useEffect(() => {
         if (!settings) return;
         const reportsData = dailyReports.map(dr => {
             const meterReadings = dr.meterReadings.map(mr => {
                 const fuel = settings.fuels.find(f => f.name.toLowerCase() === mr.fuelName.toLowerCase());
+                const saleLitres = Math.max(0, mr.closingReading - mr.openingReading - mr.testing);
+                const { sellingPrice } = getFuelPricesForDate(fuel?.id || '', dr.date, settings.fuelPriceHistory, { sellingPrice: fuel?.price || 0, costPrice: fuel?.cost || 0 });
+                const saleAmount = saleLitres * sellingPrice;
                 return {
                     fuelId: fuel?.id || '',
                     nozzleId: mr.nozzleId,
                     opening: mr.openingReading,
                     closing: mr.closingReading,
                     testing: mr.testing,
-                    saleLitres: 0, // Initialize to 0
-                    saleAmount: 0, // Initialize to 0
+                    saleLitres,
+                    saleAmount,
                 };
             });
+            const totalFuelSales = meterReadings.reduce((sum, r) => sum + r.saleAmount, 0);
+            const totalSales = totalFuelSales + (dr.lubricantSales || 0);
+            const cashInHand = totalSales - (dr.creditSales || 0) - (dr.phonepeSales || 0);
+
             return {
                 date: dr.date,
                 lubeSaleAmount: dr.lubricantSales || 0,
                 creditSales: dr.creditSales || 0,
                 onlinePayments: dr.phonepeSales || 0,
-                cashInHand: 0, // Will be calculated later
+                cashInHand,
                 meterReadings,
             };
         });
@@ -102,26 +108,33 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
     }, [dailyReports, setValue, settings]);
     
     useEffect(() => {
-        if (!settings) return;
-        const reports = JSON.parse(watchedReportsString);
-        reports.forEach((report: any, index: number) => {
-            let totalSales = report.lubeSaleAmount || 0;
-            report.meterReadings.forEach((reading: any, readingIndex: number) => {
-                 const fuel = settings.fuels.find(f => f.id === reading.fuelId);
-                 if (!fuel) return;
+      const subscription = watch((value, { name, type }) => {
+        if (!name || !type) return;
 
-                 const { sellingPrice } = getFuelPricesForDate(fuel.id, report.date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
-                 const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
-                 const saleAmount = saleLitres * sellingPrice;
-                 
-                 setValue(`reports.${index}.meterReadings.${readingIndex}.saleLitres`, saleLitres);
-                 setValue(`reports.${index}.meterReadings.${readingIndex}.saleAmount`, saleAmount);
-                 totalSales += saleAmount;
-            });
+        const nameParts = name.split('.');
+        if (nameParts[0] !== 'reports' || nameParts.length < 3) return;
+
+        const reportIndex = parseInt(nameParts[1], 10);
+        if (isNaN(reportIndex)) return;
+
+        const changedFieldName = nameParts[2];
+        const editableFields = ['lubeSaleAmount', 'creditSales', 'onlinePayments'];
+
+        if (editableFields.includes(changedFieldName)) {
+            const report = value.reports?.[reportIndex];
+            if (!report) return;
+
+            const totalFuelSales = report.meterReadings.reduce((sum: number, r: any) => sum + (r.saleAmount || 0), 0);
+            const totalSales = totalFuelSales + (report.lubeSaleAmount || 0);
             const cashInHand = totalSales - (report.creditSales || 0) - (report.onlinePayments || 0);
-            setValue(`reports.${index}.cashInHand`, cashInHand);
-        });
-    }, [watchedReportsString, setValue, settings]);
+
+            if (report.cashInHand !== cashInHand) {
+                 setValue(`reports.${reportIndex}.cashInHand`, cashInHand, { shouldDirty: true });
+            }
+        }
+      });
+      return () => subscription.unsubscribe();
+    }, [watch, setValue]);
 
 
     const handleProceed = () => {

@@ -30,8 +30,9 @@ export default function Dashboard() {
     recentManagerTransactions,
     recentPurchases,
     managerAccount,
+    supplierDues,
   } = useMemo(() => {
-    if (!settings) return { totalStockValue: 0, currentOutstandingCredit: 0, accountBalances: [], totalBankBalance: 0, overdraftAccount: null, netManagerBalance: 0, netWorth: 0, remainingLimit: 0, recentManagerTransactions: [], recentPurchases: [], managerAccount: null };
+    if (!settings) return { totalStockValue: 0, currentOutstandingCredit: 0, accountBalances: [], totalBankBalance: 0, overdraftAccount: null, netManagerBalance: 0, netWorth: 0, remainingLimit: 0, recentManagerTransactions: [], recentPurchases: [], managerAccount: null, supplierDues: 0 };
 
     const today = formatDate(new Date(), 'yyyy-MM-dd');
     const totalStockValue = settings.tanks.reduce((total, tank) => {
@@ -67,9 +68,15 @@ export default function Dashboard() {
         recentManagerTransactions = managerJournalEntries.slice(0, 5);
     }
     
-    const netWorth = totalBankBalance + currentOutstandingCredit + totalStockValue;
+    const supplierDeliveries = settings.supplierDeliveries || [];
+    const supplierPayments = settings.supplierPayments || [];
+    const totalDeliveryValue = supplierDeliveries.reduce((sum, d) => sum + d.totalInvoiceValue, 0);
+    const totalPaid = supplierPayments.reduce((sum, p) => sum + p.amount, 0);
+    const supplierDues = Math.max(0, totalDeliveryValue - totalPaid);
+
+    const netWorth = totalBankBalance + currentOutstandingCredit + totalStockValue + netManagerBalance - supplierDues;
     
-    const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance;
+    const netWorthForLimit = totalStockValue + currentOutstandingCredit + overdraftAccountBalance + netManagerBalance - supplierDues;
     const sanctionedAmount = overdraftAccount?.sanctionedAmount || 0;
     const remainingLimit = netWorthForLimit - sanctionedAmount;
     
@@ -80,7 +87,7 @@ export default function Dashboard() {
     const recentPurchases = filteredPurchases.slice(0, 5);
 
 
-    return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases, managerAccount };
+    return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases, managerAccount, supplierDues };
   }, [settings, selectedAccountId]);
 
   if (!settings) return null;
@@ -98,7 +105,7 @@ export default function Dashboard() {
     <>
       <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} description="Bank Balance + Credit + Stock Value"/>
+            <StatCard title="Net Worth" value={formatCurrency(netWorth)} icon={Wallet} description="Bank + Credit + Stock + Manager - Dues"/>
             
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

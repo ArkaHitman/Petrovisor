@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { AppState, AppStateContextType, Settings, BankTransaction, CreditHistoryEntry, MiscCollection, MonthlyReport, FuelPurchase, ShiftReport, BankAccount, Employee, Customer, SupplierDelivery, SupplierPayment, AddSupplierDeliveryData, ChartOfAccount, JournalEntry, JournalEntryLeg, Tank } from '@/lib/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isAfter } from 'date-fns';
 import { getFuelPricesForDate } from '@/lib/utils';
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
@@ -643,7 +643,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return tank;
       });
 
-      const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks };
+      let newBankLedger = [...(prev.settings.bankLedger || [])];
+      if (purchase.accountId && purchase.amount > 0) {
+          const bankDebit: BankTransaction = {
+              id: crypto.randomUUID(),
+              accountId: purchase.accountId,
+              date: purchase.date,
+              description: `Fuel Purchase - Inv #${purchase.invoiceNumber || 'N/A'}`,
+              type: 'debit',
+              amount: purchase.amount,
+              source: 'fuel_purchase',
+              sourceId: newPurchase.id,
+              createdAt: newPurchase.createdAt,
+          };
+          newBankLedger.push(bankDebit);
+          newBankLedger.sort((a,b) => b.date.localeCompare(a.date));
+      }
+
+      const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks, bankLedger: newBankLedger };
 
       return { ...prev, settings: newSettings };
     });
@@ -663,7 +680,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             return tank;
         });
         
-        const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks };
+        const newBankLedger = (prev.settings.bankLedger || []).filter(tx => tx.sourceId !== purchaseId || tx.source !== 'fuel_purchase');
+        
+        const newSettings = { ...prev.settings, purchases: newPurchases, tanks: newTanks, bankLedger: newBankLedger };
         return { ...prev, settings: newSettings };
     });
   }, [setAppState]);

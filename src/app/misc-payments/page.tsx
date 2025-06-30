@@ -48,8 +48,20 @@ export default function MiscPaymentsPage() {
         router.push('/bank');
     }
 
-    if (!settings?.bankAccounts) {
-        return <AppLayout>Loading...</AppLayout>;
+    if (!settings?.bankAccounts || settings.bankAccounts.length === 0) {
+        return (
+            <AppLayout>
+                <PageHeader title="Miscellaneous Payments" description="Record online/bank expenses from a specific account."/>
+                <div className="p-4 md:p-8">
+                    <Card className="max-w-2xl mx-auto">
+                        <CardHeader>
+                            <CardTitle>No Bank Accounts Found</CardTitle>
+                            <CardDescription>Please add a bank account in settings before recording payments.</CardDescription>
+                        </CardHeader>
+                    </Card>
+                </div>
+            </AppLayout>
+        );
     }
 
     return (
