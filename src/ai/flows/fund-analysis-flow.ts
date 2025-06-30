@@ -84,13 +84,13 @@ Once all daily entries are calculated, sort the \`dailyBreakdown\` array by date
 Aggregate the daily breakdown data to compute the overall summary.
 - **\`totalPurchases\`**: Sum of \`purchaseAmount\` from all daily entries.
 - **\`totalSales\`**: Sum of \`totalSales\` from all daily entries.
-- **\`totalCreditGiven`**: Sum of \`creditSales\` from all daily entries.
-- **\`totalCreditRepaid`**: Sum of \`creditRepaymentsReceived\` from all daily entries.
-- **\`currentOutstandingCredit`**: Calculate as \`totalCreditGiven\` - \`totalCreditRepaid\`.
-- **\`totalCashGap`**: Sum of all \`cashGap\` values from the daily breakdown.
-- **\`totalProfit`**: Sum of \`estimatedProfit\` from all daily entries.
-- **\`totalInvestment`**: From all \`journalEntries\`, find entries where a leg's \`accountType\` is 'chart_of_account' and the account's \`type\` (from \`chartOfAccounts\`) is 'Equity'. Sum the \`credit\` amounts of these legs.
-- **\`capitalRepaid`**: Similar to investment, but sum the \`debit\` amounts of the Equity account legs.
+- **\`totalCreditGiven\`**: Sum of \`creditSales\` from all daily entries.
+- **\`totalCreditRepaid\`**: Sum of \`creditRepaymentsReceived\` from all daily entries.
+- **\`currentOutstandingCredit\`**: Calculate as \`totalCreditGiven\` - \`totalCreditRepaid\`.
+- **\`totalCashGap\`**: Sum of all \`cashGap\` values from the daily breakdown.
+- **\`totalProfit\`**: Sum of \`estimatedProfit\` from all daily entries.
+- **\`totalInvestment\`**: From all \`journalEntries\`, find entries where a leg's \`accountType\` is 'chart_of_account' and the account's \`type\` (from \`chartOfAccounts\`) is 'Equity'. Sum the \`credit\` amounts of these legs.
+- **\`capitalRepaid\`**: Similar to investment, but sum the \`debit\` amounts of the Equity account legs.
 
 Provide the final output strictly in the specified JSON format.
 
