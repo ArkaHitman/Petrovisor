@@ -143,15 +143,19 @@ export default function ShiftReportPage() {
       if (!name || type !== 'change' || !settings) return;
 
       const nameParts = name.split('.');
-      if (nameParts.length < 3 || nameParts[0] !== 'meterReadings') return;
+      if (nameParts[0] !== 'meterReadings' || nameParts.length < 3) return;
 
       const index = parseInt(nameParts[1], 10);
-      const fieldName = nameParts[3];
-
+      const fieldName = nameParts[2];
       if (isNaN(index)) return;
 
-      const reading = getValues(`meterReadings.${index}`);
+      const reading = value.meterReadings?.[index];
       if (!reading) return;
+
+      const opening = Number(reading.opening || 0);
+      const closing = Number(reading.closing || 0);
+      const testing = Number(reading.testing || 0);
+      let saleLitres = Number(reading.saleLitres || 0);
 
       const fuel = settings.fuels.find(f => f.id === reading.fuelId);
       if (!fuel) return;
@@ -159,23 +163,28 @@ export default function ShiftReportPage() {
       const reportDate = getValues('date');
       const { sellingPrice } = getFuelPricesForDate(fuel.id, reportDate, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
 
+      // Determine which value to calculate based on what was changed
       if (fieldName === 'closing' || fieldName === 'testing') {
-        const saleLitres = Math.max(0, reading.closing - reading.opening - reading.testing);
-        if (getValues(`meterReadings.${index}.saleLitres`) !== saleLitres) {
-          setValue(`meterReadings.${index}.saleLitres`, saleLitres);
+        const newSaleLitres = Math.max(0, closing - opening - testing);
+        // Check if there's a meaningful change to prevent loops
+        if (Math.abs(newSaleLitres - saleLitres) > 0.001) { 
+          saleLitres = newSaleLitres;
+          setValue(`meterReadings.${index}.saleLitres`, Number(saleLitres.toFixed(2)));
         }
-        setValue(`meterReadings.${index}.saleAmount`, saleLitres * sellingPrice);
       } else if (fieldName === 'saleLitres') {
-        const saleLitresValue = value.meterReadings?.[index]?.saleLitres;
-        if (typeof saleLitresValue !== 'number') return;
-        
-        const closing = reading.opening + saleLitresValue + reading.testing;
-        if (getValues(`meterReadings.${index}.closing`) !== closing) {
-          setValue(`meterReadings.${index}.closing`, closing, { shouldValidate: true });
+        const newClosing = opening + saleLitres + testing;
+        if (Math.abs(newClosing - closing) > 0.001) {
+          setValue(`meterReadings.${index}.closing`, Number(newClosing.toFixed(2)), { shouldValidate: true });
         }
-        setValue(`meterReadings.${index}.saleAmount`, saleLitresValue * sellingPrice);
+      } else {
+        // Not a field we need to auto-calculate from, so exit.
+        return;
       }
+      
+      // Always recalculate and set the sale amount to ensure it's in sync.
+      setValue(`meterReadings.${index}.saleAmount`, Number((saleLitres * sellingPrice).toFixed(2)));
     });
+
     return () => subscription.unsubscribe();
   }, [watch, setValue, getValues, settings]);
 
