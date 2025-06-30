@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow for a comprehensive financial audit of the petrol station.
@@ -11,7 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 // Input Schema
-export const FinancialAuditInputSchema = z.object({
+const FinancialAuditInputSchema = z.object({
   jsonData: z
     .string()
     .describe(
@@ -46,7 +47,7 @@ const AuditSummarySchema = z.object({
     capitalRepaid: z.number().describe("Total capital returned to investors. Find journal entries where an 'Equity' type account is debited."),
 });
 
-export const FinancialAuditOutputSchema = z.object({
+const FinancialAuditOutputSchema = z.object({
   dailyBreakdown: z.array(DailyAuditEntrySchema).describe("A day-by-day breakdown of all financial activities, sorted by date in descending order."),
   summary: AuditSummarySchema.describe("An overall summary of the financial audit."),
 });
