@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { FileUp, Loader2, Bot, CheckCircle, AlertTriangle, FileText, Pencil } from 'lucide-react';
+import { FileUp, Loader2, Bot, CheckCircle, AlertTriangle, FileText, Pencil, FileDown } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { analyzeDsr, type AnalyzeDsrOutput } from '@/ai/flows/analyze-dsr-flow';
 import { useAppState } from '@/contexts/app-state-provider';
@@ -298,6 +298,52 @@ export default function DsrPage() {
         setStep('upload');
     };
 
+    const handleDownloadTemplate = () => {
+        if (!settings) {
+            toast({
+                title: "Settings not loaded",
+                description: "Please wait for settings to load before downloading.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const headers: string[] = ['date'];
+        
+        settings.fuels.forEach(fuel => {
+            const nozzleCount = settings.nozzlesPerFuel?.[fuel.id] || 0;
+            if (nozzleCount > 0) {
+                for (let i = 1; i <= nozzleCount; i++) {
+                    const baseHeader = `${fuel.name.replace(/ /g, '_')}_N${i}`;
+                    headers.push(`${baseHeader}_Opening`, `${baseHeader}_Closing`, `${baseHeader}_Testing`);
+                }
+            }
+        });
+        
+        headers.push('Lubricant_Sales', 'Credit_Sales', 'Phonepe_Sales', 'Cash_Deposited');
+
+        const csvHeader = headers.join(',');
+        
+        const sampleRow = [
+            'YYYY-MM-DD',
+            ...Array(settings.fuels.reduce((acc, f) => acc + (settings.nozzlesPerFuel?.[f.id] || 0) * 3, 0)).fill('0.00'),
+            '0.00', '0.00', '0.00', '0.00'
+        ].join(',');
+
+        const csvContent = `${csvHeader}\n${sampleRow}`;
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "dsr_upload_template.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     const handleAnalyze = async () => {
         if (!file) { setError("Please select a file first."); return; }
         setIsAnalyzing(true); setError(null); setAnalysisResult(null);
@@ -370,8 +416,16 @@ export default function DsrPage() {
         {step === 'upload' && (
              <Card className="max-w-2xl mx-auto">
                 <CardHeader>
-                    <CardTitle className="font-headline">1. Upload Report</CardTitle>
-                    <CardDescription>Select the report file (PDF or filled CSV) from your device.</CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="font-headline">1. Upload Report</CardTitle>
+                            <CardDescription>Select the report file (PDF or filled CSV) from your device.</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Template
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <Label htmlFor="dsr-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
