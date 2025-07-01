@@ -6,13 +6,21 @@ import { formatCurrency, cn, getFuelPricesForDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import FloatingCashDisplay from './floating-cash-display';
 import StatCard from './stat-card';
-import { Landmark, Wallet, ShieldCheck, ReceiptText, Briefcase, ShoppingCart } from 'lucide-react';
+import { Landmark, Wallet, ShieldCheck, ReceiptText, Briefcase, ShoppingCart, BarChart3 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { format as formatDate, parseISO } from 'date-fns';
+import { format as formatDate, parseISO, parse } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from './ui/badge';
 import type { BankAccount, JournalEntry } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+
 
 export default function Dashboard() {
   const { settings } = useAppState();
@@ -89,6 +97,38 @@ export default function Dashboard() {
 
     return { totalStockValue, currentOutstandingCredit, accountBalances: calculatedAccountBalances, totalBankBalance, overdraftAccount, netManagerBalance, netWorth, remainingLimit, recentManagerTransactions, recentPurchases, managerAccount, supplierDues };
   }, [settings, selectedAccountId]);
+  
+  const monthlySalesData = useMemo(() => {
+    if (!settings?.shiftReports) return [];
+
+    const salesByMonth: { [key: string]: number } = {};
+
+    settings.shiftReports.forEach(report => {
+        const monthKey = formatDate(parseISO(report.date), 'MMM yy');
+        salesByMonth[monthKey] = (salesByMonth[monthKey] || 0) + report.totalSales;
+    });
+
+    const chartData = Object.keys(salesByMonth).map(monthKey => ({
+        month: monthKey,
+        sales: salesByMonth[monthKey],
+    }));
+
+    const sortedData = chartData.sort((a, b) => {
+        const dateA = parse(a.month, 'MMM yy', new Date());
+        const dateB = parse(b.month, 'MMM yy', new Date());
+        return dateA.getTime() - dateB.getTime();
+    });
+
+    return sortedData.slice(-12);
+  }, [settings?.shiftReports]);
+
+  const chartConfig = {
+    sales: {
+      label: "Sales",
+      color: "hsl(var(--primary))",
+    },
+  } satisfies ChartConfig;
+
 
   if (!settings) return null;
   
@@ -219,6 +259,48 @@ export default function Dashboard() {
             </Card>
           </div>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2">
+              <BarChart3 />
+              Monthly Sales Statistics
+            </CardTitle>
+            <CardDescription>A summary of total sales over the last year.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {monthlySalesData.length > 0 ? (
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <BarChart accessibilityLayer data={monthlySalesData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      tickFormatter={(value) => value}
+                    />
+                    <YAxis
+                      tickFormatter={(value) => `₹${new Intl.NumberFormat('en-IN', { notation: 'compact', compactDisplay: 'short' }).format(value as number)}`}
+                    />
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent
+                          formatter={(value) => formatCurrency(value as number)}
+                          indicator="dot"
+                        />}
+                    />
+                    <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+            ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                    No sales data available to display chart.
+                </div>
+            )}
+          </CardContent>
+        </Card>
+
       </div>
       <FloatingCashDisplay />
     </>
