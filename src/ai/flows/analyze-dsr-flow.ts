@@ -89,6 +89,11 @@ const analyzeDsrFlow = ai.defineFlow(
             if (!output) {
               throw new Error("AI analysis failed to produce a valid output.");
             }
+
+            if (!Array.isArray(output)) {
+                console.error("DSR Analysis: AI returned non-array output:", JSON.stringify(output));
+                throw new Error("AI analysis did not return the expected list of daily reports. The document format might be unsupported.");
+            }
             
             const rawOutput = output as any[];
 
