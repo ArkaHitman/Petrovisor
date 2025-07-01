@@ -49,7 +49,7 @@ export async function analyzeDsr(input: AnalyzeDsrInput): Promise<AnalyzeDsrOutp
 const prompt = ai.definePrompt({
   name: 'analyzeDsrPrompt',
   input: {schema: AnalyzeDsrInputSchema},
-  output: {schema: AnalyzeDsrOutputSchema},
+  output: { format: 'json' }, // Use lax format validation to allow for manual sanitation
   prompt: `You are an expert data entry assistant for an Indian petrol station. Your task is to analyze the provided sales report and extract a list of **daily transactions**.
 
 The input is a table (PDF or CSV) where each row represents a single day's sales data.
@@ -61,13 +61,13 @@ The input is a table (PDF or CSV) where each row represents a single day's sales
     - **\`date\`**: The date for that row, formatted as YYYY-MM-DD.
     - **\`meterReadings\`**:
         - The report has columns for opening and closing readings for different fuels (e.g., 'XP', 'MS', 'HSD'). A fuel like 'HSD' might have multiple columns; treat each column as a separate nozzle (e.g., HSD Nozzle 1, HSD Nozzle 2).
-        - For each nozzle, extract the opening reading, closing reading, and any testing amount for that specific day.
+        - For each nozzle, extract the opening reading, closing reading, and any testing amount for that specific day. Ensure every reading has 'fuelName', 'nozzleId', 'openingReading', and 'closingReading'.
     - **\`lubricantSales\`**: The value from the 'Lubricant' column for that day.
     - **\`creditSales\`**: The value from the 'Credit' column for that day.
     - **\`phonepeSales\`**: The value from the 'Phonepe' column for that day.
     - **\`cashDeposited\`**: The value from the 'Cash' column for that day.
 
-Return the extracted information as a JSON array, where each object in the array represents a single day's complete data. Ignore any rows that do not contain valid daily sales data.
+Return the extracted information as a JSON array, where each object in the array represents a single day's complete data. Ignore any rows or meter readings that do not contain valid data.
 
 Monthly Sales Report: {{media url=dsrDataUri}}`,
 });
@@ -84,15 +84,24 @@ const analyzeDsrFlow = ai.defineFlow(
       throw new Error("AI analysis failed to produce a valid output.");
     }
     
-    // Sanitize the output to remove any malformed meter readings (e.g., empty objects)
-    const sanitizedOutput = output.map(dailyReport => ({
-        ...dailyReport,
-        meterReadings: dailyReport.meterReadings.filter(reading => 
-            // Ensure all required properties are present before returning
-            reading && 'fuelName' in reading && 'nozzleId' in reading && 'openingReading' in reading && 'closingReading' in reading
-        ),
-    }));
+    // The output is now of type `any` since we're using `format: 'json'`
+    const rawOutput = output as any[];
 
-    return sanitizedOutput;
+    // Sanitize the output to remove any malformed meter readings (e.g., empty objects)
+    const sanitizedOutput = rawOutput.map(dailyReport => {
+        // Ensure meterReadings exists and is an array before trying to filter it
+        const meterReadings = Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings : [];
+        return {
+            ...dailyReport,
+            meterReadings: meterReadings.filter(reading => 
+                // Ensure all required properties are present before returning
+                reading && 'fuelName' in reading && 'nozzleId' in reading && 'openingReading' in reading && 'closingReading' in reading
+            ),
+        }
+    });
+
+    // Now we can safely parse with our strict Zod schema.
+    // This will throw an error if something is still wrong, but it will be after our sanitation.
+    return AnalyzeDsrOutputSchema.parse(sanitizedOutput);
   }
 );
