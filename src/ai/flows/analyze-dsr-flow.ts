@@ -89,14 +89,24 @@ const analyzeDsrFlow = ai.defineFlow(
     // Sanitize the output to remove any malformed meter readings and fix non-numeric values.
     const sanitizedOutput = rawOutput.map(dailyReport => {
         // Ensure meterReadings exists and is an array before trying to filter it
-        const meterReadings = Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings.filter(reading =>
-            reading && 'fuelName' in reading && 'nozzleId' in reading && 'openingReading' in reading && 'closingReading' in reading
-        ) : [];
+        const sanitizedMeterReadings = (Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings : [])
+            .map(reading => ({
+                // Coerce all numeric values, falling back to 0 if invalid
+                fuelName: reading.fuelName,
+                nozzleId: Number(reading.nozzleId) || 0,
+                openingReading: Number(reading.openingReading) || 0,
+                closingReading: Number(reading.closingReading) || 0,
+                testing: Number(reading.testing) || 0,
+            }))
+            .filter(reading =>
+                // A valid reading must have a fuel name and a positive nozzle ID after sanitization
+                reading.fuelName && reading.nozzleId > 0
+            );
 
-        // Coerce other numeric fields to numbers, defaulting to 0 if they are invalid (NaN)
+        // Sanitize top-level numeric fields
         const sanitizedReport = {
             ...dailyReport,
-            meterReadings: meterReadings,
+            meterReadings: sanitizedMeterReadings,
             lubricantSales: Number(dailyReport.lubricantSales) || 0,
             creditSales: Number(dailyReport.creditSales) || 0,
             phonepeSales: Number(dailyReport.phonepeSales) || 0,
