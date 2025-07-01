@@ -23,19 +23,19 @@ export type AnalyzeDsrInput = z.infer<typeof AnalyzeDsrInputSchema>;
 
 const DailyMeterReadingSchema = z.object({
     fuelName: z.string().describe("Name of the fuel, e.g., 'Petrol', 'Diesel'. Match it to standard names like 'MS', 'HSD', 'XP95' etc."),
-    nozzleId: z.number().describe("The nozzle number, starting from 1 for each fuel type."),
-    openingReading: z.number().describe("The opening meter reading for the nozzle for that specific day."),
-    closingReading: z.number().describe("The closing meter reading for the nozzle for that specific day."),
-    testing: z.number().describe("The amount of fuel used for testing in litres for that day.").default(0),
+    nozzleId: z.coerce.number().describe("The nozzle number, starting from 1 for each fuel type."),
+    openingReading: z.coerce.number().describe("The opening meter reading for the nozzle for that specific day."),
+    closingReading: z.coerce.number().describe("The closing meter reading for the nozzle for that specific day."),
+    testing: z.coerce.number().describe("The amount of fuel used for testing in litres for that day.").default(0),
 });
 
 const DailyReportDataSchema = z.object({
     date: z.string().describe("The date of the report entry in YYYY-MM-DD format."),
     meterReadings: z.array(DailyMeterReadingSchema),
-    lubricantSales: z.number().describe("The total sales value of lubricants for that day.").default(0),
-    creditSales: z.number().describe("The total amount of sales made on credit (udhaar) for that day.").default(0),
-    phonepeSales: z.number().describe("The total amount of money collected specifically via PhonePe for that day.").default(0),
-    cashDeposited: z.number().describe("The total amount deposited to the bank for that day (from the 'Cash' column).").default(0),
+    lubricantSales: z.coerce.number().describe("The total sales value of lubricants for that day.").default(0),
+    creditSales: z.coerce.number().describe("The total amount of sales made on credit (udhaar) for that day.").default(0),
+    phonepeSales: z.coerce.number().describe("The total amount of money collected specifically via PhonePe for that day.").default(0),
+    cashDeposited: z.coerce.number().describe("The total amount deposited to the bank for that day (from the 'Cash' column).").default(0),
 });
 
 const AnalyzeDsrOutputSchema = z.array(DailyReportDataSchema);
