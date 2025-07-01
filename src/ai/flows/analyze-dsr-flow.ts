@@ -79,44 +79,61 @@ const analyzeDsrFlow = ai.defineFlow(
     outputSchema: AnalyzeDsrOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error("AI analysis failed to produce a valid output.");
+    const maxRetries = 3;
+    const initialDelay = 1000;
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const {output} = await prompt(input);
+            if (!output) {
+              throw new Error("AI analysis failed to produce a valid output.");
+            }
+            
+            const rawOutput = output as any[];
+
+            // Sanitize the output to remove any malformed meter readings and fix non-numeric values.
+            const sanitizedOutput = rawOutput.map(dailyReport => {
+                // Ensure meterReadings exists and is an array before trying to filter it
+                const sanitizedMeterReadings = (Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings : [])
+                    .map(reading => ({
+                        // Coerce all numeric values, falling back to 0 if invalid
+                        fuelName: reading.fuelName,
+                        nozzleId: Number(reading.nozzleId) || 0,
+                        openingReading: Number(reading.openingReading) || 0,
+                        closingReading: Number(reading.closingReading) || 0,
+                        testing: Number(reading.testing) || 0,
+                    }))
+                    .filter(reading =>
+                        // A valid reading must have a fuel name and a positive nozzle ID after sanitization
+                        reading.fuelName && reading.nozzleId > 0
+                    );
+
+                // Sanitize top-level numeric fields
+                const sanitizedReport = {
+                    ...dailyReport,
+                    meterReadings: sanitizedMeterReadings,
+                    lubricantSales: Number(dailyReport.lubricantSales) || 0,
+                    creditSales: Number(dailyReport.creditSales) || 0,
+                    phonepeSales: Number(dailyReport.phonepeSales) || 0,
+                    cashDeposited: Number(dailyReport.cashDeposited) || 0,
+                };
+
+                return sanitizedReport;
+            });
+
+            // Now we can safely parse with our strict Zod schema.
+            return AnalyzeDsrOutputSchema.parse(sanitizedOutput);
+        } catch (err: any) {
+            lastError = err;
+            if (err.message && (err.message.includes('503') || err.message.toLowerCase().includes('overloaded'))) {
+                console.log(`Attempt ${i + 1} failed due to model overload. Retrying in ${initialDelay * (i + 1)}ms...`);
+                await new Promise(resolve => setTimeout(resolve, initialDelay * (i + 1)));
+            } else {
+                throw err;
+            }
+        }
     }
-    
-    const rawOutput = output as any[];
-
-    // Sanitize the output to remove any malformed meter readings and fix non-numeric values.
-    const sanitizedOutput = rawOutput.map(dailyReport => {
-        // Ensure meterReadings exists and is an array before trying to filter it
-        const sanitizedMeterReadings = (Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings : [])
-            .map(reading => ({
-                // Coerce all numeric values, falling back to 0 if invalid
-                fuelName: reading.fuelName,
-                nozzleId: Number(reading.nozzleId) || 0,
-                openingReading: Number(reading.openingReading) || 0,
-                closingReading: Number(reading.closingReading) || 0,
-                testing: Number(reading.testing) || 0,
-            }))
-            .filter(reading =>
-                // A valid reading must have a fuel name and a positive nozzle ID after sanitization
-                reading.fuelName && reading.nozzleId > 0
-            );
-
-        // Sanitize top-level numeric fields
-        const sanitizedReport = {
-            ...dailyReport,
-            meterReadings: sanitizedMeterReadings,
-            lubricantSales: Number(dailyReport.lubricantSales) || 0,
-            creditSales: Number(dailyReport.creditSales) || 0,
-            phonepeSales: Number(dailyReport.phonepeSales) || 0,
-            cashDeposited: Number(dailyReport.cashDeposited) || 0,
-        };
-
-        return sanitizedReport;
-    });
-
-    // Now we can safely parse with our strict Zod schema.
-    return AnalyzeDsrOutputSchema.parse(sanitizedOutput);
+    throw new Error(`AI analysis failed after ${maxRetries} attempts. The service may be temporarily unavailable. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 );

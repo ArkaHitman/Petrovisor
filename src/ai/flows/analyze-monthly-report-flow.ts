@@ -69,10 +69,27 @@ const analyzeMonthlyReportFlow = ai.defineFlow(
     outputSchema: AnalyzeMonthlyReportOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error("AI analysis failed to produce a valid output from the monthly report.");
+    const maxRetries = 3;
+    const initialDelay = 1000;
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const {output} = await prompt(input);
+            if (!output) {
+                throw new Error("AI analysis failed to produce a valid output from the monthly report.");
+            }
+            return output;
+        } catch (err: any) {
+            lastError = err;
+            if (err.message && (err.message.includes('503') || err.message.toLowerCase().includes('overloaded'))) {
+                console.log(`Attempt ${i + 1} failed due to model overload. Retrying in ${initialDelay * (i + 1)}ms...`);
+                await new Promise(resolve => setTimeout(resolve, initialDelay * (i + 1)));
+            } else {
+                throw err;
+            }
+        }
     }
-    return output;
+    throw new Error(`AI analysis failed after ${maxRetries} attempts. The service may be temporarily unavailable. Last error: ${lastError?.message || 'Unknown error'}`);
   }
 );
