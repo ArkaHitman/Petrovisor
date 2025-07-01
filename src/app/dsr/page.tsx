@@ -59,6 +59,7 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
     const { settings } = useAppState();
     const router = useRouter();
     const [showOverwriteDialog, setShowOverwriteDialog] = useState(existingReportDates.length > 0);
+    const { toast } = useToast();
 
     const formMethods = useForm<DsrFormValues>({
         resolver: zodResolver(dsrFormSchema),
@@ -75,22 +76,34 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
     
     useEffect(() => {
         if (!settings) return;
+        
+        let skippedReadingsCount = 0;
+
         const reportsData = dailyReports.map(dr => {
-            const meterReadings = dr.meterReadings.map(mr => {
-                const fuel = settings.fuels.find(f => f.name.toLowerCase() === mr.fuelName.toLowerCase());
+            const meterReadings = dr.meterReadings.flatMap(mr => {
+                const normalizedMrFuelName = mr.fuelName.toLowerCase().replace(/\s/g, '');
+                const fuel = settings.fuels.find(f => f.name.toLowerCase().replace(/\s/g, '') === normalizedMrFuelName);
+
+                if (!fuel) {
+                    skippedReadingsCount++;
+                    return []; // Skip this reading
+                }
+
                 const saleLitres = Math.max(0, mr.closingReading - mr.openingReading - (mr.testing || 0));
-                const { sellingPrice } = getFuelPricesForDate(fuel?.id || '', dr.date, settings.fuelPriceHistory, { sellingPrice: fuel?.price || 0, costPrice: fuel?.cost || 0 });
+                const { sellingPrice } = getFuelPricesForDate(fuel.id, dr.date, settings.fuelPriceHistory, { sellingPrice: fuel.price, costPrice: fuel.cost });
                 const saleAmount = saleLitres * sellingPrice;
-                return {
-                    fuelId: fuel?.id || '',
+                
+                return [{
+                    fuelId: fuel.id,
                     nozzleId: mr.nozzleId,
                     opening: mr.openingReading,
                     closing: mr.closingReading,
                     testing: mr.testing || 0,
                     saleLitres,
                     saleAmount,
-                };
+                }];
             });
+
             const totalFuelSales = meterReadings.reduce((sum, r) => sum + r.saleAmount, 0);
             const totalSales = totalFuelSales + (dr.lubricantSales || 0);
             const cashInHand = totalSales - (dr.creditSales || 0) - (dr.phonepeSales || 0);
@@ -105,7 +118,16 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
             };
         });
         setValue('reports', reportsData);
-    }, [dailyReports, setValue, settings]);
+        
+        if (skippedReadingsCount > 0) {
+            toast({
+                title: "Data Mismatch Warning",
+                description: `${skippedReadingsCount} meter reading(s) were skipped because their fuel name from the report didn't match any in your settings.`,
+                variant: "destructive",
+                duration: 8000,
+            });
+        }
+    }, [dailyReports, setValue, settings, toast]);
     
     useEffect(() => {
       const subscription = watch((value, { name, type }) => {
