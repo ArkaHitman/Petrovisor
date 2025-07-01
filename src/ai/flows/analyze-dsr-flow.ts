@@ -84,24 +84,29 @@ const analyzeDsrFlow = ai.defineFlow(
       throw new Error("AI analysis failed to produce a valid output.");
     }
     
-    // The output is now of type `any` since we're using `format: 'json'`
     const rawOutput = output as any[];
 
-    // Sanitize the output to remove any malformed meter readings (e.g., empty objects)
+    // Sanitize the output to remove any malformed meter readings and fix non-numeric values.
     const sanitizedOutput = rawOutput.map(dailyReport => {
         // Ensure meterReadings exists and is an array before trying to filter it
-        const meterReadings = Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings : [];
-        return {
+        const meterReadings = Array.isArray(dailyReport.meterReadings) ? dailyReport.meterReadings.filter(reading =>
+            reading && 'fuelName' in reading && 'nozzleId' in reading && 'openingReading' in reading && 'closingReading' in reading
+        ) : [];
+
+        // Coerce other numeric fields to numbers, defaulting to 0 if they are invalid (NaN)
+        const sanitizedReport = {
             ...dailyReport,
-            meterReadings: meterReadings.filter(reading => 
-                // Ensure all required properties are present before returning
-                reading && 'fuelName' in reading && 'nozzleId' in reading && 'openingReading' in reading && 'closingReading' in reading
-            ),
-        }
+            meterReadings: meterReadings,
+            lubricantSales: Number(dailyReport.lubricantSales) || 0,
+            creditSales: Number(dailyReport.creditSales) || 0,
+            phonepeSales: Number(dailyReport.phonepeSales) || 0,
+            cashDeposited: Number(dailyReport.cashDeposited) || 0,
+        };
+
+        return sanitizedReport;
     });
 
     // Now we can safely parse with our strict Zod schema.
-    // This will throw an error if something is still wrong, but it will be after our sanitation.
     return AnalyzeDsrOutputSchema.parse(sanitizedOutput);
   }
 );
