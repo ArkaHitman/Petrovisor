@@ -83,6 +83,16 @@ const analyzeDsrFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI analysis failed to produce a valid output.");
     }
-    return output;
+    
+    // Sanitize the output to remove any malformed meter readings (e.g., empty objects)
+    const sanitizedOutput = output.map(dailyReport => ({
+        ...dailyReport,
+        meterReadings: dailyReport.meterReadings.filter(reading => 
+            // Ensure all required properties are present before returning
+            reading && 'fuelName' in reading && 'nozzleId' in reading && 'openingReading' in reading && 'closingReading' in reading
+        ),
+    }));
+
+    return sanitizedOutput;
   }
 );
