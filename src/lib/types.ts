@@ -3,6 +3,7 @@
 
 
 
+
 export interface DipChartEntry {
   dip: number; // Dip reading in cm
   volume: number; // Corresponding volume in Litres
@@ -249,6 +250,8 @@ export interface Settings {
   pumpName: string;
   theme: 'light' | 'dark';
   screenScale: number;
+  enableAiFeatures?: boolean;
+  googleAiApiKey?: string;
   bankAccounts: BankAccount[];
   employees: Employee[];
   customers: Customer[];

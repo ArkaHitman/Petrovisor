@@ -126,6 +126,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // UI Scale
     const baseFontSize = 16;
     document.documentElement.style.fontSize = `${baseFontSize * ((appState.settings.screenScale || 100) / 100)}px`;
+
+    // API Key
+    if (appState.settings.enableAiFeatures && appState.settings.googleAiApiKey) {
+      window.localStorage.setItem('PETROVISOR_API_KEY', appState.settings.googleAiApiKey);
+    } else {
+      window.localStorage.removeItem('PETROVISOR_API_KEY');
+    }
   }, [appState.settings]);
 
   const setSettings = useCallback((newSettings: Settings) => {
@@ -139,6 +146,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ...settings,
       theme: 'light',
       screenScale: 100,
+      enableAiFeatures: settings.enableAiFeatures || false,
+      googleAiApiKey: settings.googleAiApiKey || '',
       employees: settings.employees || [],
       customers: settings.customers || [],
       fuelPriceHistory: settings.fuelPriceHistory || [],
@@ -185,6 +194,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const resetApp = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('petrovisor-data');
+      window.localStorage.removeItem('PETROVISOR_API_KEY');
       setAppState(defaultState);
     }
   }, [setAppState]);

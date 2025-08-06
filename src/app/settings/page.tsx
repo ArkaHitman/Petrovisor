@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Fuel, NozzlesPerFuel, Settings, Tank, ChartOfAccount } from '@/lib/types';
-import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText, BookText, Edit } from 'lucide-react';
+import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText, BookText, Edit, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState, useRef } from 'react';
 import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
@@ -54,6 +54,8 @@ const bankAccountSchema = z.object({
 const settingsFormSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
   screenScale: z.coerce.number().min(75).max(125).optional(),
+  enableAiFeatures: z.boolean().optional(),
+  googleAiApiKey: z.string().optional(),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
   managerInitialBalance: z.coerce.number().optional(),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
@@ -148,6 +150,8 @@ export default function SettingsPage() {
       const formValues: SettingsFormValues = {
         ...settings,
         screenScale: settings.screenScale || 100,
+        enableAiFeatures: settings.enableAiFeatures || false,
+        googleAiApiKey: settings.googleAiApiKey || '',
         fuels: settings.fuels.map(fuel => ({
           ...fuel,
           nozzleCount: settings.nozzlesPerFuel[fuel.id] || 0
@@ -172,13 +176,9 @@ export default function SettingsPage() {
 
     const finalSettings: Settings = {
       ...settings,
-      pumpName: data.pumpName,
-      bankAccounts: data.bankAccounts,
-      managerInitialBalance: data.managerInitialBalance,
+      ...data,
       fuels: finalFuels,
-      tanks: data.tanks,
       nozzlesPerFuel,
-      screenScale: data.screenScale,
     };
     
     setSettings(finalSettings);
@@ -191,7 +191,11 @@ export default function SettingsPage() {
       toast({ title: "Error", description: "No data to export.", variant: "destructive" });
       return;
     }
-    const dataStr = JSON.stringify(settings, null, 2);
+    // Create a copy of settings and remove the API key before exporting
+    const exportableSettings = { ...settings };
+    delete exportableSettings.googleAiApiKey;
+
+    const dataStr = JSON.stringify(exportableSettings, null, 2);
     const dataBlob = new Blob([dataStr], {type: "application/json"});
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -222,7 +226,9 @@ export default function SettingsPage() {
         const importedData: Settings = JSON.parse(text);
 
         if (importedData.pumpName && importedData.bankAccounts && importedData.fuels && importedData.tanks) {
-          setSettings(importedData);
+          // Keep the existing API key if it exists, as it's not part of the export
+          const existingApiKey = settings?.googleAiApiKey;
+          setSettings({...importedData, googleAiApiKey: existingApiKey });
           toast({ title: "Import Successful", description: "Your data has been restored." });
           router.push('/');
         } else {
@@ -372,6 +378,40 @@ export default function SettingsPage() {
                         />
                          <FormDescription>Controls the overall size of the application UI.</FormDescription>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><Sparkles/> AI & Integrations</CardTitle>
+                    <CardDescription>Manage settings for AI-powered features.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <FormField
+                        control={control}
+                        name="enableAiFeatures"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Enable AI Features</FormLabel>
+                                    <FormDescription>Globally turn on or off all AI analysis tools.</FormDescription>
+                                </div>
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name="googleAiApiKey"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Google AI API Key</FormLabel>
+                                <FormControl><Input type="password" placeholder="Enter your API key" {...field} /></FormControl>
+                                <FormDescription>Your key is stored locally and is required for all AI features. Get one from Google AI Studio.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </CardContent>
             </Card>
 
