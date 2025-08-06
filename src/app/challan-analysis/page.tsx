@@ -124,18 +124,14 @@ const ResultsDisplay = ({ result, onConfirm }: { result: AnalysisResult; onConfi
                             </TableBody>
                         </Table>
                          <div className="mt-6 border-t pt-4 space-y-2 text-sm">
-                            {result.subTotal && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Subtotal</span>
-                                    <span className="font-medium">{formatCurrency(result.subTotal)}</span>
-                                </div>
-                            )}
-                            {result.vatAmount && (
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">VAT</span>
-                                    <span className="font-medium">{formatCurrency(result.vatAmount)}</span>
-                                </div>
-                            )}
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Subtotal</span>
+                                <span className="font-medium">{formatCurrency(result.subTotal || 0)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">VAT</span>
+                                <span className="font-medium">{formatCurrency(result.vatAmount || 0)}</span>
+                            </div>
                             <div className="flex justify-between font-bold text-base border-t pt-2 mt-2">
                                 <span>Grand Total</span>
                                 <span>{formatCurrency(result.totalAmount)}</span>
