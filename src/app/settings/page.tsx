@@ -637,12 +637,10 @@ export default function SettingsPage() {
                         <FileText className="mr-2 h-4 w-4" />
                         Download Log Report
                     </Button>
-                     {installPrompt && (
-                        <Button type="button" onClick={handleInstallApp}>
-                            <Laptop className="mr-2 h-4 w-4" />
-                            Install App on Desktop
-                        </Button>
-                    )}
+                    <Button type="button" onClick={handleInstallApp}>
+                        <Laptop className="mr-2 h-4 w-4" />
+                        Install App on Desktop
+                    </Button>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button type="button" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Factory Reset</Button>
