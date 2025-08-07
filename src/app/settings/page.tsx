@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Slider } from '@/components/ui/slider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const fuelSchema = z.object({
   id: z.string(),
@@ -132,8 +133,11 @@ export default function SettingsPage() {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<ChartOfAccount | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
 
   useEffect(() => {
+      setIsClient(true);
+      
       const handleBeforeInstallPrompt = (event: Event) => {
           event.preventDefault();
           setInstallPrompt(event);
@@ -141,8 +145,19 @@ export default function SettingsPage() {
 
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+      const checkInstalledStatus = () => {
+          if (window.matchMedia('(display-mode: standalone)').matches) {
+              setIsAppInstalled(true);
+          }
+      };
+      
+      checkInstalledStatus();
+      window.matchMedia('(display-mode: standalone)').addEventListener('change', checkInstalledStatus);
+
+
       return () => {
           window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          window.matchMedia('(display-mode: standalone)').removeEventListener('change', checkInstalledStatus);
       };
   }, []);
 
@@ -150,7 +165,7 @@ export default function SettingsPage() {
       if (!installPrompt) {
           toast({
               title: "App Cannot Be Installed",
-              description: "Your browser does not support this feature, or the app is already installed.",
+              description: "Installation is not available. This may be due to browser settings or the app already being installed.",
               variant: "destructive"
           });
           return;
@@ -196,7 +211,7 @@ export default function SettingsPage() {
       };
       reset(formValues);
     }
-    setIsClient(true);
+    
   }, [settings, reset]);
 
   const handleSave = (data: SettingsFormValues) => {
@@ -370,6 +385,15 @@ export default function SettingsPage() {
       setSelectedAccount(account);
       setIsAccountDialogOpen(true);
   };
+
+  const canInstall = !!installPrompt;
+  const isHttps = isClient && window.location.protocol === 'https:';
+  
+  let installButtonTooltip = "";
+  if (isAppInstalled) installButtonTooltip = "The app is already installed on this device.";
+  else if (!isHttps) installButtonTooltip = "Installation requires a secure (https) connection.";
+  else if (!canInstall) installButtonTooltip = "Your browser does not support this feature.";
+
 
   if (!isClient || !settings) {
     return <AppLayout><div className="p-8">Loading Settings...</div></AppLayout>;
@@ -637,10 +661,24 @@ export default function SettingsPage() {
                         <FileText className="mr-2 h-4 w-4" />
                         Download Log Report
                     </Button>
-                    <Button type="button" onClick={handleInstallApp}>
-                        <Laptop className="mr-2 h-4 w-4" />
-                        Install App on Desktop
-                    </Button>
+                    <TooltipProvider>
+                       <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div tabIndex={0}> 
+                                    <Button type="button" onClick={handleInstallApp} disabled={!canInstall || isAppInstalled || !isHttps}>
+                                        <Laptop className="mr-2 h-4 w-4" />
+                                        Install App on Desktop
+                                    </Button>
+                                </div>
+                            </TooltipTrigger>
+                            {(!canInstall || isAppInstalled || !isHttps) && (
+                                <TooltipContent>
+                                    <p>{installButtonTooltip}</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
+
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button type="button" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Factory Reset</Button>
