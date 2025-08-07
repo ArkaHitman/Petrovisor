@@ -124,7 +124,11 @@ export default function ShiftReportPage() {
 
   useEffect(() => {
     if (existingReport) {
-      form.reset(existingReport);
+      form.reset({
+        ...existingReport,
+        lubeSaleName: existingReport.lubeSaleName || '',
+        lubeSaleAmount: existingReport.lubeSaleAmount || 0,
+      });
     }
   }, [existingReport, form]);
 
