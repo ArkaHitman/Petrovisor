@@ -441,7 +441,7 @@ export default function SettingsPage() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Google AI API Key</FormLabel>
-                                <FormControl><Input type="password" placeholder="Enter your API key" {...field} /></FormControl>
+                                <FormControl><Input type="password" placeholder="Enter your API key" {...field} value={field.value || ''} /></FormControl>
                                 <FormDescription>Your key is stored locally and is required for all AI features. Get one from Google AI Studio.</FormDescription>
                                 <FormMessage />
                             </FormItem>
