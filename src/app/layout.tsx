@@ -11,6 +11,7 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space
 export const metadata: Metadata = {
   title: 'PetroVisor',
   description: 'Manage your petrol station operations with ease.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

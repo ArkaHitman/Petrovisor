@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppState } from '@/contexts/app-state-provider';
 import { useToast } from '@/hooks/use-toast';
 import type { Fuel, NozzlesPerFuel, Settings, Tank, ChartOfAccount } from '@/lib/types';
-import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText, BookText, Edit, Sparkles } from 'lucide-react';
+import { PlusCircle, Trash2, Banknote, Fuel as FuelIcon, Database, Upload, Download, FileText, BookText, Edit, Sparkles, Laptop } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState, useRef } from 'react';
 import { useFieldArray, useForm, FormProvider } from 'react-hook-form';
@@ -131,6 +131,37 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<ChartOfAccount | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+      const handleBeforeInstallPrompt = (event: Event) => {
+          event.preventDefault();
+          setInstallPrompt(event);
+      };
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+      return () => {
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      };
+  }, []);
+
+  const handleInstallApp = async () => {
+      if (!installPrompt) {
+          toast({
+              title: "App Cannot Be Installed",
+              description: "Your browser does not support this feature, or the app is already installed.",
+              variant: "destructive"
+          });
+          return;
+      }
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+          toast({ title: "Success", description: "PetroVisor has been installed!" });
+      }
+      setInstallPrompt(null);
+  };
 
   const formMethods = useForm<SettingsFormValues>({
       resolver: zodResolver(settingsFormSchema),
@@ -590,7 +621,7 @@ export default function SettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline">Data Management</CardTitle>
-                    <CardDescription>Backup your current data to a file, or restore from a previous backup.</CardDescription>
+                    <CardDescription>Backup your current data, restore from a backup, or install the app for offline use.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                      <input type="file" ref={fileInputRef} onChange={handleImportData} className="hidden" accept=".json" />
@@ -606,6 +637,12 @@ export default function SettingsPage() {
                         <FileText className="mr-2 h-4 w-4" />
                         Download Log Report
                     </Button>
+                     {installPrompt && (
+                        <Button type="button" onClick={handleInstallApp}>
+                            <Laptop className="mr-2 h-4 w-4" />
+                            Install App on Desktop
+                        </Button>
+                    )}
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button type="button" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Factory Reset</Button>
