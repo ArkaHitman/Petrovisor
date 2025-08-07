@@ -47,7 +47,7 @@ const bankAccountSchema = z.object({
     name: z.string().min(1, 'Bank name is required.'),
     accountNumber: z.string().optional(),
     initialBalance: z.coerce.number().default(0),
-    sanctionedAmount: z.coerce.number().optional(),
+    sanctionedAmount: z.coerce.number().default(0),
     isOverdraft: z.boolean().default(false),
 });
 
@@ -57,7 +57,7 @@ const settingsFormSchema = z.object({
   enableAiFeatures: z.boolean().optional(),
   googleAiApiKey: z.string().optional(),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
-  managerInitialBalance: z.coerce.number().optional(),
+  managerInitialBalance: z.coerce.number().optional().default(0),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
   tanks: z.array(tankSchema),
 }).refine(data => data.fuels.reduce((acc, fuel) => acc + fuel.nozzleCount, 0) > 0, {
@@ -158,6 +158,10 @@ export default function SettingsPage() {
         })),
         tanks: settings.tanks || [],
         managerInitialBalance: settings.managerInitialBalance || 0,
+        bankAccounts: (settings.bankAccounts || []).map(acc => ({
+            ...acc,
+            sanctionedAmount: acc.sanctionedAmount || 0,
+        })),
       };
       reset(formValues);
     }
@@ -458,7 +462,7 @@ export default function SettingsPage() {
                             {bankFields.length > 1 && <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1" onClick={() => removeBank(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                          </Card>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendBank({id: crypto.randomUUID(), name: '', accountNumber: '', initialBalance: 0, isOverdraft: false })}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendBank({id: crypto.randomUUID(), name: '', accountNumber: '', initialBalance: 0, sanctionedAmount: 0, isOverdraft: false })}><PlusCircle className="h-4 w-4 mr-2"/>Add Account</Button>
                 </CardContent>
             </Card>
 
