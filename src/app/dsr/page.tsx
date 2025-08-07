@@ -216,9 +216,9 @@ function DsrEditForm({ dailyReports, onSave, existingReportDates }: { dailyRepor
                                     <AccordionContent className="p-4 bg-background rounded-b-md">
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                <FormField control={control} name={`reports.${index}.lubeSaleAmount`} render={({ field }) => (<FormItem><FormLabel>Lube Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={control} name={`reports.${index}.creditSales`} render={({ field }) => (<FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={control} name={`reports.${index}.onlinePayments`} render={({ field }) => (<FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={control} name={`reports.${index}.lubeSaleAmount`} render={({ field }) => (<FormItem><FormLabel>Lube Sales</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={control} name={`reports.${index}.creditSales`} render={({ field }) => (<FormItem><FormLabel>Credit Sales</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={control} name={`reports.${index}.onlinePayments`} render={({ field }) => (<FormItem><FormLabel>Online Payments</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormItem><FormLabel>Cash In Hand</FormLabel><Input readOnly value={formatCurrency(watch(`reports.${index}.cashInHand`))} className="bg-muted" /></FormItem>
                                             </div>
                                             <h4 className="font-medium text-sm pt-2">Meter Readings</h4>
