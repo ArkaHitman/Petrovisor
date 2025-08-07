@@ -42,7 +42,10 @@ const getInitialFormValues = (
     latestReport: MonthlyReport | undefined,
     defaultAccountId: string
 ) => {
-    if (existingReport) return existingReport;
+    if (existingReport) return {
+        ...existingReport,
+        lubricantSales: existingReport.lubricantSales || 0,
+    };
 
     if (importedData && settings) {
         const fuelSales = settings.fuels.map(fuel => {
