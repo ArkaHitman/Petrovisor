@@ -39,14 +39,14 @@ const bankAccountSchema = z.object({
     name: z.string().min(1, 'Bank name is required.'),
     accountNumber: z.string().optional(),
     initialBalance: z.coerce.number().default(0),
-    sanctionedAmount: z.coerce.number().optional(),
+    sanctionedAmount: z.coerce.number().default(0),
     isOverdraft: z.boolean().default(false),
 });
 
 const setupSchema = z.object({
   pumpName: z.string().min(1, 'Pump name is required.'),
   bankAccounts: z.array(bankAccountSchema).min(1, 'At least one bank account is required.'),
-  managerInitialBalance: z.coerce.number().optional(),
+  managerInitialBalance: z.coerce.number().default(0),
   fuels: z.array(fuelSchema).min(1, 'At least one fuel type is required.'),
   tanks: z.array(tankSchema).min(1, 'At least one tank is required.'),
 }).refine(data => data.fuels.reduce((acc, fuel) => acc + fuel.nozzleCount, 0) > 0, {
